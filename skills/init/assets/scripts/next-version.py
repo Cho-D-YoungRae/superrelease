@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""next-version.py — compute the next version string. Deterministic arithmetic only.
+
+Two input modes: --current VER (pure, config-free) or config mode (reads the
+current version by invoking the sibling version.py with the same interpreter).
+All operations act on the qualifier-stripped base version.
+Exit codes: 0 success / 1 validation failure / 2 usage or config error.
+"""
+import sys
+
+if sys.version_info < (3, 9):
+    sys.stderr.write("error: superrelease scripts require Python 3.9+\n")
+    sys.exit(2)
+
+import argparse
+import re
+import subprocess
+from pathlib import Path
+
+SEMVER_RE = re.compile(
+    r"^(\d+)\.(\d+)\.(\d+)"
+    r"(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?"
+    r"(?:\+([0-9A-Za-z][0-9A-Za-z.-]*))?$")
+QUALIFIER_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.-]*$")
+
+
+def fail(msg, code):
+    sys.stderr.write("error: " + msg + "\n")
+    sys.exit(code)
+
+
+def parse_semver(s):
+    m = SEMVER_RE.match(s)
+    if not m:
+        fail("not a valid SemVer version: " + s, 1)
+    return int(m.group(1)), int(m.group(2)), int(m.group(3))
+
+
+def current_from_config(scope):
+    script = Path(__file__).resolve().parent / "version.py"
+    cmd = [sys.executable, str(script), "get"]
+    if scope:
+        cmd += ["--scope", scope]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        sys.stderr.write(proc.stderr)
+        sys.exit(proc.returncode)
+    return proc.stdout.strip()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="next-version.py",
+        description="Compute the next version string (SemVer; CalVer/HeadVer planned).")
+    parser.add_argument("--current", help="current version (omit to read via version.py)")
+    parser.add_argument("--scope", help="scope name for config mode")
+    parser.add_argument("--scheme", default="semver",
+                        choices=["semver", "calver", "headver"])
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--bump", choices=["major", "minor", "patch"])
+    group.add_argument("--release", action="store_true",
+                       help="strip the pre-release qualifier")
+    parser.add_argument("--qualifier", help="append -QUALIFIER to the result")
+    args = parser.parse_args(argv)
+
+    if args.scheme != "semver":
+        fail("scheme '" + args.scheme + "' is not supported yet (planned for M3)", 2)
+    if not (args.bump or args.release or args.qualifier):
+        fail("nothing to do: pass --bump, --release and/or --qualifier", 2)
+    if args.qualifier and not QUALIFIER_RE.match(args.qualifier):
+        fail("invalid qualifier: " + args.qualifier, 2)
+
+    current = args.current if args.current else current_from_config(args.scope)
+    major, minor, patch = parse_semver(current)
+    if args.bump == "major":
+        major, minor, patch = major + 1, 0, 0
+    elif args.bump == "minor":
+        minor, patch = minor + 1, 0
+    elif args.bump == "patch":
+        patch += 1
+    result = "{}.{}.{}".format(major, minor, patch)
+    if args.qualifier:
+        result += "-" + args.qualifier
+    print(result)
+
+
+if __name__ == "__main__":
+    main()
