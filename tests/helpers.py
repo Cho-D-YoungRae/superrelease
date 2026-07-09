@@ -95,3 +95,29 @@ def make_plugin_tree(base, manifest, asset_files, version="0.1.0"):
     for rel, content in asset_files.items():
         write(assets / rel, content)
     return assets
+
+
+def make_git_repo(tmp, files, commits, tags=()):
+    repo = Path(tmp)
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)],
+                   check=True, capture_output=True)
+
+    def g(*args):
+        subprocess.run(["git", "-C", str(repo), "-c", "user.email=t@test",
+                        "-c", "user.name=tester", "-c", "commit.gpgsign=false",
+                        "-c", "tag.gpgsign=false", *args],
+                       check=True, capture_output=True, text=True)
+
+    for rel, content in files.items():
+        write(repo / rel, content)
+    g("add", "-A")
+    first = True
+    for msg in commits:
+        if first:
+            g("commit", "-q", "-m", msg)
+            first = False
+        else:
+            g("commit", "-q", "--allow-empty", "-m", msg)
+    for t in tags:
+        g("tag", "-a", t, "-m", t)
+    return repo
