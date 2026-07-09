@@ -62,6 +62,15 @@ class SkillAssetsTest(unittest.TestCase):
         out = self.render_asset("skills/release/SKILL.md", ctx)
         self.assertIn("배포를 트리거", out)
 
+    def test_release_skill_signed_tag(self):
+        ctx = base_ctx()
+        ctx["scope"]["tag"]["signed"] = True
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertIn("git tag -s", out)
+        self.assertNotIn("git tag -a", out)
+        # signed=false (default) still uses annotated -a:
+        self.assertIn("git tag -a", self.render_asset("skills/release/SKILL.md"))
+
     def test_release_notes_skill_renders_clean(self):
         out = self.render_asset("skills/release-notes/SKILL.md")
         self.assertNotIn("{{", out)
