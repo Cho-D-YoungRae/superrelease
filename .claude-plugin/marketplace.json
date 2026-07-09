@@ -1,0 +1,15 @@
+{
+  "name": "superrelease",
+  "owner": { "name": "Cho-D-Youngrae", "email": "yrc9229@gmail.com" },
+  "metadata": {
+    "description": "Project-aware release management for Claude Code — one fat init generates a lean per-project release toolkit",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "superrelease",
+      "source": "./",
+      "description": "Project-aware release management: one fat init generates a lean per-project release toolkit"
+    }
+  ]
+}
