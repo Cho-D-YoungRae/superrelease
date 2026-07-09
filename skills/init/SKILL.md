@@ -1,0 +1,137 @@
+---
+name: init
+description: 프로젝트의 버전·릴리스 관리를 초기화하거나 재구성한다. 사용자가 릴리스 관리 셋업, 버전 관리 초기화, superrelease init, 릴리스 정책 바꾸고 싶어, 릴리스 스킬 만들어줘, 모노레포에 패키지 추가했어(버전 관리 대상) 등을 말하면 반드시 이 스킬을 사용한다. release setup, versioning init 같은 영어 표현에도 사용한다.
+---
+
+# superrelease init — 프로젝트 전용 릴리스 툴킷 생성
+
+대상 프로젝트를 스캔하고 질문한 뒤, 프로젝트 전용 릴리스 스킬·스크립트·설정·템플릿을 레포 안에 생성한다. 생성 후 일상 릴리스는 생성물만으로 수행된다 — 사용자는 "릴리스해줘"라고 말하면 된다.
+
+절대 규칙:
+
+- Phase 3(생성) 전에는 어떤 파일도 만들거나 수정하지 않는다. 스캔은 읽기 전용.
+- 결정론 작업은 스크립트로: 스캔은 scan.py, 생성은 render.py. 스캔 수치를 손으로 재계산하지 않는다.
+- 모든 결정을 근거와 함께 `config.decisions`에 기록한다.
+- 질문은 AskUserQuestion으로 묶어서(호출당 최대 4문항). 스캔 추론치는 근거를 표기한 추천 옵션을 선두에 둔 확인형으로 묻는다.
+- 아래 "M1 제약" 밖의 선택지는 "후속 버전 지원 예정"으로 표시하고 선택하지 못하게 한다.
+
+## 모드 감지
+
+1. `.superrelease/config.json`이 존재하면 → **재init** (마지막 절로)
+2. config가 없고 스캔 신호도 빈약하면(빌드 파일·태그·커밋이 거의 없음) → **신규 레포 제안 모드**: 레포 성격을 먼저 묻고, 성격별 권장 프리셋(라이브러리→SemVer+SNAPSHOT+next-snapshot / 앱→SemVer+dev 채널 선택)을 제시한 뒤 아래 흐름을 그대로 진행
+3. 그 외 → **최초 init**
+
+## Phase 1 — 스캔 (읽기 전용)
+
+1. 실행: `python3 "${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/scan.py" --repo . --json`
+   - python3가 없으면 중단하고 안내하라 — 생성물 스크립트도 Python 3.9+를 요구한다.
+2. GitHub 확인 — 접근 계층: **gh CLI 우선 → 미가용 시 연결된 GitHub MCP 도구(런타임에 찾기) → 둘 다 없으면 사용자 질문으로 대체**:
+   - protected branch + required checks: `gh api "repos/{owner}/{repo}/branches/<기본브랜치>/protection"` (404 = 미보호)
+   - 기존 Releases, `.github/release.yml` 존재 여부, `gh auth status` 스코프
+3. CI 태그 트리거 확정: 리포트 `ci.tagTriggerCandidates`의 각 워크플로 파일을 직접 읽고 태그 push가 실제 배포를 트리거하는지 판단한다. 참이면 config에 `repo.tagTriggersDeployment: true`로 기록한다.
+
+## Phase 2 — 질문
+
+**패스트트랙 먼저.** 스캔 결과로 아래 모든 결정의 추천값 표(항목 / 추천 / 근거)를 만들어 제시하고, 첫 질문으로 "모두 수락 / 항목별 조정"을 묻는다. 수락이면 바로 config 작성으로. 조정이면 해당 번들만(또는 전부) 순서대로 진행한다 — 상류 결정이 하류 기본값을 정하므로 순서를 지켜라.
+
+깊은 배경이 필요할 때만 해당 reference를 읽어라:
+
+| 번들 | reference |
+|---|---|
+| 1·2 | references/version-schemes.md, references/monorepo.md |
+| 3 | references/bump-models.md |
+| 4 | references/prerelease-and-dev-channel.md |
+| 5 | references/notes-and-changelog.md |
+| 6 | references/branching-and-release-path.md |
+| 이상 신호(혼재 태그·버전 불일치·중단 흔적) | references/edge-cases.md |
+
+- **번들 1 — 성격·전략**: 레포 성격(library | app/service | monorepo). 모노레포 신호가 있으면 알리되 M1은 단일 스코프만 지원 — 루트 스코프로 진행할지 확인.
+- **번들 2 — 체계·SSOT·태그**: 버전 체계(M1: SemVer만) / 버전 위치 확정 — 스캔 후보를 표로 제시하고 추가·제외를 확인, 이 목록이 `versionLocations`가 된다 / 태그 파생 여부(기본 yes)·prefix(v 유무)·annotated(기본 yes)·signed / moving major tag(M3 예정 표시).
+- **번들 3 — bump**: auto-confirm(기본) | manual / 소스 우선순위 — CC 사용률이 높으면 conventional-commits 우선, squash 레포면 pr-metadata 1차 / (라이브러리) compatCheck 도구(kotlin-bcv, japicmp) 기록 여부.
+- **번들 4 — pre-release·dev·post**: 수식어 스타일 none | mutable(-SNAPSHOT류) | counter(M3 예정 표시) / (앱·mutable) dev 채널 qualifier 이름과 불변 식별자 immutableId(spring-build-info | docker-sha-tag | npm-dev-suffix) — M1은 config 기록 + 설정 스니펫 안내만, 배포 자동화는 하지 않음 / post-release bump — 라이브러리→next-snapshot 기본, 앱→none 기본(단 SNAPSHOT dev 채널이면 next-snapshot 제안).
+- **번들 5 — 노트·GitHub Release**: destinations 복수 선택(M1: changelog | release-file | github-release; fragment·tag-message는 M3 표시) / release-file이면 perReleasePath(기본 `docs/releases/`) / 언어(ko 기본 | en | both)·독자·어조 / GitHub Release 사용·generateNotes 하이브리드·release.yml 생성 여부.
+- **번들 6 — 경로·브랜치**: protected branch 감지 시 릴리스 PR 모드가 필요함을 알리되 M1은 direct-push만 지원 — 진행 방법을 사용자와 확인 / 브랜치 전략 확인(신규는 trunk-based 기본 제안) / 유지보수 라인(M3 예정 표시).
+- **번들 7 — 첫 릴리스·이력**: 기존 버전이 없으면 0.1.0 vs 1.0.0(공개 API 안정성 약속 기준으로 설명) / CHANGELOG backfill(M3 예정 표시) / destinations에 changelog가 있는데 CHANGELOG.md가 없으면 첫 릴리스 때 생성됨을 안내.
+
+모든 답을 decisions에 기록: `{"topic", "scope", "answer", "rationale", "source": "scan"|"user", "decidedAt"}`.
+
+## config.json 작성
+
+`.superrelease/config.json`을 아래 형태로 작성한다 (M1 정본 스키마 — 값은 결정대로):
+
+```json
+{
+  "superrelease": {
+    "pluginVersion": "<plugin.json의 version>",
+    "configVersion": 1,
+    "generatedAt": "<date -u +%Y-%m-%dT%H:%M:%SZ>"
+  },
+  "repo": {
+    "kind": "app",
+    "defaultBranch": "main",
+    "mergePolicy": "squash",
+    "releasePath": "direct-push",
+    "branching": "trunk",
+    "maintenanceLines": false,
+    "train": false,
+    "releaseCommitFormat": "chore(release): {version}",
+    "tagTriggersDeployment": false
+  },
+  "github": { "release": true, "generateNotes": true, "releaseYml": true },
+  "scopes": [
+    {
+      "name": "root",
+      "path": ".",
+      "scheme": { "type": "semver", "pattern": null },
+      "versionLocations": [
+        { "file": "gradle.properties", "type": "properties-key", "key": "version" }
+      ],
+      "tag": { "enabled": true, "format": "v{version}", "annotated": true,
+               "signed": false, "movingMajorTag": false },
+      "bump": { "mode": "auto-confirm",
+                "sources": ["conventional-commits", "pr-metadata"],
+                "fallback": "diff", "compatCheck": null },
+      "preRelease": { "style": "mutable", "qualifier": "SNAPSHOT" },
+      "devChannel": { "enabled": true, "qualifier": "SNAPSHOT",
+                      "immutableId": ["spring-build-info"] },
+      "postRelease": { "bump": "next-snapshot" },
+      "notes": { "destinations": ["changelog", "github-release"],
+                 "language": "ko", "audience": "developers", "tone": "neutral",
+                 "template": "notes-single.md", "perReleasePath": "docs/releases/" },
+      "anchor": { "type": "tag", "value": null },
+      "dependents": []
+    }
+  ],
+  "decisions": []
+}
+```
+
+- versionLocations 타입: `properties-key`(key= 값) | `json-path`(예: package.json의 "version") | `regex`(캡처 그룹 정확히 1개, MULTILINE로 매칭됨 — scan 리포트의 pattern을 그대로 옮기면 된다).
+- 태그 미사용이면 `"tag": {"enabled": false, ...}` + `"anchor": {"type": "ref", "value": null}` — 첫 릴리스 후 release 스킬이 anchor.value를 갱신한다(config에서 유일하게 상태를 갖는 필드).
+- devChannel.immutableId를 기록했으면 요약 단계에서 해당 설정 스니펫(Spring `springBoot { buildInfo() }`, Docker `-t app:dev -t app:sha-<shortSha>` 병행 push, npm `1.3.0-dev.<sha>`)을 안내하라.
+
+## Phase 3 — 생성
+
+1. 프리뷰: `python3 "${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/render.py" --config .superrelease/config.json --assets "${CLAUDE_PLUGIN_ROOT}/skills/init/assets" --repo . --check`
+2. 분류 결과(create / update / unchanged / preserve / skipped / conflict)를 보여주고 확인받는다. **conflict가 있으면**(마커 없는 기존 파일 — 예: 자작 `.claude/skills/release/`) 해당 파일 내용을 보여주고 덮어쓸지 개별 확인받아라. 이 규칙은 최초 init에도 적용된다.
+3. 실행: 같은 명령에서 `--check`를 빼고 실행(동의받은 경우에만 `--force` 추가).
+4. 자가 검증: `python3 .superrelease/scripts/version.py verify` → exit 0 / `python3 .superrelease/scripts/next-version.py --help` → exit 0. 실패하면 원인(대부분 versionLocations 오기)을 고치고 재렌더.
+5. 요약 출력: 결정 테이블 / 생성 파일 목록 / 첫 사용 예시("릴리스해줘", "릴리스 준비됐는지 봐줘") / `tagTriggersDeployment`면 "태그 push = 배포 트리거" 경고 / immutableId 스니펫 안내.
+6. 커밋 마무리: "생성물은 전부 커밋하세요 — 커밋해야 팀원이 함께 씁니다"와 함께 커밋 여부를 확인받고, 승인 시 생성물 전부(`.superrelease/`, `.claude/skills/`, 존재 시 `.github/release.yml`)를 `chore: superrelease 릴리스 툴킷 초기화` 메시지로 커밋한다.
+
+## 재init (config가 이미 있을 때)
+
+1. 기존 config를 결정 테이블로 요약해 보여준다.
+2. Phase 1을 다시 수행하고 config와의 불일치(새 버전 위치 후보, 태그 패턴 변화, protected 변화, 새 워크플로 등)를 나열한다.
+3. **바뀐 부분만** 질문한다. 불일치·변경 요청이 없으면 질문 0개로 Phase 3로 — "config를 손으로 고친 뒤 재init"이 공식 커스터마이징 경로다.
+4. `superrelease.pluginVersion`이 현재 플러그인 version보다 낮으면 마이그레이션: 바뀐 스키마 항목을 안내하고 pluginVersion을 갱신한다.
+5. Phase 3를 수행한다. preserve(마커가 제거된 템플릿 = 손편집)는 보존했음을 보고한다.
+
+## M1 제약 (해당 선택지에 "후속 버전 지원 예정" 표시)
+
+- 버전 체계: SemVer만 — CalVer/HeadVer/sequential은 M3
+- 단일 스코프만 — 모노레포 fixed/independent/이중 체계는 M2/M3
+- 커밋 경로: direct-push만 — 릴리스 PR 모드는 M3
+- pre-release: none/mutable만 — 불변 카운터(-rc.N)는 M3
+- 노트 목적지: changelog/release-file/github-release — fragment/tag-message는 M3
+- hotfix·release-train 스킬, moving major tag, CHANGELOG backfill: M3
