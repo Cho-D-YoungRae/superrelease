@@ -83,3 +83,15 @@ def scope_config(locations, **repo_overrides):
         "scopes": [scope],
         "decisions": [],
     }
+
+
+def make_plugin_tree(base, manifest, asset_files, version="0.1.0"):
+    base = Path(base)
+    assets = base / "skills" / "init" / "assets"
+    write(base / ".claude-plugin" / "plugin.json",
+          json.dumps({"name": "superrelease", "version": version}) + "\n")
+    write(assets / "manifest.json",
+          json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+    for rel, content in asset_files.items():
+        write(assets / rel, content)
+    return assets
