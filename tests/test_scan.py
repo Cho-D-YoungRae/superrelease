@@ -79,6 +79,42 @@ class ScanTest(unittest.TestCase):
         r = run_script(SCAN, "--repo", "/nonexistent-superrelease-test")
         self.assertEqual(r.returncode, 2)
 
+    def test_monorepo_packages_and_internal_deps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"pnpm-workspace.yaml": 'packages:\n  - "packages/*"\n',
+                       "packages/a/package.json":
+                           '{"name": "a", "version": "0.1.0"}\n',
+                       "packages/b/package.json":
+                           '{"name": "b", "version": "0.2.0", '
+                           '"dependencies": {"a": "workspace:^"}}\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            mono = data["monorepo"]
+            self.assertTrue(mono["suspected"])
+            paths = {p["path"]: p for p in mono["packages"]}
+            self.assertEqual(sorted(paths), ["packages/a", "packages/b"])
+            self.assertEqual(paths["packages/a"]["version"], "0.1.0")
+            deps = mono["internalDependencies"]
+            self.assertEqual(len(deps), 1)
+            self.assertEqual(deps[0]["fromName"], "b")
+            self.assertEqual(deps[0]["toName"], "a")
+            self.assertEqual(deps[0]["toPath"], "packages/a")
+
+    def test_root_workspaces_field_enumerates_packages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"package.json":
+                           '{"name": "root", "workspaces": ["libs/*"]}\n',
+                       "libs/x/package.json":
+                           '{"name": "x", "version": "1.0.0"}\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            self.assertEqual([p["path"] for p in data["monorepo"]["packages"]],
+                             ["libs/x"])
+
 
 if __name__ == "__main__":
     unittest.main()
