@@ -58,6 +58,10 @@ class PureModeTest(unittest.TestCase):
         r = out("--current", "1.2.3", "--qualifier", "-bad-")
         self.assertEqual(r.returncode, 2)
 
+    def test_current_and_scope_mutually_exclusive(self):
+        r = out("--current", "1.2.3", "--scope", "root", "--release")
+        self.assertEqual(r.returncode, 2)
+
 
 class ConfigModeTest(unittest.TestCase):
     def test_reads_current_via_version_py(self):
