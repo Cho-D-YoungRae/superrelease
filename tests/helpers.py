@@ -39,7 +39,7 @@ def make_repo(tmp, config, files):
     scripts_dir.mkdir(parents=True, exist_ok=True)
     write(repo / ".superrelease" / "config.json",
           json.dumps(config, indent=2, ensure_ascii=False) + "\n")
-    for name in ("version.py", "next-version.py"):
+    for name in ("version.py", "next-version.py", "changed-packages.py"):
         src = ASSET_SCRIPTS / name
         if src.is_file():
             shutil.copy(src, scripts_dir / name)
@@ -73,6 +73,7 @@ def scope_config(locations, **repo_overrides):
         "maintenanceLines": False, "train": False,
         "releaseCommitFormat": "chore(release): {version}",
         "tagTriggersDeployment": False,
+        "monorepoStrategy": None,
     }
     repo.update(repo_overrides)
     return {
@@ -121,3 +122,38 @@ def make_git_repo(tmp, files, commits, tags=()):
     for t in tags:
         g("tag", "-a", t, "-m", t)
     return repo
+
+
+def monorepo_config(strategy="independent"):
+    """pnpm-style two-scope monorepo config: a (depended on by nothing,
+    but declared upstream of b via dependents=["b"]) and b."""
+
+    def pkg_scope(name, dependents):
+        return {
+            "name": name,
+            "path": "packages/" + name,
+            "scheme": {"type": "semver", "pattern": None},
+            "versionLocations": [
+                {"file": "package.json", "type": "json-path", "path": "version"}],
+            "tag": {"enabled": True, "format": name + "@{version}",
+                    "annotated": True, "signed": False, "movingMajorTag": False},
+            "bump": {"mode": "auto-confirm", "sources": ["conventional-commits"],
+                     "fallback": "diff", "compatCheck": None},
+            "preRelease": {"style": "none", "qualifier": None},
+            "devChannel": {"enabled": False, "qualifier": None, "immutableId": []},
+            "postRelease": {"bump": "none"},
+            "notes": {"destinations": ["changelog", "github-release"],
+                      "language": "ko", "audience": "developers", "tone": "neutral",
+                      "template": "notes-package.md",
+                      "perReleasePath": "docs/releases/"},
+            "anchor": {"type": "tag", "value": None},
+            "dependents": dependents,
+        }
+
+    cfg = scope_config(
+        [{"file": "package.json", "type": "json-path", "path": "version"}])
+    cfg["repo"]["kind"] = "monorepo"
+    cfg["repo"]["monorepoStrategy"] = strategy
+    cfg["repo"]["releaseCommitFormat"] = "chore(release): {scope}@{version}"
+    cfg["scopes"] = [pkg_scope("a", ["b"]), pkg_scope("b", [])]
+    return cfg
