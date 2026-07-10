@@ -1,0 +1,44 @@
+{
+  "entries": [
+    {
+      "src": "skills/release/SKILL.md",
+      "dest": ".claude/skills/release/SKILL.md",
+      "render": true
+    },
+    {
+      "src": "skills/release-notes/SKILL.md",
+      "dest": ".claude/skills/release-notes/SKILL.md",
+      "render": true
+    },
+    {
+      "src": "scripts/version.py",
+      "dest": ".superrelease/scripts/version.py",
+      "render": false,
+      "executable": true
+    },
+    {
+      "src": "scripts/next-version.py",
+      "dest": ".superrelease/scripts/next-version.py",
+      "render": false,
+      "executable": true
+    },
+    {
+      "src": "templates/notes-single.md",
+      "dest": ".superrelease/templates/notes-single.md",
+      "render": true,
+      "preserve": "template"
+    },
+    {
+      "src": "templates/changelog-entry.md",
+      "dest": ".superrelease/templates/changelog-entry.md",
+      "render": true,
+      "preserve": "template"
+    },
+    {
+      "src": "github/release.yml",
+      "dest": ".github/release.yml",
+      "render": false,
+      "when": "github.releaseYml"
+    }
+  ]
+}
