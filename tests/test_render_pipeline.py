@@ -4,7 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import PLUGIN_SCRIPTS, make_plugin_tree, run_script, scope_config, write
+from helpers import (PLUGIN_SCRIPTS, make_plugin_tree, monorepo_config, run_script,
+                     scope_config, write)
 
 RENDER = PLUGIN_SCRIPTS / "render.py"
 
@@ -148,6 +149,82 @@ class PipelineTest(unittest.TestCase):
         raw = notes.read_bytes()
         self.assertIn(b"\r\n", raw)
         self.assertIn(b"Notes core", raw)
+
+
+SWITCH_MANIFEST = {
+    "entries": [
+        {"src": "skills/single.md", "dest": ".claude/skills/release/SKILL.md",
+         "render": True, "when": 'repo.monorepoStrategy != "independent"'},
+        {"src": "skills/mono.md", "dest": ".claude/skills/release/SKILL.md",
+         "render": True, "when": 'repo.monorepoStrategy == "independent"'},
+    ]
+}
+SWITCH_FILES = {
+    "skills/single.md": "SINGLE {{project.name}}\n",
+    "skills/mono.md": "MONO {{project.name}}\n",
+}
+
+
+class SameDestSwitchTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        base = Path(self.tmp.name)
+        self.assets = make_plugin_tree(base / "plugin", SWITCH_MANIFEST, SWITCH_FILES)
+        self.repo = base / "target-repo"
+        self.repo.mkdir()
+        self.config_path = self.repo / ".superrelease" / "config.json"
+
+    def render_with(self, cfg):
+        write(self.config_path, json.dumps(cfg, ensure_ascii=False, indent=2))
+        return run_script(PLUGIN_SCRIPTS / "render.py", "--config", self.config_path,
+                          "--assets", self.assets, "--repo", self.repo)
+
+    def dest_text(self):
+        return (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+
+    def test_single_variant_for_non_monorepo(self):
+        r = self.render_with(scope_config(
+            [{"file": "x", "type": "regex", "pattern": "v(1)"}]))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("SINGLE", self.dest_text())
+        self.assertIn("skipped", r.stdout)
+
+    def test_mono_variant_for_independent(self):
+        r = self.render_with(monorepo_config())
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("MONO", self.dest_text())
+        self.assertNotIn("SINGLE", self.dest_text())
+
+
+class MonorepoValidateTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        base = Path(self.tmp.name)
+        self.assets = make_plugin_tree(base / "plugin", SWITCH_MANIFEST, SWITCH_FILES)
+        self.repo = base / "target-repo"
+        self.repo.mkdir()
+        self.config_path = self.repo / ".superrelease" / "config.json"
+
+    def render_with(self, cfg):
+        write(self.config_path, json.dumps(cfg, ensure_ascii=False, indent=2))
+        return run_script(PLUGIN_SCRIPTS / "render.py", "--config", self.config_path,
+                          "--assets", self.assets, "--repo", self.repo)
+
+    def test_monorepo_without_strategy_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["kind"] = "monorepo"  # monorepoStrategy는 None 그대로
+        r = self.render_with(cfg)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("monorepoStrategy", r.stderr)
+
+    def test_independent_with_single_scope_exits_1(self):
+        cfg = monorepo_config()
+        cfg["scopes"] = cfg["scopes"][:1]
+        r = self.render_with(cfg)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("at least two scopes", r.stderr)
 
 
 if __name__ == "__main__":
