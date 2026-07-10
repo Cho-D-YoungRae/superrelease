@@ -87,4 +87,6 @@ worked example:
 - `dependents` 전파 설정
 - `changed-packages.py`를 이용한 변경 패키지 감지
 
+이 중에서도 도입 시점이 서로 다르다: 다중 스코프 자체와 fixed/independent 전략, `dependents` 전파, `changed-packages.py`는 **M2**(모노레포)에서 제공된다. 반면 **이중 체계(dual-system)와 release-train은 M2가 아니라 M3**(조건부 기능)로 미뤄진다 — M2에서 다중 스코프를 지원하게 되어도 이중 체계·release-train 질문은 그 시점에 아직 등장하지 않는다.
+
 config의 `scopes` 배열은 M1 동안 항상 항목이 하나인 상태로 유지된다.

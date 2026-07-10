@@ -127,6 +127,15 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("config:", r.stderr)
 
+    def test_missing_manifest_exits_2(self):
+        assets = make_plugin_tree(Path(self.tmp.name) / "plugin-no-manifest",
+                                  MANIFEST, ASSET_FILES)
+        (assets / "manifest.json").unlink()
+        r = run_script(RENDER, "--config", self.config_path,
+                       "--assets", assets, "--repo", self.repo)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("manifest not found", r.stderr)
+
     def test_crlf_dest_preserved_on_update(self):
         self.render()
         notes = self.repo / ".superrelease/templates/notes.md"

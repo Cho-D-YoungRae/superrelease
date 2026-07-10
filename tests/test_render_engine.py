@@ -69,6 +69,18 @@ class EngineTest(unittest.TestCase):
     def test_single_braces_pass_through(self):
         self.assertEqual(self.r("format v{version} stays"), "format v{version} stays")
 
+    def test_explicit_null_var_renders_empty(self):
+        ctx = dict(CTX)
+        ctx["a"] = {"b": None}
+        self.assertEqual(self.r("[{{a.b}}]", ctx), "[]")
+
+    def test_missing_var_still_raises(self):
+        with self.assertRaises(render.TemplateError):
+            self.r("{{a.nope}}")
+
+    def test_each_missing_path_zero_iterations(self):
+        self.assertEqual(self.r("{{#each a.nope}}x{{/each}}"), "")
+
 
 if __name__ == "__main__":
     unittest.main()
