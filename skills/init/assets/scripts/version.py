@@ -116,11 +116,18 @@ def read_location(scope, loc):
             fail(str(path) + ": key '" + loc["key"] + "' not found", 1)
         return m.group(2)
     if t == "json-path":
-        return json_path_get(json.loads(text), loc["path"], path)
+        try:
+            obj = json.loads(text)
+        except json.JSONDecodeError as e:
+            fail(str(path) + ": invalid JSON: " + str(e), 1)
+        return json_path_get(obj, loc["path"], path)
     if t == "regex":
         m = re.search(loc["pattern"], text, re.MULTILINE)
         if not m or not m.lastindex:
             fail(str(path) + ": pattern '" + loc["pattern"] + "' not found (needs one capture group)", 1)
+        if m.lastindex != 1:
+            fail(str(path) + ": pattern '" + loc["pattern"] + "' must have exactly one capture group, found "
+                 + str(m.lastindex), 2)
         return m.group(1)
     fail("unknown location type: " + str(t), 2)
 
@@ -130,7 +137,10 @@ def sync_package_lock(pkg_path, new_version):
     if not lock.is_file():
         return
     text, crlf = read_text_preserving(lock)
-    obj = json.loads(text)
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError as e:
+        fail(str(lock) + ": invalid JSON: " + str(e), 1)
     changed = False
     if isinstance(obj.get("version"), str):
         obj["version"] = new_version
@@ -161,7 +171,10 @@ def set_location(scope, loc, new_version):
         write_text_preserving(path, text, crlf)
         return old
     if t == "json-path":
-        obj = json.loads(text)
+        try:
+            obj = json.loads(text)
+        except json.JSONDecodeError as e:
+            fail(str(path) + ": invalid JSON: " + str(e), 1)
         old = json_path_get(obj, loc["path"], path)
         cur = obj
         parts = loc["path"].split(".")
@@ -176,6 +189,9 @@ def set_location(scope, loc, new_version):
         matches = [m for m in re.finditer(loc["pattern"], text, re.MULTILINE) if m.lastindex]
         if not matches:
             fail(str(path) + ": pattern '" + loc["pattern"] + "' not found (needs one capture group)", 1)
+        if matches[0].lastindex != 1:
+            fail(str(path) + ": pattern '" + loc["pattern"] + "' must have exactly one capture group, found "
+                 + str(matches[0].lastindex), 2)
         old = matches[0].group(1)
         for m in reversed(matches):
             text = text[:m.start(1)] + new_version + text[m.end(1):]

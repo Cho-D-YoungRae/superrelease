@@ -90,6 +90,15 @@ class PropertiesAndRegexTest(VersionTestBase):
         r = run_script(vp(repo), "get", "--scope", "nope")
         self.assertEqual(r.returncode, 2)
 
+    def test_regex_two_groups_exits_2(self):
+        repo = self.repo_with(
+            [{"file": "README.md", "type": "regex",
+              "pattern": r"(v)(\d+\.\d+\.\d+)"}],
+            {"README.md": "v1.2.3\n"})
+        r = run_script(vp(repo), "get")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("exactly one capture group", r.stderr)
+
 
 class JsonPathTest(VersionTestBase):
     def test_get_and_set_package_json(self):
@@ -127,6 +136,15 @@ class JsonPathTest(VersionTestBase):
         data = json.loads(r.stdout)
         self.assertEqual(data["version"], "1.2.3")
         self.assertEqual(data["locations"][0]["file"], "package.json")
+
+    def test_malformed_json_target_exits_1(self):
+        repo = self.repo_with(
+            [{"file": "package.json", "type": "json-path", "path": "version"}],
+            {"package.json": "{bad json"})
+        r = run_script(vp(repo), "get")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("invalid JSON", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
 
 if __name__ == "__main__":
