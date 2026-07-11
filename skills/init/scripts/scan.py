@@ -217,6 +217,9 @@ def _node_packages(repo):
         elif isinstance(ws, dict) and isinstance(ws.get("packages"), list):
             globs += [g for g in ws["packages"] if isinstance(g, str)]
     seen, packages = set(), []
+    # Only trailing "/*" and "/**" globs are supported (both expand to the
+    # base dir's immediate children — "**" is NOT treated as recursive);
+    # any other value is treated as a literal package directory path.
     for g in globs:
         if g.endswith("/**"):
             base = g[:-3]

@@ -1,10 +1,11 @@
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import make_git_repo, make_repo, monorepo_config, run_script, write
+from helpers import ASSET_SCRIPTS, make_git_repo, make_repo, monorepo_config, run_script, write
 
 PKG_A = '{\n  "name": "a",\n  "version": "0.1.0"\n}\n'
 PKG_B = '{\n  "name": "b",\n  "version": "0.1.0"\n}\n'
@@ -86,6 +87,43 @@ class ChangedPackagesTest(unittest.TestCase):
         r = self.run_cp()
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("packages/a", r.stdout)
+
+    def test_tag_disabled_uses_anchor_value(self):
+        # tag.enabled=false + anchor.value 설정 시 그 ref를 anchor로 사용
+        cfg = monorepo_config()
+        for s in cfg["scopes"]:
+            s["tag"]["enabled"] = False
+            s["anchor"] = {"type": "ref", "value": "HEAD"}
+        (self.repo / ".superrelease" / "config.json").write_text(
+            json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+        by = self.scopes_by_name(self.run_cp("--json").stdout)
+        self.assertEqual(by["a"]["anchor"], "HEAD")
+        self.assertEqual(by["a"]["anchorType"], "ref")
+
+    def test_sibling_prefix_not_confused(self):
+        # packages/a 필터가 packages/ab 하위 파일을 오매칭하지 않는다
+        g(self.repo, "tag", "-a", "a@0.1.0", "-m", "x")
+        g(self.repo, "tag", "-a", "b@0.1.0", "-m", "x")
+        write(self.repo / "packages" / "ab" / "index.js", "1\n")
+        g(self.repo, "add", "-A")
+        g(self.repo, "commit", "-qm", "feat: ab (#9)")
+        by = self.scopes_by_name(self.run_cp("--json").stdout)
+        self.assertFalse(by["a"]["hasChanges"])   # packages/ab 변경은 scope a에 안 잡힘
+
+    def test_git_command_failure_exits_2(self):
+        # git 저장소가 아닌 디렉터리에서 실행하면 git 실패 → exit 2
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            sd = base / ".superrelease" / "scripts"
+            sd.mkdir(parents=True)
+            (base / ".superrelease" / "config.json").write_text(
+                json.dumps(monorepo_config(), ensure_ascii=False), encoding="utf-8")
+            shutil.copy(ASSET_SCRIPTS / "changed-packages.py", sd / "changed-packages.py")
+            (base / "packages" / "a").mkdir(parents=True)
+            (base / "packages" / "a" / "package.json").write_text(
+                '{"name":"a","version":"0.1.0"}', encoding="utf-8")
+            r = run_script(sd / "changed-packages.py", "--json")
+            self.assertEqual(r.returncode, 2)
 
 
 if __name__ == "__main__":

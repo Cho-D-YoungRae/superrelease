@@ -41,7 +41,7 @@
       "dest": ".superrelease/scripts/changed-packages.py",
       "render": false,
       "executable": true,
-      "when": "repo.kind == \"monorepo\""
+      "when": "repo.monorepoStrategy == \"independent\""
     },
     {
       "src": "templates/notes-single.md",
