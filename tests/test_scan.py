@@ -115,6 +115,32 @@ class ScanTest(unittest.TestCase):
             self.assertEqual([p["path"] for p in data["monorepo"]["packages"]],
                              ["libs/x"])
 
+    def test_double_star_glob_enumerates_immediate_children(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"package.json":
+                           '{"name": "root", "workspaces": ["libs/**"]}\n',
+                       "libs/x/package.json":
+                           '{"name": "x", "version": "1.0.0"}\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            self.assertEqual([p["path"] for p in data["monorepo"]["packages"]],
+                             ["libs/x"])
+
+    def test_literal_path_workspace_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"package.json":
+                           '{"name": "root", "workspaces": ["tools/cli"]}\n',
+                       "tools/cli/package.json":
+                           '{"name": "cli", "version": "2.0.0"}\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            self.assertEqual([p["path"] for p in data["monorepo"]["packages"]],
+                             ["tools/cli"])
+
     def test_non_object_package_json_does_not_crash(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_git_repo(

@@ -73,6 +73,10 @@ worked example:
 
 커밋 메시지나 PR 제목을 해석해서 대상 패키지를 추측하지 않고, 실제로 어느 경로 아래 파일이 바뀌었는지만 보고 기계적으로 판별한다는 점이 핵심이다.
 
+## 노트 설정의 범위
+
+M2에서 릴리스 노트 설정(언어·독자·어조·목적지)은 **전 scope 공통**으로 다룬다 — init은 이를 한 번만 묻고 모든 scope에 같은 값을 적용한다. 배포되는 `notes-package.md` 템플릿은 렌더 시점에 대표 scope의 `notes.language`로 ko/en 블록이 고정되므로, scope마다 다른 언어를 섞는 구성은 M2 범위 밖이다. 릴리스 노트를 실제로 쓸 때는 생성된 release-notes 스킬이 그 scope의 config `notes.*` 값을 다시 확인하도록 지시하므로, 손으로 config를 편집해 scope별 언어를 달리한 경우에도 노트 문체 자체는 그 scope 설정을 따른다(다만 템플릿 스캐폴드의 헤딩 언어는 대표 scope 기준이다).
+
 ## 지원 현황
 
 fixed / independent 전략, `dependents` 전파, `changed-packages.py` 변경 감지는 **M2부터 지원된다**. init이 모노레포를 감지하면 전략을 묻고, independent를 선택하면 scope를 패키지 수만큼 확장한다.
