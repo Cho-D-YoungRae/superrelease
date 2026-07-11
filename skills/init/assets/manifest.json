@@ -23,6 +23,13 @@
       "executable": true
     },
     {
+      "src": "scripts/changed-packages.py",
+      "dest": ".superrelease/scripts/changed-packages.py",
+      "render": false,
+      "executable": true,
+      "when": "repo.kind == \"monorepo\""
+    },
+    {
       "src": "templates/notes-single.md",
       "dest": ".superrelease/templates/notes-single.md",
       "render": true,
