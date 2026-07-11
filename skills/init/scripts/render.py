@@ -195,6 +195,12 @@ def validate_config(config):
                 problems.append("scopes[{}].scheme.type is required".format(i))
             if not s.get("versionLocations"):
                 problems.append("scopes[{}].versionLocations is required".format(i))
+    strategy = repo.get("monorepoStrategy")
+    if repo.get("kind") == "monorepo" and strategy not in ("fixed", "independent"):
+        problems.append('repo.monorepoStrategy must be "fixed" or "independent" '
+                        'when repo.kind is "monorepo"')
+    if strategy == "independent" and scopes and len(scopes) < 2:
+        problems.append("independent strategy requires at least two scopes")
     return problems
 
 
