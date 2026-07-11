@@ -69,6 +69,18 @@ class ConfigModeTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(r.stdout.strip(), "1.2.3")
 
+    def test_explicit_semver_scheme_skips_config_scheme_lookup(self):
+        # CLI-supplied --scheme semver takes the load_scope skip path; the
+        # current version must still resolve through version.py.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(tmp, scope_config(
+                [{"file": "gradle.properties", "type": "properties-key", "key": "version"}]),
+                {"gradle.properties": "version=1.2.3-SNAPSHOT\n"})
+            nv = Path(repo) / ".superrelease" / "scripts" / "next-version.py"
+            r = run_script(nv, "--scheme", "semver", "--release")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(r.stdout.strip(), "1.2.3")
+
 
 class MultiScopeConfigModeTest(unittest.TestCase):
     def test_scope_selects_right_current(self):
@@ -137,6 +149,25 @@ class CalverTest(unittest.TestCase):
                 "--pattern", "YYYY.MM.MICRO", "--today", "07/10/2026")
         self.assertEqual(r.returncode, 2)
 
+    def test_unsupported_standard_token_ww_exits_2(self):
+        r = out("--current", "2026.27", "--scheme", "calver",
+                "--pattern", "YYYY.WW", "--today", "2026-07-10")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("WW", r.stderr)
+
+    def test_unsupported_standard_token_0y_exits_2(self):
+        r = out("--current", "6.7.0", "--scheme", "calver",
+                "--pattern", "0Y.MM.MICRO", "--today", "2026-07-10")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("0Y", r.stderr)
+
+    def test_plain_literals_still_allowed(self):
+        # Only calver.org standard tokens are rejected; ordinary literal
+        # separators/prefixes keep rendering as-is.
+        self.check(["--current", "release-2026.06", "--scheme", "calver",
+                    "--pattern", "release-YYYY.0M", "--today", "2026-07-10"],
+                   "release-2026.07")
+
 
 class HeadverTest(unittest.TestCase):
     def check(self, args, expected):
@@ -182,6 +213,13 @@ class CounterPrereleaseTest(unittest.TestCase):
         self.check(["--current", "1.3.0", "--bump", "minor", "--prerelease", "rc"],
                    "1.4.0-rc.1")
 
+    def test_bump_with_same_qualifier_restarts_counter(self):
+        # --bump moves the base, so the counter restarts at 1 even when the
+        # current pre-release already uses the same qualifier.
+        self.check(["--current", "1.4.0-rc.3", "--bump", "minor",
+                    "--prerelease", "rc"],
+                   "1.5.0-rc.1")
+
     def test_same_qualifier_increments(self):
         self.check(["--current", "1.4.0-rc.1", "--prerelease", "rc"], "1.4.0-rc.2")
 
@@ -226,6 +264,20 @@ class SchemeFromConfigTest(unittest.TestCase):
                              {"package.json": '{\n  "name": "x",\n  "version": "2026.7.1"\n}\n'})
             nv = Path(repo) / ".superrelease" / "scripts" / "next-version.py"
             r = run_script(nv, "--today", "2026-07-10")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(r.stdout.strip(), "2026.7.2")
+
+    def test_explicit_scheme_still_reads_pattern_from_config(self):
+        # Explicit --scheme calver without --pattern must still pull the
+        # pattern out of the config (the config read is not skippable here).
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = scope_config(
+                [{"file": "package.json", "type": "json-path", "path": "version"}])
+            cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+            repo = make_repo(tmp, cfg,
+                             {"package.json": '{\n  "name": "x",\n  "version": "2026.7.1"\n}\n'})
+            nv = Path(repo) / ".superrelease" / "scripts" / "next-version.py"
+            r = run_script(nv, "--scheme", "calver", "--today", "2026-07-10")
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(r.stdout.strip(), "2026.7.2")
 
