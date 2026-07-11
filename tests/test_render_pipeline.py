@@ -264,9 +264,10 @@ class ChangedPackagesGateTest(unittest.TestCase):
             {"file": "gradle.properties", "type": "properties-key", "key": "version"}]
         repo = self._render(cfg, {"gradle.properties": "version=0.1.0\n"})
         self.assertFalse((repo / ".superrelease/scripts/changed-packages.py").exists())
-        # fixed는 단일 변형 스킬을 받는다
-        self.assertIn("릴리스 오케스트레이터",
-                      (repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8"))
+        # fixed는 단일 변형 스킬을 받는다 (모노레포 변형이 아님)
+        skill_text = (repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("릴리스 오케스트레이터", skill_text)
+        self.assertNotIn("모노레포", skill_text)
 
 
 if __name__ == "__main__":
