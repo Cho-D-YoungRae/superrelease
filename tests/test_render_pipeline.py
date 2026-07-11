@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import (PLUGIN_SCRIPTS, make_plugin_tree, monorepo_config, run_script,
+from helpers import (ASSETS, PLUGIN_SCRIPTS, make_plugin_tree, monorepo_config, run_script,
                      scope_config, write)
 
 RENDER = PLUGIN_SCRIPTS / "render.py"
@@ -225,6 +225,49 @@ class MonorepoValidateTest(unittest.TestCase):
         r = self.render_with(cfg)
         self.assertEqual(r.returncode, 1)
         self.assertIn("at least two scopes", r.stderr)
+
+    def test_strategy_without_monorepo_kind_exits_1(self):
+        cfg = monorepo_config()
+        cfg["repo"]["kind"] = "app"   # strategy는 "independent"인데 kind는 app
+        r = self.render_with(cfg)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("monorepoStrategy is only valid", r.stderr)
+
+
+class ChangedPackagesGateTest(unittest.TestCase):
+    def _render(self, cfg, files):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = Path(tmp.name)
+        write(repo / ".superrelease" / "config.json",
+              json.dumps(cfg, ensure_ascii=False, indent=2))
+        for rel, content in files.items():
+            write(repo / rel, content)
+        r = run_script(PLUGIN_SCRIPTS / "render.py",
+                       "--config", repo / ".superrelease" / "config.json",
+                       "--assets", ASSETS, "--repo", repo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return repo
+
+    def test_independent_deploys_changed_packages(self):
+        repo = self._render(monorepo_config(), {
+            "packages/a/package.json": '{\n  "name": "a",\n  "version": "0.1.0"\n}\n',
+            "packages/b/package.json": '{\n  "name": "b",\n  "version": "0.1.0"\n}\n'})
+        self.assertTrue((repo / ".superrelease/scripts/changed-packages.py").is_file())
+
+    def test_fixed_monorepo_does_not_deploy_changed_packages(self):
+        cfg = monorepo_config(strategy="fixed")
+        cfg["scopes"] = cfg["scopes"][:1]      # fixed = 단일 scope 모델
+        cfg["scopes"][0]["name"] = "root"
+        cfg["scopes"][0]["path"] = "."
+        cfg["scopes"][0]["versionLocations"] = [
+            {"file": "gradle.properties", "type": "properties-key", "key": "version"}]
+        repo = self._render(cfg, {"gradle.properties": "version=0.1.0\n"})
+        self.assertFalse((repo / ".superrelease/scripts/changed-packages.py").exists())
+        # fixed는 단일 변형 스킬을 받는다 (모노레포 변형이 아님)
+        skill_text = (repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("릴리스 오케스트레이터", skill_text)
+        self.assertNotIn("모노레포", skill_text)
 
 
 if __name__ == "__main__":
