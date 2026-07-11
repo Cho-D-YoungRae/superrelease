@@ -96,7 +96,8 @@ paths, never the plugin.
 | CalVer | Release trains, periodically shipped services | [calver.org](https://calver.org/) |
 | HeadVer | Apps/services (`{head}.{yearweek}.{build}`) | [line/headver](https://github.com/line/headver) |
 
-M1 ships SemVer; CalVer/HeadVer are on the roadmap.
+SemVer, CalVer and HeadVer are all supported; date/week/counter arithmetic
+is handled by `next-version.py` (deterministic, `--today`-injectable).
 
 ## Using the scripts directly (no plugin, no Claude)
 
@@ -132,8 +133,10 @@ On Windows, replace `python3` with `py -3`.
 
 - **M1 (shipped)** — single repo: SemVer, mutable `-SNAPSHOT`, CHANGELOG /
   per-release files / GitHub Releases, direct push
-- **M2 (current)** — monorepo: fixed/independent strategies, changed-package
+- **M2 (shipped)** — monorepo: fixed/independent strategies, changed-package
   detection, `{pkg}@{ver}` tag namespaces, dependency propagation
-- **M3** — release trains (CalVer/HeadVer), hotfix flow, release-PR mode for
-  protected branches, counter pre-releases (`-rc.N`), CHANGELOG backfill,
-  `changelog.d/` fragments
+- **M3a (current)** — version schemes: CalVer/HeadVer arithmetic, counter
+  pre-releases (`-rc.N`), moving major tags
+- **M3b** — release paths: release-PR mode for protected branches, hotfix flow
+- **M3c** — release trains (dual-scheme monorepos), CHANGELOG backfill,
+  `changelog.d/` fragments, tag-message notes
