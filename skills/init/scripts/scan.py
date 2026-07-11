@@ -208,9 +208,10 @@ def _node_packages(repo):
     root_pkg = read(repo / "package.json")
     if root_pkg:
         try:
-            ws = json.loads(root_pkg).get("workspaces")
+            root_data = json.loads(root_pkg)
         except json.JSONDecodeError:
-            ws = None
+            root_data = None
+        ws = root_data.get("workspaces") if isinstance(root_data, dict) else None
         if isinstance(ws, list):
             globs += [g for g in ws if isinstance(g, str)]
         elif isinstance(ws, dict) and isinstance(ws.get("packages"), list):
@@ -242,6 +243,8 @@ def _node_packages(repo):
             try:
                 data = json.loads(text)
             except json.JSONDecodeError:
+                continue
+            if not isinstance(data, dict):
                 continue
             deps = set()
             for key in ("dependencies", "devDependencies", "peerDependencies"):

@@ -115,6 +115,22 @@ class ScanTest(unittest.TestCase):
             self.assertEqual([p["path"] for p in data["monorepo"]["packages"]],
                              ["libs/x"])
 
+    def test_non_object_package_json_does_not_crash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"pnpm-workspace.yaml": 'packages:\n  - "packages/*"\n',
+                       "packages/a/package.json": "[]\n",
+                       "packages/b/package.json":
+                           '{"name": "b", "version": "0.1.0"}\n'},
+                commits=["chore: init"])
+            r = run_script(SCAN, "--repo", repo)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            data = json.loads(r.stdout)
+            names = [p.get("name") for p in data["monorepo"]["packages"]]
+            self.assertIn("b", names)     # valid package still enumerated
+            self.assertNotIn(None, names) # the "[]" package was skipped, not crashed on
+
 
 if __name__ == "__main__":
     unittest.main()
