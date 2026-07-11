@@ -3,12 +3,26 @@
     {
       "src": "skills/release/SKILL.md",
       "dest": ".claude/skills/release/SKILL.md",
-      "render": true
+      "render": true,
+      "when": "repo.monorepoStrategy != \"independent\""
+    },
+    {
+      "src": "skills/release-monorepo/SKILL.md",
+      "dest": ".claude/skills/release/SKILL.md",
+      "render": true,
+      "when": "repo.monorepoStrategy == \"independent\""
     },
     {
       "src": "skills/release-notes/SKILL.md",
       "dest": ".claude/skills/release-notes/SKILL.md",
-      "render": true
+      "render": true,
+      "when": "repo.monorepoStrategy != \"independent\""
+    },
+    {
+      "src": "skills/release-notes-monorepo/SKILL.md",
+      "dest": ".claude/skills/release-notes/SKILL.md",
+      "render": true,
+      "when": "repo.monorepoStrategy == \"independent\""
     },
     {
       "src": "scripts/version.py",
@@ -33,7 +47,15 @@
       "src": "templates/notes-single.md",
       "dest": ".superrelease/templates/notes-single.md",
       "render": true,
-      "preserve": "template"
+      "preserve": "template",
+      "when": "repo.monorepoStrategy != \"independent\""
+    },
+    {
+      "src": "templates/notes-package.md",
+      "dest": ".superrelease/templates/notes-package.md",
+      "render": true,
+      "preserve": "template",
+      "when": "repo.monorepoStrategy == \"independent\""
     },
     {
       "src": "templates/changelog-entry.md",
