@@ -166,6 +166,15 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertNotIn("a@{version}", out)
         self.assertIn("chore(release): {scope}@{version}", out)  # repo 수준 값은 인라인
 
+    def test_release_monorepo_scheme_and_counter_prose(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertIn("calver/headver", out)
+        self.assertIn("--prerelease", out)
+        self.assertIn("movingMajorTag", out)
+        self.assertNotIn("{{scope.", (ASSETS / "skills/release-monorepo/SKILL.md")
+                         .read_text(encoding="utf-8"))  # 무인라인 유지
+        self.assertLessEqual(len(out.splitlines()), 149)
+
     def test_release_monorepo_omits_github_when_disabled(self):
         ctx = mono_ctx(github={"release": False, "generateNotes": False,
                                "releaseYml": False})
