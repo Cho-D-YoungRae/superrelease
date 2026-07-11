@@ -1,5 +1,5 @@
-"""Three representative configs for golden-render snapshots."""
-from helpers import scope_config
+"""Representative configs for golden-render snapshots."""
+from helpers import monorepo_config, scope_config
 
 
 def gradle_app():
@@ -27,4 +27,9 @@ def jvm_library():
     return cfg
 
 
-GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app, "jvm-library": jvm_library}
+def pnpm_monorepo():
+    return monorepo_config()
+
+
+GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
+          "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo}

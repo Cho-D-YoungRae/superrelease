@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import ASSET_SCRIPTS, make_repo, run_script, scope_config
+from helpers import ASSET_SCRIPTS, make_repo, monorepo_config, run_script, scope_config
 
 NV = ASSET_SCRIPTS / "next-version.py"
 
@@ -73,6 +73,18 @@ class ConfigModeTest(unittest.TestCase):
             r = run_script(nv, "--release")
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(r.stdout.strip(), "1.2.3")
+
+
+class MultiScopeConfigModeTest(unittest.TestCase):
+    def test_scope_selects_right_current(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(tmp, monorepo_config(), {
+                "packages/a/package.json": '{\n  "name": "a",\n  "version": "1.0.0"\n}\n',
+                "packages/b/package.json": '{\n  "name": "b",\n  "version": "2.0.0"\n}\n'})
+            nv = Path(repo) / ".superrelease" / "scripts" / "next-version.py"
+            r = run_script(nv, "--scope", "b", "--bump", "patch")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(r.stdout.strip(), "2.0.1")
 
 
 if __name__ == "__main__":

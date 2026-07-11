@@ -73,20 +73,10 @@ worked example:
 
 커밋 메시지나 PR 제목을 해석해서 대상 패키지를 추측하지 않고, 실제로 어느 경로 아래 파일이 바뀌었는지만 보고 기계적으로 판별한다는 점이 핵심이다.
 
-## M1 범위
+## 지원 현황
 
-**M1은 단일 스코프만 지원한다.**
+fixed / independent 전략, `dependents` 전파, `changed-packages.py` 변경 감지는 **M2부터 지원된다**. init이 모노레포를 감지하면 전략을 묻고, independent를 선택하면 scope를 패키지 수만큼 확장한다.
 
-모노레포 신호(예: pnpm-workspace.yaml, 여러 개의 gradle 서브모듈)가 스캔에서 감지되더라도, init은 이를 곧바로 다중 스코프 설정으로 확장하지 않는다.
+fixed는 단일 scope로 모델링된다 — 모든 패키지의 버전 파일을 root scope의 `versionLocations`에 모아 함께 bump하며, 릴리스 흐름은 단일 레포와 동일하다. independent는 scope별 태그 네임스페이스(`<scope>@{version}`)와 scope 단위 릴리스 흐름(변경 감지 → scope별 bump → scope별 태그 → dependents 전파)을 쓴다.
 
-대신 "모노레포 다중 스코프 지원은 M2에서 제공될 예정"이라고 안내한 뒤, 루트를 단일 스코프로 취급하는 형태로만 진행할 수 있게 한다.
-
-다음 항목들은 M1에서 아직 등장하지 않는다.
-
-- fixed/independent/이중 체계 중 무엇을 쓸지 고르는 질문
-- `dependents` 전파 설정
-- `changed-packages.py`를 이용한 변경 패키지 감지
-
-이 중에서도 도입 시점이 서로 다르다: 다중 스코프 자체와 fixed/independent 전략, `dependents` 전파, `changed-packages.py`는 **M2**(모노레포)에서 제공된다. 반면 **이중 체계(dual-system)와 release-train은 M2가 아니라 M3**(조건부 기능)로 미뤄진다 — M2에서 다중 스코프를 지원하게 되어도 이중 체계·release-train 질문은 그 시점에 아직 등장하지 않는다.
-
-config의 `scopes` 배열은 M1 동안 항상 항목이 하나인 상태로 유지된다.
+**이중 체계(dual-system)와 release-train은 M3**(조건부 기능)로 미뤄진다 — M2에서도 이중 체계 질문은 아직 등장하지 않는다.

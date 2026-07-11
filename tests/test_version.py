@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import make_repo, run_script, scope_config, write
+from helpers import make_repo, monorepo_config, run_script, scope_config, write
 
 PKG = '{\n  "name": "demo",\n  "version": "1.2.3",\n  "scripts": {\n    "build": "tsc"\n  }\n}\n'
 LOCK = json.dumps({
@@ -145,6 +145,45 @@ class JsonPathTest(VersionTestBase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("invalid JSON", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
+
+
+class MultiScopeTest(VersionTestBase):
+    A = '{\n  "name": "a",\n  "version": "1.0.0"\n}\n'
+    B = '{\n  "name": "b",\n  "version": "2.0.0"\n}\n'
+
+    def mono_repo(self):
+        return make_repo(self.tmp.name, monorepo_config(), {
+            "packages/a/package.json": self.A,
+            "packages/b/package.json": self.B})
+
+    def test_get_per_scope(self):
+        repo = self.mono_repo()
+        self.assertEqual(run_script(vp(repo), "get", "--scope", "a").stdout.strip(),
+                         "1.0.0")
+        self.assertEqual(run_script(vp(repo), "get", "--scope", "b").stdout.strip(),
+                         "2.0.0")
+
+    def test_get_without_scope_exits_2(self):
+        repo = self.mono_repo()
+        r = run_script(vp(repo), "get")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--scope", r.stderr)
+
+    def test_set_touches_only_target_scope(self):
+        repo = self.mono_repo()
+        r = run_script(vp(repo), "set", "1.1.0", "--scope", "a")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        a = json.loads((Path(repo) / "packages/a/package.json").read_text(encoding="utf-8"))
+        b = json.loads((Path(repo) / "packages/b/package.json").read_text(encoding="utf-8"))
+        self.assertEqual(a["version"], "1.1.0")
+        self.assertEqual(b["version"], "2.0.0")
+
+    def test_verify_reports_each_scope(self):
+        repo = self.mono_repo()
+        r = run_script(vp(repo), "verify")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("scope a", r.stdout)
+        self.assertIn("scope b", r.stdout)
 
 
 if __name__ == "__main__":

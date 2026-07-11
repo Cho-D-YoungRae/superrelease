@@ -188,6 +188,75 @@ def scan_branches(repo):
             "hotfixBranches": sorted(n for n in names if n.startswith("hotfix/"))}
 
 
+def _module_hints(repo):
+    hints = []
+    for name in ("settings.gradle", "settings.gradle.kts"):
+        text = read(repo / name)
+        if not text:
+            continue
+        for line in text.splitlines():
+            if re.match(r"^\s*include[ (]", line):
+                hints += re.findall(r"['\"]:?([A-Za-z0-9._:-]+)['\"]", line)
+    return sorted(set(hints))
+
+
+def _node_packages(repo):
+    globs = ["packages/*", "apps/*"]
+    text = read(repo / "pnpm-workspace.yaml")
+    if text:
+        globs += re.findall(r"^\s*-\s*['\"]?([^'\"#\s]+)", text, re.M)
+    root_pkg = read(repo / "package.json")
+    if root_pkg:
+        try:
+            root_data = json.loads(root_pkg)
+        except json.JSONDecodeError:
+            root_data = None
+        ws = root_data.get("workspaces") if isinstance(root_data, dict) else None
+        if isinstance(ws, list):
+            globs += [g for g in ws if isinstance(g, str)]
+        elif isinstance(ws, dict) and isinstance(ws.get("packages"), list):
+            globs += [g for g in ws["packages"] if isinstance(g, str)]
+    seen, packages = set(), []
+    for g in globs:
+        if g.endswith("/**"):
+            base = g[:-3]
+        elif g.endswith("/*"):
+            base = g[:-2]
+        else:
+            base = g
+        base_dir = repo / base
+        if not base_dir.is_dir():
+            continue
+        if g == base:
+            candidates = [base_dir]
+        else:
+            candidates = sorted(d for d in base_dir.iterdir() if d.is_dir())
+        for d in candidates:
+            pj = d / "package.json"
+            text = read(pj) if pj.is_file() else None
+            if not text:
+                continue
+            rel = d.relative_to(repo).as_posix()
+            if rel in seen:
+                continue
+            seen.add(rel)
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(data, dict):
+                continue
+            deps = set()
+            for key in ("dependencies", "devDependencies", "peerDependencies"):
+                block = data.get(key)
+                if isinstance(block, dict):
+                    deps.update(block)
+            packages.append({"path": rel, "name": data.get("name"),
+                             "version": data.get("version"),
+                             "_deps": sorted(deps)})
+    return packages
+
+
 def scan_monorepo(repo):
     signals = []
     for name in ("settings.gradle", "settings.gradle.kts"):
@@ -201,7 +270,18 @@ def scan_monorepo(repo):
         if base.is_dir() and any((c / "package.json").is_file()
                                  for c in base.iterdir() if c.is_dir()):
             signals.append(d + "/: package.json children")
-    return {"suspected": bool(signals), "signals": signals}
+    packages = _node_packages(repo)
+    names = {p["name"]: p["path"] for p in packages if p.get("name")}
+    internal = []
+    for p in packages:
+        for dep in p.pop("_deps", []):
+            if dep in names and names[dep] != p["path"]:
+                internal.append({"fromPath": p["path"], "fromName": p.get("name"),
+                                 "toPath": names[dep], "toName": dep})
+    return {"suspected": bool(signals) or len(packages) > 1,
+            "signals": signals, "packages": packages,
+            "internalDependencies": internal,
+            "gradleModuleHints": _module_hints(repo)}
 
 
 def scan_changelog(repo):
