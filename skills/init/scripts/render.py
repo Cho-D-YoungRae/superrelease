@@ -201,6 +201,8 @@ def validate_config(config):
                         'when repo.kind is "monorepo"')
     if strategy == "independent" and scopes and len(scopes) < 2:
         problems.append("independent strategy requires at least two scopes")
+    if strategy in ("fixed", "independent") and repo.get("kind") != "monorepo":
+        problems.append('repo.monorepoStrategy is only valid when repo.kind is "monorepo"')
     return problems
 
 
