@@ -70,6 +70,7 @@ Local development: `claude --plugin-dir .` · validate with
 | `.superrelease/config.json` | Single source of truth for every decision |
 | `.superrelease/scripts/version.py` | Read/write/verify the version across all configured locations |
 | `.superrelease/scripts/next-version.py` | Version arithmetic (bump/release/qualifier) |
+| `.superrelease/scripts/changed-packages.py` | Detect changed packages per scope (monorepo only) |
 | `.superrelease/templates/*.md` | Note & changelog skeletons (hand-editable) |
 | `.github/release.yml` | Label-based release-note categories (optional) |
 
@@ -105,6 +106,7 @@ python3 .superrelease/scripts/version.py verify         # check all locations ag
 python3 .superrelease/scripts/version.py set 1.3.0      # write everywhere (+ lockfile)
 python3 .superrelease/scripts/next-version.py --release            # 1.3.0-SNAPSHOT → 1.3.0
 python3 .superrelease/scripts/next-version.py --bump minor --qualifier SNAPSHOT
+python3 .superrelease/scripts/changed-packages.py --json   # monorepo: changes since each package's last tag
 ```
 
 Exit codes: `0` success · `1` validation failure · `2` usage/config error.
@@ -128,10 +130,10 @@ On Windows, replace `python3` with `py -3`.
 
 ## Roadmap
 
-- **M1 (current)** — single repo: SemVer, mutable `-SNAPSHOT`, CHANGELOG /
+- **M1 (shipped)** — single repo: SemVer, mutable `-SNAPSHOT`, CHANGELOG /
   per-release files / GitHub Releases, direct push
-- **M2** — monorepo: fixed/independent strategies, changed-package detection,
-  `{pkg}@{ver}` tag namespaces, dependency propagation
+- **M2 (current)** — monorepo: fixed/independent strategies, changed-package
+  detection, `{pkg}@{ver}` tag namespaces, dependency propagation
 - **M3** — release trains (CalVer/HeadVer), hotfix flow, release-PR mode for
   protected branches, counter pre-releases (`-rc.N`), CHANGELOG backfill,
   `changelog.d/` fragments
