@@ -40,7 +40,7 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 - 그 scope의 config `bump.sources` 순서로 분석. 매핑: feat → minor, fix → patch, BREAKING CHANGE 푸터 또는 `!` → major. **0.x는** breaking → minor, feat → patch 관례를 적용하고 명시하라.
 - 제시 형식: "**a: minor 제안** — 근거: feat 커밋 2건(제목 나열)" → 확인 또는 수동 지정.
 - 계산은 스크립트로만: 현재 `python3 .superrelease/scripts/version.py get --scope <name>`, 결과 `python3 .superrelease/scripts/next-version.py --scope <name> --bump <level>` (수식어 제거는 `--release`).
-- 그 scope의 `scheme.type`이 calver/headver면 bump 수준 없이 `python3 .superrelease/scripts/next-version.py --scope <name>`이 날짜·카운터로 다음 버전을 계산한다. `preRelease.style`이 counter인 scope는 pre-release 발행에 `--prerelease <그 scope의 qualifier>`, 정식 승격에 `--release`를 쓴다.
+- 그 scope의 `scheme.type`이 calver/headver면 bump 수준 없이 `python3 .superrelease/scripts/next-version.py --scope <name>`이 날짜·카운터로 다음 버전을 계산한다. `scheme.type`이 semver인 scope 중 `preRelease.style`이 counter인 scope는 pre-release 발행에 `--prerelease <그 scope의 qualifier>`, 정식 승격에 `--release`를 쓴다.
 
 ## 4. 버전 반영
 
