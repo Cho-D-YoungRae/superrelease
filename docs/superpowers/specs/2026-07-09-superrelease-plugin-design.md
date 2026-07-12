@@ -553,7 +553,7 @@ fixed/independent 전략, changed-packages.py, 태그 네임스페이스(`{pkg}@
 - 아티팩트 publish 실행 (npm publish, maven publish 등 — 태그·GitHub Release까지가 범위, 배포는 태그 트리거 CI 권장을 FAQ로 안내)
 - towncrier 등 외부 릴리스 도구 설치·통합 (fragment는 자체 규약으로, M3)
 - GPG 서명 키 설정 (config `signed` 플래그만 지원)
-- 브랜치 보호 규칙 설정 변경
+- 브랜치 보호 규칙 설정 **변경** (init·생성 스킬은 규칙을 대신 만들지 않는다 — 단, release-pr + 미보호 감지 시 ruleset/branch-protection 설정 명령을 **조언**하는 것은 범위)
 - dev 채널 배포 자동화 (immutableId는 기록 + 스니펫 안내만)
 
 ## 14. 리스크와 완화
