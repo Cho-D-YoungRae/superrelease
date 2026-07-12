@@ -206,6 +206,12 @@ def validate_config(config):
     if repo.get("maintenanceLines") and strategy == "independent":
         problems.append("repo.maintenanceLines (hotfix skill) is not supported "
                         "with the independent monorepo strategy")
+    if repo.get("maintenanceLines") and scopes and any(
+            (s.get("scheme") or {}).get("type", "semver") != "semver"
+            for s in scopes):
+        problems.append("repo.maintenanceLines (hotfix skill) requires semver "
+                        "scopes; hotfix patch-bumps do not apply to "
+                        "calver/headver schemes")
     if repo.get("releasePath") == "release-pr" and scopes and any(
             not (s.get("tag") or {}).get("enabled", True) for s in scopes):
         problems.append('repo.releasePath "release-pr" is not supported with '

@@ -162,6 +162,7 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertIn("gh pr create --base release/", out)
         self.assertIn("hotfix/<패치 버전>", out)
         self.assertNotIn("{{", out)
+        self.assertIn("수동으로", out)
 
 
 class FullRenderTest(unittest.TestCase):
