@@ -74,7 +74,7 @@ Spring Cloud가 대표적인 사례다 — 개별 모듈은 SemVer를 쓰면서 
 
 날짜·주차 산술은 사람이 암산하거나 LLM이 즉석에서 계산하면 안 되고 반드시 스크립트를 거쳐야 한다.
 
-**CalVer의 다음 버전 계산은 M3에서 `next-version.py --scheme calver --pattern <PATTERN>` 형태로 지원될 예정이며, M1에는 아직 구현되어 있지 않다.**
+**CalVer의 다음 버전 계산은 `next-version.py --scheme calver --pattern <PATTERN> [--today YYYY-MM-DD]`가 수행한다** — 같은 기간이면 MICRO를 증가시키고, 기간이 바뀌면 0으로 리셋한다(MICRO가 없는 패턴은 날짜 렌더만 반환). config 모드(`--scope`)에서는 scheme.pattern을 자동 사용한다.
 
 참고: [calver.org](https://calver.org/), [github.com/mahmoud/calver](https://github.com/mahmoud/calver)
 
@@ -96,7 +96,7 @@ worked example로 감을 잡아보면 이렇다.
 
 이 구조는 공개 API 호환성 계약이 뚜렷하지 않은 앱·서비스에 잘 맞는다. 앱은 라이브러리와 달리 "누군가 이 API 시그니처에 코드로 의존한다"는 전제가 약하기 때문에, breaking/non-breaking을 가르는 SemVer식 판단 자체가 잘 들어맞지 않는 경우가 많다.
 
-**다음 버전 계산(yearweek 산출, build 증가)은 M3에서 `next-version.py`가 `--scheme headver --head <N>` 형태로 지원할 예정이며, M1에는 구현되어 있지 않다.**
+**다음 버전 계산(yearweek 산출, build 증가)은 `next-version.py --scheme headver --head <N> [--today YYYY-MM-DD]`가 수행한다** — yearweek는 ISO 연도 2자리+ISO 주차 2자리(1월 초는 전년도 주차일 수 있음), build는 현재 버전의 3번째 필드+1(리셋 없음)이다. config에는 head 번호를 `scheme.pattern`에 기록하며 config 모드에서 자동 사용된다.
 
 참고: [github.com/line/headver](https://github.com/line/headver), [LY 기술블로그 소개글](https://techblog.lycorp.co.jp/ko/headver-new-versioning-system-for-product-teams)
 
@@ -118,6 +118,6 @@ worked example로 감을 잡아보면 이렇다.
 
 CalVer나 Sequential 버전을 라이브러리에 쓰면 이런 범위 연산자가 기대한 대로 동작하지 않아 의존성 해석이 어긋날 수 있다.
 
-**M1 구현은 SemVer만 지원한다.** CalVer와 HeadVer는 config 스키마에 선택지가 이미 예약되어 있지만 실제 날짜·주차 산술 로직은 아직 없다.
+**SemVer·CalVer·HeadVer 세 체계 모두 지원된다** — 날짜·주차·카운터 산술은 전부 `next-version.py`가 수행하며(LLM 산술 금지), `--today` 주입으로 결정론적으로 테스트된다.
 
-스캔이나 질문 단계에서 이 체계들이 후보로 떠오르면 "후속 버전에서 지원 예정"이라고 안내하고 M1에서는 선택 자체를 막는다.
+sequential(단순 증가)은 아직 구현되어 있지 않다 — 질문 단계에서 후보로 떠오르면 "후속 버전에서 지원 예정"으로 안내한다.
