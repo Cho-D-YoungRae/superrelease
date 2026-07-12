@@ -206,6 +206,11 @@ def validate_config(config):
     if repo.get("maintenanceLines") and strategy == "independent":
         problems.append("repo.maintenanceLines (hotfix skill) is not supported "
                         "with the independent monorepo strategy")
+    if repo.get("releasePath") == "release-pr" and scopes and any(
+            not (s.get("tag") or {}).get("enabled", True) for s in scopes):
+        problems.append('repo.releasePath "release-pr" is not supported with '
+                        "tagless scopes (tag.enabled false): merge-then-tag "
+                        "resume relies on tag detection")
     return problems
 
 
