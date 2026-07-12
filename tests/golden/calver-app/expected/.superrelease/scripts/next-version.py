@@ -123,12 +123,12 @@ def calver_next(current, pattern, today):
     if not pattern:
         fail("calver requires --pattern or scheme.pattern in config", 2)
     parts = split_calver_pattern(pattern)
-    # "\x00" marks consumed tokens so a leftover literal cannot pair with a
-    # neighbouring token's characters when scanned below.
+    # "\x00" marks consumed tokens so literals on either side of one cannot
+    # join into a false token match when scanned below.
     literals = "".join(val if kind == "lit" else "\x00" for kind, val in parts)
     for unsupported in CALVER_UNSUPPORTED_TOKENS:
         if unsupported in literals:
-            fail("unsupported CalVer token in pattern: " + unsupported
+            fail("unsupported calver token in pattern: " + unsupported
                  + " (supported: YYYY YY 0M MM 0D DD MICRO)", 2)
     tokens = [val for kind, val in parts if kind == "tok"]
     if not tokens:

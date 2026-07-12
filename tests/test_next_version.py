@@ -69,6 +69,18 @@ class ConfigModeTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(r.stdout.strip(), "1.2.3")
 
+    def test_explicit_semver_scheme_skips_config_scheme_lookup(self):
+        # CLI-supplied --scheme semver takes the load_scope skip path; the
+        # current version must still resolve through version.py.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_repo(tmp, scope_config(
+                [{"file": "gradle.properties", "type": "properties-key", "key": "version"}]),
+                {"gradle.properties": "version=1.2.3-SNAPSHOT\n"})
+            nv = Path(repo) / ".superrelease" / "scripts" / "next-version.py"
+            r = run_script(nv, "--scheme", "semver", "--release")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(r.stdout.strip(), "1.2.3")
+
 
 class MultiScopeConfigModeTest(unittest.TestCase):
     def test_scope_selects_right_current(self):
@@ -252,6 +264,20 @@ class SchemeFromConfigTest(unittest.TestCase):
                              {"package.json": '{\n  "name": "x",\n  "version": "2026.7.1"\n}\n'})
             nv = Path(repo) / ".superrelease" / "scripts" / "next-version.py"
             r = run_script(nv, "--today", "2026-07-10")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(r.stdout.strip(), "2026.7.2")
+
+    def test_explicit_scheme_still_reads_pattern_from_config(self):
+        # Explicit --scheme calver without --pattern must still pull the
+        # pattern out of the config (the config read is not skippable here).
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = scope_config(
+                [{"file": "package.json", "type": "json-path", "path": "version"}])
+            cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+            repo = make_repo(tmp, cfg,
+                             {"package.json": '{\n  "name": "x",\n  "version": "2026.7.1"\n}\n'})
+            nv = Path(repo) / ".superrelease" / "scripts" / "next-version.py"
+            r = run_script(nv, "--scheme", "calver", "--today", "2026-07-10")
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(r.stdout.strip(), "2026.7.2")
 
