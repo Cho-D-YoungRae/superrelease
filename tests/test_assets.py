@@ -161,6 +161,7 @@ class SkillAssetsTest(unittest.TestCase):
         out = self.render_asset("skills/hotfix/SKILL.md", ctx)
         self.assertIn("gh pr create --base release/", out)
         self.assertIn("hotfix/<패치 버전>", out)
+        self.assertNotIn("{{", out)
 
 
 class FullRenderTest(unittest.TestCase):
