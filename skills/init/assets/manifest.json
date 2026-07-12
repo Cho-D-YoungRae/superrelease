@@ -25,6 +25,12 @@
       "when": "repo.monorepoStrategy == \"independent\""
     },
     {
+      "src": "skills/hotfix/SKILL.md",
+      "dest": ".claude/skills/hotfix/SKILL.md",
+      "render": true,
+      "when": "repo.maintenanceLines"
+    },
+    {
       "src": "scripts/version.py",
       "dest": ".superrelease/scripts/version.py",
       "render": false,
@@ -62,6 +68,13 @@
       "dest": ".superrelease/templates/changelog-entry.md",
       "render": true,
       "preserve": "template"
+    },
+    {
+      "src": "templates/release-pr-body.md",
+      "dest": ".superrelease/templates/release-pr-body.md",
+      "render": true,
+      "preserve": "template",
+      "when": "repo.releasePath == \"release-pr\""
     },
     {
       "src": "github/release.yml",

@@ -135,8 +135,9 @@ Windows에서는 `python3` 대신 `py -3`을 사용하세요.
   릴리스별 파일 / GitHub Releases, direct push
 - **M2 (완료)** — 모노레포: fixed/independent 전략, 변경 패키지 감지,
   `{pkg}@{ver}` 태그 네임스페이스, 의존성 전파
-- **M3a (현재)** — 버전 체계: CalVer/HeadVer 산술, 카운터형 pre-release
+- **M3a (완료)** — 버전 체계: CalVer/HeadVer 산술, 카운터형 pre-release
   (`-rc.N`), moving major tag
-- **M3b** — 릴리스 경로: 보호 브랜치용 릴리스 PR 모드, hotfix 플로우
+- **M3b (현재)** — 릴리스 경로: 보호 브랜치용 릴리스 PR 모드
+  (2단계: PR → 머지 → 태그), 유지보수 라인 hotfix 플로우
 - **M3c** — 릴리스 트레인(이중 체계 모노레포), CHANGELOG backfill,
   `changelog.d/` fragment, tag-message 노트
