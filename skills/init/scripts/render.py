@@ -203,6 +203,9 @@ def validate_config(config):
         problems.append("independent strategy requires at least two scopes")
     if strategy in ("fixed", "independent") and repo.get("kind") != "monorepo":
         problems.append('repo.monorepoStrategy is only valid when repo.kind is "monorepo"')
+    if repo.get("maintenanceLines") and strategy == "independent":
+        problems.append("repo.maintenanceLines (hotfix skill) is not supported "
+                        "with the independent monorepo strategy")
     return problems
 
 

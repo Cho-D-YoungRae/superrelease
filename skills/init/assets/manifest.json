@@ -25,6 +25,12 @@
       "when": "repo.monorepoStrategy == \"independent\""
     },
     {
+      "src": "skills/hotfix/SKILL.md",
+      "dest": ".claude/skills/hotfix/SKILL.md",
+      "render": true,
+      "when": "repo.maintenanceLines"
+    },
+    {
       "src": "scripts/version.py",
       "dest": ".superrelease/scripts/version.py",
       "render": false,

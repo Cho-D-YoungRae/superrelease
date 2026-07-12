@@ -128,6 +128,14 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("config:", r.stderr)
 
+    def test_maintenance_lines_rejected_for_independent(self):
+        cfg = monorepo_config()
+        cfg["repo"]["maintenanceLines"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("maintenanceLines", r.stderr)
+
     def test_missing_manifest_exits_2(self):
         assets = make_plugin_tree(Path(self.tmp.name) / "plugin-no-manifest",
                                   MANIFEST, ASSET_FILES)
