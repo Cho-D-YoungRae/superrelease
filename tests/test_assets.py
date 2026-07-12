@@ -163,6 +163,7 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertIn("hotfix/<패치 버전>", out)
         self.assertNotIn("{{", out)
         self.assertIn("수동으로", out)
+        self.assertLessEqual(len(out.splitlines()), 149)
 
 
 class FullRenderTest(unittest.TestCase):
