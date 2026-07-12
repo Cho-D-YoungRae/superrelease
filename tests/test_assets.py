@@ -232,6 +232,25 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertNotIn("gh release create", out)
         self.assertNotIn("gh auth status", out)
 
+    def test_release_monorepo_release_pr_branch(self):
+        ctx = mono_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("릴리스 PR", out)
+        self.assertIn("gh pr create", out)
+        self.assertIn("scope당 1커밋", out)
+        self.assertNotIn("git push origin main`", out)
+        self.assertIn("chore/next-dev", out)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_monorepo_direct_push_has_no_pr_prose(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertIn("git push origin main", out)
+        self.assertNotIn("릴리스 PR", out)
+        self.assertNotIn("gh pr create", out)
+        self.assertNotIn("chore/next-dev", out)
+
     def test_release_notes_monorepo_renders_clean(self):
         out = self.render_asset("skills/release-notes-monorepo/SKILL.md")
         self.assertNotIn("{{", out)
