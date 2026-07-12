@@ -137,6 +137,25 @@ class CalverTest(unittest.TestCase):
                 "--pattern", "YYYY.MM.MICRO", "--today", "07/10/2026")
         self.assertEqual(r.returncode, 2)
 
+    def test_unsupported_standard_token_ww_exits_2(self):
+        r = out("--current", "2026.27", "--scheme", "calver",
+                "--pattern", "YYYY.WW", "--today", "2026-07-10")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("WW", r.stderr)
+
+    def test_unsupported_standard_token_0y_exits_2(self):
+        r = out("--current", "6.7.0", "--scheme", "calver",
+                "--pattern", "0Y.MM.MICRO", "--today", "2026-07-10")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("0Y", r.stderr)
+
+    def test_plain_literals_still_allowed(self):
+        # Only calver.org standard tokens are rejected; ordinary literal
+        # separators/prefixes keep rendering as-is.
+        self.check(["--current", "release-2026.06", "--scheme", "calver",
+                    "--pattern", "release-YYYY.0M", "--today", "2026-07-10"],
+                   "release-2026.07")
+
 
 class HeadverTest(unittest.TestCase):
     def check(self, args, expected):
@@ -181,6 +200,13 @@ class CounterPrereleaseTest(unittest.TestCase):
     def test_bump_starts_counter_at_one(self):
         self.check(["--current", "1.3.0", "--bump", "minor", "--prerelease", "rc"],
                    "1.4.0-rc.1")
+
+    def test_bump_with_same_qualifier_restarts_counter(self):
+        # --bump moves the base, so the counter restarts at 1 even when the
+        # current pre-release already uses the same qualifier.
+        self.check(["--current", "1.4.0-rc.3", "--bump", "minor",
+                    "--prerelease", "rc"],
+                   "1.5.0-rc.1")
 
     def test_same_qualifier_increments(self):
         self.check(["--current", "1.4.0-rc.1", "--prerelease", "rc"], "1.4.0-rc.2")
