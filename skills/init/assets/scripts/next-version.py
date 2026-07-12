@@ -4,7 +4,8 @@
 Schemes:
   semver   --bump/--release/--qualifier/--prerelease act on the current version.
   calver   next version from --today and the pattern
-           (tokens: YYYY YY 0M MM 0D DD MICRO; MICRO at most once).
+           (tokens: YYYY YY 0M MM 0D DD MICRO; MICRO at most once;
+           other calver.org standard tokens are rejected).
   headver  {head}.{yearweek}.{build} — head from --head or scheme.pattern,
            yearweek = 2-digit ISO year + 2-digit ISO week (from --today),
            build = current version's third field + 1 (never resets).
@@ -41,7 +42,12 @@ CALVER_RENDER = {
     "0D": lambda d: "{:02d}".format(d.day),
     "DD": lambda d: str(d.day),
 }
+# split_calver_pattern scans this list first-match, so YYYY must stay ahead
+# of its prefix YY ("YYYY" would otherwise tokenize as YY+YY).
 CALVER_TOKEN_ORDER = ["YYYY", "MICRO", "YY", "0M", "0D", "MM", "DD"]
+# calver.org tokens this script does not compute — rejected so a pattern like
+# "YYYY.WW" cannot silently render "WW" as literal text.
+CALVER_UNSUPPORTED_TOKENS = ("WW", "0W", "0Y", "MAJOR", "MINOR", "MODIFIER")
 
 
 def fail(msg, code):
@@ -116,6 +122,13 @@ def calver_next(current, pattern, today):
     if not pattern:
         fail("calver requires --pattern or scheme.pattern in config", 2)
     parts = split_calver_pattern(pattern)
+    # "\x00" marks consumed tokens so literals on either side of one cannot
+    # join into a false token match when scanned below.
+    literals = "".join(val if kind == "lit" else "\x00" for kind, val in parts)
+    for unsupported in CALVER_UNSUPPORTED_TOKENS:
+        if unsupported in literals:
+            fail("unsupported calver token in pattern: " + unsupported
+                 + " (supported: YYYY YY 0M MM 0D DD MICRO)", 2)
     tokens = [val for kind, val in parts if kind == "tok"]
     if not tokens:
         fail("invalid calver pattern (no tokens): " + pattern, 2)
@@ -179,9 +192,13 @@ def main(argv=None):
     scheme = args.scheme
     pattern = args.pattern
     head = args.head
-    if args.current is None:
-        scope = load_scope(args.scope)
-        cfg_scheme = scope.get("scheme") or {}
+    # Read the config only for what it can still supply (scheme type,
+    # calver pattern, headver head); the current version is fetched via
+    # version.py, which parses the config itself.
+    if args.current is None and (scheme is None
+                                 or (scheme == "calver" and pattern is None)
+                                 or (scheme == "headver" and head is None)):
+        cfg_scheme = load_scope(args.scope).get("scheme") or {}
         scheme = scheme or cfg_scheme.get("type") or "semver"
         if scheme == "calver" and pattern is None:
             pattern = cfg_scheme.get("pattern")
