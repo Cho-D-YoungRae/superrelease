@@ -67,7 +67,16 @@ def hotfix_library():
     return cfg
 
 
+def release_pr_snapshot():
+    # release-pr + 기본 mutable/next-snapshot → §8이 chore/next-dev 복귀 라인을 렌더한다
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["releasePath"] = "release-pr"
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
-          "release-pr-app": release_pr_app, "hotfix-library": hotfix_library}
+          "release-pr-app": release_pr_app, "hotfix-library": hotfix_library,
+          "release-pr-snapshot": release_pr_snapshot}
