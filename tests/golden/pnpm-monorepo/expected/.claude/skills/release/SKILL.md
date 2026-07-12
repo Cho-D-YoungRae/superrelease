@@ -41,6 +41,7 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 - 그 scope의 config `bump.sources` 순서로 분석. 매핑: feat → minor, fix → patch, BREAKING CHANGE 푸터 또는 `!` → major. **0.x는** breaking → minor, feat → patch 관례를 적용하고 명시하라.
 - 제시 형식: "**a: minor 제안** — 근거: feat 커밋 2건(제목 나열)" → 확인 또는 수동 지정.
 - 계산은 스크립트로만: 현재 `python3 .superrelease/scripts/version.py get --scope <name>`, 결과 `python3 .superrelease/scripts/next-version.py --scope <name> --bump <level>` (수식어 제거는 `--release`).
+- 그 scope의 `scheme.type`이 calver/headver면 bump 수준 없이 `python3 .superrelease/scripts/next-version.py --scope <name>`이 날짜·카운터로 다음 버전을 계산한다. `preRelease.style`이 counter인 scope는 pre-release 발행에 `--prerelease <그 scope의 qualifier>`, 정식 승격에 `--release`를 쓴다.
 
 ## 4. 버전 반영
 
@@ -76,6 +77,7 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 - 태그명: 그 scope의 config `tag.format`에서 {version}에 릴리스 버전 대입.
 - push 직전 충돌 재확인: `git ls-remote --tags origin <태그>` 가 비어 있어야 함 — 결과가 있으면 **즉시 중단** (동시 릴리스 락, 버전 재사용 금지).
 - 태그 생성: 그 scope의 `tag.signed`가 true면 `git tag -s <태그> -m "<한 줄 요약>"`, 아니고 `tag.annotated`가 true면 `git tag -a <태그> -m "<한 줄 요약>"`, 둘 다 아니면 `git tag <태그>` → `git push origin <태그>`
+- 그 scope의 `tag.movingMajorTag`가 true면(semver 정식 릴리스에 한해) `git tag -f v<major>` → `git push -f origin v<major>` — force-push 경고를 프리뷰에 명시하고 개별 확인을 받아라. `preRelease.style`이 counter인 scope의 pre-release 버전이면 GitHub Release에 `--prerelease` 플래그를 붙인다.
 - gh 경로: `gh api repos/{owner}/{repo}/releases/generate-notes -f tag_name=<태그>` 뼈대를 참고하되 본문은 5단계 노트로 게시 — `gh release create <태그> --title "<scope>@<version>" --notes-file <노트 파일>`
 - MCP 폴백 경로: generate-notes 뼈대 없이 5단계 노트로 Release를 생성하라.
 

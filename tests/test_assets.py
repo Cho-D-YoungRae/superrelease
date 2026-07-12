@@ -82,6 +82,33 @@ class SkillAssetsTest(unittest.TestCase):
         # signed=false (default) still uses annotated -a:
         self.assertIn("git tag -a", self.render_asset("skills/release/SKILL.md"))
 
+    def test_release_skill_calver_branch(self):
+        ctx = base_ctx()
+        ctx["scope"]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("다음 버전 산출", out)
+        self.assertNotIn("bump 제안", out)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_skill_counter_and_moving_tag(self):
+        ctx = base_ctx()
+        ctx["scope"]["preRelease"] = {"style": "counter", "qualifier": "rc"}
+        ctx["scope"]["tag"]["movingMajorTag"] = True
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("--prerelease rc", out)
+        self.assertIn("moving major tag", out)
+        self.assertIn("git tag -f", out)
+        self.assertIn("--prerelease` 플래그", out)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_skill_semver_default_has_no_new_blocks(self):
+        out = self.render_asset("skills/release/SKILL.md")
+        self.assertIn("bump 제안", out)
+        self.assertNotIn("moving major tag", out)
+        self.assertNotIn("--prerelease", out)
+
     def test_release_notes_skill_renders_clean(self):
         out = self.render_asset("skills/release-notes/SKILL.md")
         self.assertNotIn("{{", out)
@@ -138,6 +165,15 @@ class MonorepoAssetsTest(unittest.TestCase):
         out = self.render_asset("skills/release-monorepo/SKILL.md")
         self.assertNotIn("a@{version}", out)
         self.assertIn("chore(release): {scope}@{version}", out)  # repo 수준 값은 인라인
+
+    def test_release_monorepo_scheme_and_counter_prose(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertIn("calver/headver", out)
+        self.assertIn("--prerelease", out)
+        self.assertIn("movingMajorTag", out)
+        self.assertNotIn("{{scope.", (ASSETS / "skills/release-monorepo/SKILL.md")
+                         .read_text(encoding="utf-8"))  # 무인라인 유지
+        self.assertLessEqual(len(out.splitlines()), 149)
 
     def test_release_monorepo_omits_github_when_disabled(self):
         ctx = mono_ctx(github={"release": False, "generateNotes": False,
