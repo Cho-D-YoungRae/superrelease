@@ -217,6 +217,18 @@ def validate_config(config):
         problems.append('repo.releasePath "release-pr" is not supported with '
                         "tagless scopes (tag.enabled false): merge-then-tag "
                         "resume relies on tag detection")
+    sinks = {"changelog", "release-file", "github-release", "tag-message"}
+    for i, s in enumerate(scopes or []):
+        dests = (s.get("notes") or {}).get("destinations") or []
+        tag = s.get("tag") or {}
+        if "tag-message" in dests and not (
+                tag.get("enabled", True) and (tag.get("annotated") or tag.get("signed"))):
+            problems.append('scopes[{}]: notes destination "tag-message" requires '
+                            "an annotated or signed tag".format(i))
+        if "fragment" in dests and not (sinks & set(dests)):
+            problems.append('scopes[{}]: notes destination "fragment" needs at '
+                            "least one sink (changelog/release-file/"
+                            "github-release/tag-message)".format(i))
     return problems
 
 
