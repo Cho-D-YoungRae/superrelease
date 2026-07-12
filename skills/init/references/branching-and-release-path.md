@@ -35,7 +35,7 @@ git flow는 2010년 Vincent Driessen이 제안한 브랜칭 모델로, `develop`
 
 이렇게 병렬 유지보수 라인을 운영하는지 여부(config `repo.maintenanceLines`)가 곧 hotfix 스킬을 생성할지 말지를 가르는 조건이다 — 유지보수 라인이 없다면 hotfix 스킬 자체가 필요 없다.
 
-**hotfix 스킬 생성 자체는 M3에서 구현되며, M1에서는 아직 생성되지 않는다.**
+**hotfix 스킬은 config `repo.maintenanceLines: true`로 설정하면 생성된다** — semver 단일 스킬 레포 한정이며, independent 모노레포와의 조합은 render가 거부한다.
 
 반대로 과거 메이저 버전에 대한 보안 패치를 계속 내야 하는 라이브러리나 엔터프라이즈 제품이라면, trunk-based만으로는 "이미 릴리스된 옛 버전에 패치를 얹는" 시나리오를 감당하기 어렵다.
 
@@ -52,9 +52,9 @@ git flow는 2010년 Vincent Driessen이 제안한 브랜칭 모델로, `develop`
 
 이 경우에는 버전 bump와 노트를 커밋 대신 PR로 올리고, 그 PR이 머지되는 시점에 태그가 트리거되는 **릴리스 PR 모드**로 전환해야 한다 — release-please가 쓰는 방식과 같다.
 
-**이 모드는 M3에서 구현되며, M1은 direct push 경로만 지원한다.**
+**릴리스 PR 모드는 config `repo.releasePath: "release-pr"`로 설정하면 릴리스 스킬이 수행한다.** 진행은 2단계다 — 버전 bump와 노트를 담은 PR을 만들고 일단 중단하며, PR이 머지된 뒤 릴리스를 다시 요청하면 태그와 Release를 만든다(릴리스 스킬의 중단 상태 감지가 이 대기 상태를 인식한다). 스킬은 required checks 대기나 자동 머지를 하지 않는다 — 머지는 사람과 레포 정책의 몫이다.
 
-M1 단계에서 protected branch가 감지되면, 릴리스 PR 모드가 아직 없다는 사실과 함께 "후속 버전 지원 예정"이라고 안내한다.
+protected branch가 감지되면 init은 release-pr 모드를 강제 기본으로 제안한다 — direct push로는 대체할 수 없기 때문이다.
 
 ## "태그 생성 = 배포 버튼" 인지
 
@@ -78,8 +78,8 @@ scan.py는 표준 라이브러리만으로 동작하기 때문에 YAML을 제대
 ## 릴리스 커밋 경로 결정 트리
 
 1. 기본 브랜치가 protected + required checks인가?
-   - 예 → 릴리스 PR 모드로 진행해야 한다 (M3에서 지원 — M1에서는 "후속 버전 지원 예정"으로 안내하고 direct push로 대체할 수 없음을 분명히 한다)
-   - 아니오 → direct push로 진행한다 (M1 기본 지원 경로)
+   - 예 → 릴리스 PR 모드로 진행해야 한다 (`repo.releasePath: "release-pr"` — direct push로 대체할 수 없다)
+   - 아니오 → direct push로 진행한다 (기본 경로)
 
 이 결정은 스캔 단계에서 GitHub API로 확인한 protected branch·required checks 정보를 바탕으로 하며, 판단 결과는 질문 단계에서 사용자에게 확인형으로 다시 보여준다.
 
