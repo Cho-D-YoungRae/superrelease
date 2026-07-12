@@ -54,7 +54,7 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 - `changelog`: 루트 CHANGELOG.md 최신 항목으로 `## <scope>@<version>` 삽입 (Unreleased 섹션이 있으면 그 아래)
 - `release-file`: `<notes.perReleasePath><scope>@<version>.md` 파일 생성 (notes.template 사용)
 - `github-release`: 8단계 Release 본문으로 사용
-- `fragment`가 그 scope의 목적지면: 그 scope 경로의 `changelog.d/*.md` 조각을 category별(`breaking`→Breaking Changes, `feature`→하이라이트·변경, `fix`·`misc`→변경)로 취합해 노트 소스로 쓰고, 소비한 조각을 릴리스 커밋에서 `git rm`으로 삭제하라(7단계 프리뷰에 명시). fragment는 최소 1개 sink 목적지와 함께 쓴다.
+- `fragment`가 그 scope의 목적지면: 그 scope 경로의 `changelog.d/*.md` 조각을 category별(`breaking`→Breaking Changes, `feature`→하이라이트·변경, `fix`·`misc`(및 미인식)→변경)로 취합해 노트 소스로 쓰고, 소비한 조각을 릴리스 커밋에서 `git rm`으로 삭제하라(7단계 프리뷰에 명시). fragment는 최소 1개 sink 목적지와 함께 쓰며, bump 결정에는 쓰지 않는다(bump는 커밋·PR 소스 그대로).
 - `tag-message`가 그 scope의 목적지면: 8단계 태그 메시지에 5단계 노트 전문을 넣는다(아래 참조).
 
 ## 6. 의존성 전파
