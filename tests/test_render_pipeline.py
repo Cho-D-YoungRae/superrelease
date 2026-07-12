@@ -145,6 +145,15 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("release-pr", r.stderr)
 
+    def test_maintenance_lines_rejected_for_non_semver_scheme(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["maintenanceLines"] = True
+        cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("semver", r.stderr)
+
     def test_missing_manifest_exits_2(self):
         assets = make_plugin_tree(Path(self.tmp.name) / "plugin-no-manifest",
                                   MANIFEST, ASSET_FILES)
