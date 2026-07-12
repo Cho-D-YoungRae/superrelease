@@ -64,6 +64,13 @@
       "preserve": "template"
     },
     {
+      "src": "templates/release-pr-body.md",
+      "dest": ".superrelease/templates/release-pr-body.md",
+      "render": true,
+      "preserve": "template",
+      "when": "repo.releasePath == \"release-pr\""
+    },
+    {
       "src": "github/release.yml",
       "dest": ".github/release.yml",
       "render": false,
