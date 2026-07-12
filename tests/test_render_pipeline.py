@@ -154,6 +154,61 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("semver", r.stderr)
 
+    def test_tag_message_rejected_without_annotated_or_signed(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
+        cfg["scopes"][0]["tag"] = {"enabled": True, "format": "v{version}",
+                                   "annotated": False, "signed": False,
+                                   "movingMajorTag": False}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("tag-message", r.stderr)
+
+    def test_tag_message_ok_with_annotated(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
+        # default scope_config tag is annotated=True → valid
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_fragment_rejected_without_sink(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["fragment"]
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("fragment", r.stderr)
+
+    def test_fragment_ok_with_sink(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["fragment", "changelog"]
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_tag_message_ok_when_enabled_key_omitted(self):
+        # tag object present, annotated true, but "enabled" key omitted →
+        # treated as enabled (sibling-rule convention), so tag-message is valid.
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
+        cfg["scopes"][0]["tag"] = {"format": "v{version}", "annotated": True}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_tag_message_rejected_when_tag_disabled(self):
+        # explicit enabled=false → no tag → tag-message cannot apply → reject.
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
+        cfg["scopes"][0]["tag"] = {"enabled": False, "format": "v{version}",
+                                   "annotated": True}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("tag-message", r.stderr)
+
     def test_missing_manifest_exits_2(self):
         assets = make_plugin_tree(Path(self.tmp.name) / "plugin-no-manifest",
                                   MANIFEST, ASSET_FILES)
