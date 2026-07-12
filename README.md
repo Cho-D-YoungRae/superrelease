@@ -135,8 +135,9 @@ On Windows, replace `python3` with `py -3`.
   per-release files / GitHub Releases, direct push
 - **M2 (shipped)** — monorepo: fixed/independent strategies, changed-package
   detection, `{pkg}@{ver}` tag namespaces, dependency propagation
-- **M3a (current)** — version schemes: CalVer/HeadVer arithmetic, counter
+- **M3a (shipped)** — version schemes: CalVer/HeadVer arithmetic, counter
   pre-releases (`-rc.N`), moving major tags
-- **M3b** — release paths: release-PR mode for protected branches, hotfix flow
+- **M3b (current)** — release paths: release-PR mode for protected branches
+  (two-phase: PR → merge → tag), hotfix flow on maintenance lines
 - **M3c** — release trains (dual-scheme monorepos), CHANGELOG backfill,
   `changelog.d/` fragments, tag-message notes

@@ -50,6 +50,24 @@ def calver_app():
     return cfg
 
 
+def release_pr_app():
+    cfg = scope_config(
+        [{"file": "package.json", "type": "json-path", "path": "version"}])
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+    cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+    return cfg
+
+
+def hotfix_library():
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["kind"] = "library"
+    cfg["repo"]["maintenanceLines"] = True
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
-          "rc-library": rc_library, "calver-app": calver_app}
+          "rc-library": rc_library, "calver-app": calver_app,
+          "release-pr-app": release_pr_app, "hotfix-library": hotfix_library}

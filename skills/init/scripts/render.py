@@ -203,6 +203,14 @@ def validate_config(config):
         problems.append("independent strategy requires at least two scopes")
     if strategy in ("fixed", "independent") and repo.get("kind") != "monorepo":
         problems.append('repo.monorepoStrategy is only valid when repo.kind is "monorepo"')
+    if repo.get("maintenanceLines") and strategy == "independent":
+        problems.append("repo.maintenanceLines (hotfix skill) is not supported "
+                        "with the independent monorepo strategy")
+    if repo.get("releasePath") == "release-pr" and scopes and any(
+            not (s.get("tag") or {}).get("enabled", True) for s in scopes):
+        problems.append('repo.releasePath "release-pr" is not supported with '
+                        "tagless scopes (tag.enabled false): merge-then-tag "
+                        "resume relies on tag detection")
     return problems
 
 

@@ -70,7 +70,7 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 {{#if repo.tagTriggersDeployment}}- ⚠️ **이 태그는 CI 배포를 트리거합니다** — 프리뷰에 반드시 명시
 {{/if}}- 릴리스 노트 미리보기 + 의존성 전파 체인
 
-{{#if repo.releasePath == "direct-push"}}확인 후: scope별로 버전 파일 + 노트 파일을 커밋하고(여러 scope면 scope당 1커밋) `git push origin {{repo.defaultBranch}}`.{{/if}}
+{{#if repo.releasePath == "direct-push"}}확인 후: scope별로 버전 파일 + 노트 파일을 커밋하고(여러 scope면 scope당 1커밋) `git push origin {{repo.defaultBranch}}`.{{else}}확인 후 **릴리스 PR 경로**: 릴리스 브랜치 하나를 만들어(`release/<첫 scope>@<버전>`, 복수 대상이면 `+N` 접미 — 브랜치명을 프리뷰에 명시) scope당 1커밋으로 쌓고 push → PR 1건 생성(`gh pr create --base {{repo.defaultBranch}}` — 제목에 포함 릴리스를 나열하고, 본문은 `.superrelease/templates/release-pr-body.md` 골격에 scope별 섹션을 채워라; gh 미가용이면 GitHub MCP 폴백) → **중단한다**(태그는 머지 후). 머지 후 재개: 1단계 preflight 6의 중단 상태 감지가 잡는다 — PR 머지 확인 후 `git checkout {{repo.defaultBranch}} && git pull` 하고 scope별로 8단계(태그)부터 이어가라. PR이 열려 있으면 대기 중임을 보고하고 멈춰라.{{/if}}
 
 ## 8. 태그{{#if github.release}} + GitHub Release{{/if}} (scope별)
 
@@ -84,7 +84,7 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 
 ## 9. post-release (scope별)
 
-그 scope의 config `postRelease.bump`가 next-snapshot이면 `python3 .superrelease/scripts/next-version.py --scope <name> --bump patch --qualifier <그 scope의 preRelease.qualifier>` → `version.py set --scope` → 같은 방식으로 프리뷰·확인 후 커밋·push. none이면 파일 버전을 그대로 둔다.
+그 scope의 config `postRelease.bump`가 next-snapshot이면 `python3 .superrelease/scripts/next-version.py --scope <name> --bump patch --qualifier <그 scope의 preRelease.qualifier>` → `version.py set --scope` → 같은 방식으로 프리뷰·확인 후 커밋·push.{{#if repo.releasePath == "release-pr"}} (release-pr 레포: 복귀 커밋도 `chore/next-dev` 브랜치로 후속 PR을 만들어 머지하라){{/if}} none이면 파일 버전을 그대로 둔다.
 
 태그를 쓰지 않는 scope는 릴리스 후 config의 그 scope `anchor.value`를 릴리스 커밋 sha로 갱신해 함께 커밋하라.
 
