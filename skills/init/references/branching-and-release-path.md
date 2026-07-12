@@ -35,7 +35,7 @@ git flow는 2010년 Vincent Driessen이 제안한 브랜칭 모델로, `develop`
 
 이렇게 병렬 유지보수 라인을 운영하는지 여부(config `repo.maintenanceLines`)가 곧 hotfix 스킬을 생성할지 말지를 가르는 조건이다 — 유지보수 라인이 없다면 hotfix 스킬 자체가 필요 없다.
 
-**hotfix 스킬은 config `repo.maintenanceLines: true`로 설정하면 생성된다** — semver 단일 스킬 레포 한정이며, independent 모노레포와의 조합은 render가 거부한다.
+**hotfix 스킬은 config `repo.maintenanceLines: true`로 설정하면 생성된다** — semver 단일 스킬 레포 한정이며, independent 모노레포·비semver scope와의 조합은 render가 모두 거부한다.
 
 반대로 과거 메이저 버전에 대한 보안 패치를 계속 내야 하는 라이브러리나 엔터프라이즈 제품이라면, trunk-based만으로는 "이미 릴리스된 옛 버전에 패치를 얹는" 시나리오를 감당하기 어렵다.
 
@@ -55,6 +55,10 @@ git flow는 2010년 Vincent Driessen이 제안한 브랜칭 모델로, `develop`
 **릴리스 PR 모드는 config `repo.releasePath: "release-pr"`로 설정하면 릴리스 스킬이 수행한다.** 진행은 2단계다 — 버전 bump와 노트를 담은 PR을 만들고 일단 중단하며, PR이 머지된 뒤 릴리스를 다시 요청하면 태그와 Release를 만든다(릴리스 스킬의 중단 상태 감지가 이 대기 상태를 인식한다). 스킬은 required checks 대기나 자동 머지를 하지 않는다 — 머지는 사람과 레포 정책의 몫이다.
 
 릴리스 PR 재개는 **기존 릴리스 태그가 있다는 전제**에 기댄다 — 중단 상태 감지가 "파일 버전 > 마지막 태그"로 판정하기 때문이다. 그래서 태그를 만들지 않는 scope(`tag.enabled: false`)는 릴리스 PR 모드와 함께 쓸 수 없고 init·render가 이 조합을 거부한다. 또한 첫 릴리스(아직 태그가 하나도 없는 상태)는 병합 후 자동 재개가 감지되지 않으므로, 첫 태그까지는 수동으로 태그 단계를 진행한다.
+
+릴리스 PR 모드를 선택했는데 기본 브랜치가 실제로는 **보호되지 않았다면** 그 PR 흐름은 강제력이 없다 — 누구나 main에 직접 push할 수 있기 때문이다. 그래서 init은 이 조합(release-pr + 미보호)을 감지하면 보호 설정을 **조언**한다. 현대적 방법은 repository ruleset(`gh api --method POST repos/{owner}/{repo}/rulesets` — 기본 브랜치에 `pull_request` 필수와, CI가 있으면 `required_status_checks`를 거는 규칙)이고, 클래식 방법은 branch protection(`gh api --method PUT repos/{owner}/{repo}/branches/{branch}/protection`)이며, 웹 UI로는 Settings → Rules → Rulesets에서 만든다.
+
+이 설정은 레포의 보안·접근 규칙이므로 **사용자가 직접 실행한다** — init·생성 스킬은 명령을 제시할 뿐 대신 실행하지 않는다(감지·조언은 범위, 설정 변경은 비범위). 이는 CI 태그 트리거를 감지·경고만 하고 워크플로를 생성하지 않는 것, dev 채널 immutableId를 기록·안내만 하는 것과 같은 원칙이다.
 
 protected branch가 감지되면 init은 release-pr 모드를 강제 기본으로 제안한다 — direct push로는 대체할 수 없기 때문이다.
 
