@@ -154,6 +154,14 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("semver", r.stderr)
 
+    def test_backfill_rejected_for_independent(self):
+        cfg = monorepo_config()
+        cfg["repo"]["backfill"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("backfill", r.stderr)
+
     def test_tag_message_rejected_without_annotated_or_signed(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
         cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
