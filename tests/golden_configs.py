@@ -83,8 +83,17 @@ def fragment_app():
     return cfg
 
 
+def backfill_app():
+    # repo.backfill=true → backfill 스킬 생성 (기존 태그 CHANGELOG 소급)
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["backfill"] = True
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
           "release-pr-app": release_pr_app, "hotfix-library": hotfix_library,
-          "release-pr-snapshot": release_pr_snapshot, "fragment-app": fragment_app}
+          "release-pr-snapshot": release_pr_snapshot, "fragment-app": fragment_app,
+          "backfill-app": backfill_app}
