@@ -217,6 +217,9 @@ def validate_config(config):
         problems.append('repo.releasePath "release-pr" is not supported with '
                         "tagless scopes (tag.enabled false): merge-then-tag "
                         "resume relies on tag detection")
+    if repo.get("backfill") and strategy == "independent":
+        problems.append("repo.backfill is not supported with the independent "
+                        "monorepo strategy (monorepo backfill is deferred)")
     sinks = {"changelog", "release-file", "github-release", "tag-message"}
     for i, s in enumerate(scopes or []):
         dests = (s.get("notes") or {}).get("destinations") or []
