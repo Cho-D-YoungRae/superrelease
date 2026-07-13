@@ -36,7 +36,7 @@ status 모드: "이번 train에 뭐 들어가", "다음 train 버전" 류 요청
 
 ## 4. 패키지 버전 스냅샷
 
-- `python3 .superrelease/scripts/changed-packages.py --json`을 실행한다 — 스크립트가 scope마다 자기 마지막 태그(anchor)를 내부적으로 해석한다. 각 scope의 anchor가 그 패키지의 **마지막 릴리스 버전**이다.
+- `python3 .superrelease/scripts/changed-packages.py --json`을 실행한다 — 스크립트가 scope마다 자기 마지막 태그(anchor)를 내부적으로 해석한다. anchor는 그 scope `tag.format`의 전체 태그 문자열(예: `pkg-a@1.2.3`)이므로, 네임스페이스(`<scope>@`) 부분을 벗긴 버전이 그 패키지의 **마지막 릴리스 버전**이다.
 - anchor가 태그가 아닌 scope(tagless — anchor가 커밋 sha)는 `python3 .superrelease/scripts/version.py get --scope <이름>`으로 파일 버전을 폴백하되, `-SNAPSHOT`·`-dev` 등 개발 수식어가 붙어 있으면 "미릴리스 개발 버전"으로 표시하라.
 - 결과를 (패키지 | 버전) 표로 정리한다 — 이 조합이 train이 고정하는 스냅샷이다.
 
