@@ -220,6 +220,22 @@ def validate_config(config):
     if repo.get("backfill") and strategy == "independent":
         problems.append("repo.backfill is not supported with the independent "
                         "monorepo strategy (monorepo backfill is deferred)")
+    train = config.get("train") or {}
+    if train.get("enabled"):
+        if strategy != "independent":
+            problems.append("train (release-train) requires the independent "
+                            "monorepo strategy (dual-scheme = independent "
+                            "packages + a CalVer train)")
+        if (train.get("scheme") or {}).get("type") != "calver":
+            problems.append('train.scheme.type must be "calver" '
+                            "(the release train root uses CalVer)")
+        if not (train.get("scheme") or {}).get("pattern"):
+            problems.append("train.scheme.pattern is required "
+                            "(a CalVer pattern, e.g. YYYY.MICRO)")
+        tag_format = (train.get("tag") or {}).get("format")
+        if not (tag_format and "{version}" in tag_format):
+            problems.append('train.tag.format is required and must contain '
+                            '"{version}" (e.g. train-{version})')
     sinks = {"changelog", "release-file", "github-release", "tag-message"}
     for i, s in enumerate(scopes or []):
         dests = (s.get("notes") or {}).get("destinations") or []
