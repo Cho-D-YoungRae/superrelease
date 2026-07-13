@@ -162,6 +162,62 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("backfill", r.stderr)
 
+    def test_train_rejected_for_non_independent(self):
+        cfg = scope_config(
+            [{"file": "gradle.properties", "type": "properties-key",
+              "key": "version"}])
+        cfg["train"] = {"enabled": True,
+                        "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
+                        "tag": {"format": "train-{version}", "annotated": True,
+                                "signed": False}}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("train", r.stderr)
+
+    def test_train_rejected_for_non_calver_scheme(self):
+        cfg = monorepo_config()
+        cfg["train"] = {"enabled": True,
+                        "scheme": {"type": "semver", "pattern": None},
+                        "tag": {"format": "train-{version}", "annotated": True,
+                                "signed": False}}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("calver", r.stderr)
+
+    def test_train_requires_pattern(self):
+        cfg = monorepo_config()
+        cfg["train"] = {"enabled": True,
+                        "scheme": {"type": "calver", "pattern": ""},
+                        "tag": {"format": "train-{version}", "annotated": True,
+                                "signed": False}}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("train.scheme.pattern", r.stderr)
+
+    def test_train_requires_version_in_tag_format(self):
+        cfg = monorepo_config()
+        cfg["train"] = {"enabled": True,
+                        "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
+                        "tag": {"format": "train-release", "annotated": True,
+                                "signed": False}}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("train.tag.format", r.stderr)
+
+    def test_train_ok_for_independent_calver(self):
+        cfg = monorepo_config()
+        cfg["train"] = {"enabled": True,
+                        "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
+                        "tag": {"format": "train-{version}", "annotated": True,
+                                "signed": False}}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_tag_message_rejected_without_annotated_or_signed(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
         cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]

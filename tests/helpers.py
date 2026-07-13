@@ -70,7 +70,7 @@ def scope_config(locations, **repo_overrides):
     repo = {
         "kind": "app", "defaultBranch": "main", "mergePolicy": "squash",
         "releasePath": "direct-push", "branching": "trunk",
-        "maintenanceLines": False, "train": False,
+        "maintenanceLines": False,
         "releaseCommitFormat": "chore(release): {version}",
         "tagTriggersDeployment": False,
         "monorepoStrategy": None,
