@@ -280,6 +280,16 @@ class MonorepoAssetsTest(unittest.TestCase):
                          .read_text(encoding="utf-8"))  # 무인라인 유지
         self.assertLessEqual(len(out.splitlines()), 149)
 
+    def test_release_monorepo_fragment_and_tag_message_prose(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertIn("changelog.d", out)     # fragment 취합 프로즈
+        self.assertIn("tag-message", out)     # tag-message 프로즈
+        self.assertIn("-F", out)              # -F 노트 파일
+        # scope 무인라인 유지 — asset에 {{scope. 리터럴 없음
+        self.assertNotIn("{{scope.", (ASSETS / "skills/release-monorepo/SKILL.md")
+                         .read_text(encoding="utf-8"))
+        self.assertLessEqual(len(out.splitlines()), 149)
+
     def test_release_monorepo_omits_github_when_disabled(self):
         ctx = mono_ctx(github={"release": False, "generateNotes": False,
                                "releaseYml": False})
