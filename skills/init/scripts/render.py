@@ -217,9 +217,11 @@ def validate_config(config):
         problems.append('repo.releasePath "release-pr" is not supported with '
                         "tagless scopes (tag.enabled false): merge-then-tag "
                         "resume relies on tag detection")
-    if repo.get("backfill") and strategy == "independent":
-        problems.append("repo.backfill is not supported with the independent "
-                        "monorepo strategy (monorepo backfill is deferred)")
+    if repo.get("backfill") and scopes and all(
+            not (s.get("tag") or {}).get("enabled", True) for s in scopes):
+        problems.append("repo.backfill requires at least one tagged scope; "
+                        "backfill walks tag intervals and cannot run when "
+                        "every scope is tagless (tag.enabled false)")
     train = config.get("train") or {}
     if train.get("enabled"):
         if strategy != "independent":

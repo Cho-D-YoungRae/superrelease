@@ -154,13 +154,21 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("semver", r.stderr)
 
-    def test_backfill_rejected_for_independent(self):
-        cfg = monorepo_config()
+    def test_backfill_ok_for_independent(self):
+        cfg = monorepo_config()  # 2 scopes, both tag.enabled=True
         cfg["repo"]["backfill"] = True
         self.write_config(cfg)
         r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_backfill_rejected_when_all_scopes_tagless(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["backfill"] = True
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        self.write_config(cfg)
+        r = self.render()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("backfill", r.stderr)
+        self.assertIn("tagged scope", r.stderr)
 
     def test_train_rejected_for_non_independent(self):
         cfg = scope_config(
