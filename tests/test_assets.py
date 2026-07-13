@@ -32,6 +32,21 @@ def mono_ctx(**overrides):
     return ctx
 
 
+def train_ctx(**overrides):
+    cfg = monorepo_config()
+    cfg["train"] = {"enabled": True,
+                    "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
+                    "tag": {"format": "train-{version}", "annotated": True,
+                            "signed": False}}
+    cfg.update(overrides)
+    ctx = dict(cfg)
+    ctx["project"] = {"name": "demo-mono"}
+    ctx["plugin"] = {"version": "0.1.0"}
+    ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
+    ctx["scope"] = cfg["scopes"][0]
+    return ctx
+
+
 class SkillAssetsTest(unittest.TestCase):
     def render_asset(self, rel, ctx=None):
         text = (ASSETS / rel).read_text(encoding="utf-8")
@@ -391,6 +406,56 @@ class FullRenderMonorepoTest(unittest.TestCase):
             self.assertFalse((repo / ".superrelease/templates/notes-single.md").exists())
             verify = run_script(repo / ".superrelease" / "scripts" / "version.py", "verify")
             self.assertEqual(verify.returncode, 0, verify.stderr)
+
+
+class ReleaseTrainAssetsTest(unittest.TestCase):
+    def render_asset(self, rel, ctx):
+        text = (ASSETS / rel).read_text(encoding="utf-8")
+        return render.render_template(text, ctx)
+
+    def test_release_train_renders_clean(self):
+        out = self.render_asset("skills/release-train/SKILL.md", train_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("demo-mono", out)
+        self.assertIn("changed-packages.py --json", out)
+        self.assertIn("--pattern YYYY.MICRO", out)
+        self.assertIn("train-{version}", out)  # tag.format 단일 중괄호 보존
+
+    def test_release_train_direct_push_path(self):
+        out = self.render_asset("skills/release-train/SKILL.md", train_ctx())
+        self.assertIn("git push origin main", out)
+        self.assertIn("git tag -a", out)
+        self.assertNotIn("release/train-", out)
+
+    def test_release_train_release_pr_path(self):
+        ctx = train_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        out = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("release/train-", out)
+        self.assertIn("gh pr create", out)
+        self.assertNotIn("통합 노트 파일을 커밋하고 `git push origin main`", out)
+
+    def test_release_train_signed_tag(self):
+        ctx = train_ctx()
+        ctx["train"]["tag"]["signed"] = True
+        out = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertIn("git tag -s", out)
+        self.assertNotIn("git tag -a", out)
+
+    def test_release_train_omits_github_when_disabled(self):
+        ctx = train_ctx()
+        ctx["github"]["release"] = False
+        out = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertNotIn("gh release create", out)
+        self.assertNotIn("gh auth status", out)
+
+    def test_notes_train_renders_clean_ko(self):
+        out = self.render_asset("templates/notes-train.md", train_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("포함 버전 스냅샷", out)
+        self.assertIn("demo-mono train {version}", out)  # 헤딩 단일 중괄호 보존
+        self.assertNotIn("Version Snapshot", out)  # en 블록은 ko에서 드롭
 
 
 if __name__ == "__main__":

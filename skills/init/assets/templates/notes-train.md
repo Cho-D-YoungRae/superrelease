@@ -1,0 +1,26 @@
+{{#unless scope.notes.language == "en"}}<!-- release train 통합 노트 템플릿. {version}, {date}는 작성 시점에 채운다. 해당 없는 섹션은 생략한다. -->
+# {{project.name}} train {version} — {date}
+
+## 포함 버전 스냅샷
+<!-- | 패키지 | 버전 | — 이 train이 고정하는 조합 -->
+
+## 하이라이트
+<!-- 이 train에서 가장 중요한 변경 1~3개를 한 문단으로 -->
+
+## 주요 변경
+<!-- - 패키지 전반의 사용자 관점 변경 요약 (#PR번호) -->
+
+## Breaking Changes
+<!-- 포함 패키지들의 breaking 취합. 없으면 섹션 삭제. 있으면 마이그레이션 가이드 필수 -->
+{{/unless}}{{#unless scope.notes.language == "ko"}}<!-- Release-train notes template. Fill {version} and {date} when drafting; drop empty sections. -->
+# {{project.name}} train {version} — {date}
+
+## Version Snapshot
+<!-- | Package | Version | — the combination this train pins -->
+
+## Highlights
+
+## Changes
+
+## Breaking Changes
+{{/unless}}
