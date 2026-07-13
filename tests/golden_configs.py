@@ -75,8 +75,16 @@ def release_pr_snapshot():
     return cfg
 
 
+def fragment_app():
+    # fragment(소스) + changelog·tag-message(sink) — tag는 기본 annotated
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["scopes"][0]["notes"]["destinations"] = ["fragment", "changelog", "tag-message"]
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
           "release-pr-app": release_pr_app, "hotfix-library": hotfix_library,
-          "release-pr-snapshot": release_pr_snapshot}
+          "release-pr-snapshot": release_pr_snapshot, "fragment-app": fragment_app}

@@ -109,6 +109,21 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("moving major tag", out)
         self.assertNotIn("--prerelease", out)
 
+    def test_release_skill_fragment_and_tag_message(self):
+        ctx = base_ctx()
+        ctx["scope"]["notes"]["destinations"] = ["fragment", "changelog", "tag-message"]
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("changelog.d", out)          # fragment 프리앰블
+        self.assertIn("git rm", out)               # 소비 조각 삭제
+        self.assertIn("-F <노트 파일>", out)        # tag-message 메커니즘
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_skill_default_has_no_fragment_or_tag_message(self):
+        out = self.render_asset("skills/release/SKILL.md")  # 기본 destinations = changelog+github-release
+        self.assertNotIn("changelog.d", out)
+        self.assertNotIn("-F <노트 파일>", out)
+
     def test_release_skill_release_pr_branch(self):
         ctx = base_ctx()
         ctx["repo"]["releasePath"] = "release-pr"
@@ -263,6 +278,16 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("movingMajorTag", out)
         self.assertNotIn("{{scope.", (ASSETS / "skills/release-monorepo/SKILL.md")
                          .read_text(encoding="utf-8"))  # 무인라인 유지
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_monorepo_fragment_and_tag_message_prose(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertIn("changelog.d", out)     # fragment 취합 프로즈
+        self.assertIn("tag-message", out)     # tag-message 프로즈
+        self.assertIn("-F", out)              # -F 노트 파일
+        # scope 무인라인 유지 — asset에 {{scope. 리터럴 없음
+        self.assertNotIn("{{scope.", (ASSETS / "skills/release-monorepo/SKILL.md")
+                         .read_text(encoding="utf-8"))
         self.assertLessEqual(len(out.splitlines()), 149)
 
     def test_release_monorepo_omits_github_when_disabled(self):
