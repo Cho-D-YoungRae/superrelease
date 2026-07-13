@@ -31,6 +31,12 @@
       "when": "repo.maintenanceLines"
     },
     {
+      "src": "skills/backfill/SKILL.md",
+      "dest": ".claude/skills/backfill/SKILL.md",
+      "render": true,
+      "when": "repo.backfill"
+    },
+    {
       "src": "scripts/version.py",
       "dest": ".superrelease/scripts/version.py",
       "render": false,
