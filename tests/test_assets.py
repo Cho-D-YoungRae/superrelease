@@ -193,6 +193,12 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("열린 릴리스 PR", out)
         self.assertNotIn("gh pr list", out)
 
+    def test_release_skill_anchor_uses_tag_format_glob(self):
+        out = self.render_asset("skills/release/SKILL.md")
+        self.assertIn("versionsort.suffix=-", out)
+        self.assertNotIn("git describe", out)
+        self.assertIn("v{version}", out)  # glob 파생 기준 포맷 노출
+
     def test_release_pr_body_template_language_blocks(self):
         ko = self.render_asset("templates/release-pr-body.md")
         self.assertIn("릴리스 {version}", ko)
@@ -230,6 +236,10 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertIn("수동으로", out)
         self.assertLessEqual(len(out.splitlines()), 149)
 
+    def test_hotfix_anchor_describe_has_match_filter(self):
+        out = self.render_asset("skills/hotfix/SKILL.md")
+        self.assertIn("git describe --tags --abbrev=0 --match", out)
+
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertNotIn("{{", out)
@@ -265,6 +275,10 @@ class SkillAssetsTest(unittest.TestCase):
         out = self.render_asset("skills/backfill/SKILL.md")  # base_ctx = direct-push
         self.assertIn("CHANGELOG.md만 스테이징", out)
         self.assertNotIn("docs/backfill-changelog", out)
+
+    def test_backfill_sort_uses_versionsort(self):
+        out = self.render_asset("skills/backfill/SKILL.md")
+        self.assertIn("versionsort.suffix=-", out)
 
 
 class FullRenderTest(unittest.TestCase):
@@ -493,6 +507,10 @@ class ReleaseTrainAssetsTest(unittest.TestCase):
         self.assertIn("changed-packages.py --json", out)
         self.assertIn("--pattern YYYY.MICRO", out)
         self.assertIn("train-{version}", out)  # tag.format 단일 중괄호 보존
+
+    def test_release_train_tag_listing_uses_versionsort(self):
+        out = self.render_asset("skills/release-train/SKILL.md", train_ctx())
+        self.assertIn("versionsort.suffix=-", out)
 
     def test_release_train_direct_push_path(self):
         out = self.render_asset("skills/release-train/SKILL.md", train_ctx())
