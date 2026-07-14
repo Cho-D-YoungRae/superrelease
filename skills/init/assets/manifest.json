@@ -37,6 +37,12 @@
       "when": "repo.backfill"
     },
     {
+      "src": "skills/release-train/SKILL.md",
+      "dest": ".claude/skills/release-train/SKILL.md",
+      "render": true,
+      "when": "train.enabled"
+    },
+    {
       "src": "scripts/version.py",
       "dest": ".superrelease/scripts/version.py",
       "render": false,
@@ -68,6 +74,13 @@
       "render": true,
       "preserve": "template",
       "when": "repo.monorepoStrategy == \"independent\""
+    },
+    {
+      "src": "templates/notes-train.md",
+      "dest": ".superrelease/templates/notes-train.md",
+      "render": true,
+      "preserve": "template",
+      "when": "train.enabled"
     },
     {
       "src": "templates/changelog-entry.md",
