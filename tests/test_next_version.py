@@ -168,6 +168,18 @@ class CalverTest(unittest.TestCase):
                     "--pattern", "release-YYYY.0M", "--today", "2026-07-10"],
                    "release-2026.07")
 
+    def test_calver_no_micro_same_period_exits_1(self):
+        r = out("--current", "2026.07", "--scheme", "calver",
+                "--pattern", "YYYY.0M", "--today", "2026-07-15")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("MICRO", r.stderr)
+
+    def test_calver_no_micro_new_period_ok(self):
+        r = out("--current", "2026.07", "--scheme", "calver",
+                "--pattern", "YYYY.0M", "--today", "2026-08-01")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "2026.08")
+
 
 class HeadverTest(unittest.TestCase):
     def check(self, args, expected):
