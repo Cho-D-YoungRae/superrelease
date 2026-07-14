@@ -53,7 +53,8 @@ status 모드: "이번 train에 뭐 들어가", "다음 train 버전" 류 요청
 - 패키지 버전 스냅샷 표
 - 다음 train 버전과 생성될 태그명(`{{train.tag.format}}`의 {version}에 다음 버전 대입)
 - 실행될 명령 목록(노트 커밋, {{#if repo.releasePath == "release-pr"}}PR 생성{{else}}push{{/if}}, 태그{{#if github.release}}, Release{{/if}})
-- 통합 노트 미리보기
+{{#if repo.tagTriggersDeployment}}- ⚠️ **이 태그는 CI 배포를 트리거합니다** — 프리뷰에 반드시 명시
+{{/if}}- 통합 노트 미리보기
 
 {{#if repo.releasePath == "direct-push"}}확인 후: 통합 노트 파일을 커밋하고 `git push origin {{repo.defaultBranch}}`. 이어서 7단계.{{else}}확인 후 **릴리스 PR 경로**: `release/train-<다음 버전>` 브랜치를 만들어 통합 노트 커밋을 쌓고 push → PR 1건 생성(`gh pr create --base {{repo.defaultBranch}}` — 본문에 스냅샷 표와 통합 노트를 넣어라; gh 미가용이면 GitHub MCP 폴백) → **중단**(태그는 머지 후). 머지 후 재개: PR 머지를 확인(`gh pr view release/train-<다음 버전> --json state,mergedAt`)하고 `git checkout {{repo.defaultBranch}} && git pull` 한 뒤 7단계부터 이어가라. PR이 열려 있으면 대기 중임을 보고하고 멈춰라.{{/if}}
 
