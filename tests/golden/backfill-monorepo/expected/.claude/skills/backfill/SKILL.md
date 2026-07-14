@@ -41,7 +41,7 @@ description: backfill-monorepo 프로젝트의 CHANGELOG를 과거 태그 이력
 
 - §1 태그 필터: 그 scope의 config `tag.format`(`<scope>@{version}` 네임스페이스)에 맞는 태그만. `tag.enabled`가 false인 scope는 순회할 태그가 없으므로 **"태그 없음 — 건너뜀"으로 skip**한다.
 - §3 커밋 수집: `git log <A>..<B> --pretty=format:"%h %s" -- <scope.path>`로 그 scope 경로 아래 커밋만.
-- §3 헤더: `## [<scope>@<version B>] - {date}`. 언어·어조는 그 scope의 `notes`를 따른다.
+- §3 헤더: `## <scope>@<version>`(bare, `<version>`은 태그 B 버전). 언어·어조는 그 scope의 `notes`를 따른다.
 - §2 멱등: CHANGELOG에서 그 `<scope>@<version>` 항목이 이미 있으면 그 구간을 건너뛴다.
 
 전 scope의 채울 구간을 한 번에 dry-run으로 보여주고 확인받은 뒤 §4대로 삽입·커밋한다.
