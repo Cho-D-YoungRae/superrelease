@@ -50,7 +50,7 @@ worked example: 히스토리에 `v1.2`, `v1.3`, `1.4.0`, `1.5.0`이 순서대로
 
 worked example: 태그가 `v1.0.0`부터 `v1.5.0`까지 다섯 개 쌓여 있는데 CHANGELOG가 전혀 없었다면, backfill은 `v1.0.0..v1.1.0`, `v1.1.0..v1.2.0`처럼 태그 구간을 순서대로 훑어 각 구간의 커밋으로 그 릴리스의 노트를 하나씩 사후 작성한다.
 
-**이 기능은 조건부 생성 스킬 `backfill`로 지원된다** — init이 `repo.backfill: true`로 기록하면 `.claude/skills/backfill/SKILL.md`가 생성된다. 스킬은 표준 포맷 태그 구간을 순서대로 훑어 누락된 버전만(멱등) CHANGELOG.md에 간결한 항목으로 채운다. 태그·버전 bump·push는 하지 않고 CHANGELOG.md만 쓴다. 단일 scope 레포 한정이며, 모노레포 backfill은 후속(M3c-3b)이다.
+**이 기능은 조건부 생성 스킬 `backfill`로 지원된다** — init이 `repo.backfill: true`로 기록하면 `.claude/skills/backfill/SKILL.md`가 생성된다. 스킬은 표준 포맷 태그 구간을 순서대로 훑어 누락된 버전만(멱등) CHANGELOG.md에 간결한 항목으로 채운다. 태그·버전 bump·push는 하지 않고 CHANGELOG.md만 쓴다. 단일 scope와 independent 모노레포를 지원한다 — 모노레포는 scope별 `<scope>@<version>` 태그 네임스페이스를 순회하며 `## [<scope>@<version>]` 항목으로 채우고, 전 scope가 tagless면 render가 거부한다.
 
 ## 버전 재사용 금지
 
