@@ -64,7 +64,7 @@ hotfix·backfill처럼 조건부로 생성되는 자립 스킬. `.superrelease/`
 - **§0 대상**: 이 스킬 = **루트 train 릴리스**이며 패키지 개별 릴리스(release 스킬)와 **별개의 릴리스 타입**임을 명시한다. status 모드("이번 train에 뭐 들어가", "다음 train 버전")는 §2~§4만 수행해 스냅샷·다음 버전을 보고하고 멈춘다.
 - **§1 preflight**: 현재 브랜치 = `{{repo.defaultBranch}}` / clean working tree / 원격 동기화(`git fetch` 후 `rev-list HEAD..origin/<branch> --count` = 0){{#if github.release}} / gh 인증{{/if}}. 패키지 scope가 mid-release(파일 버전이 anchor보다 높은데 해당 태그 없음)면 경고하고 먼저 정리를 권한다.
 - **§2 현재 train 버전**: `git tag --list 'train-*'`(train.tag.format의 prefix 기준) → 버전 순 정렬 → 최신 → prefix strip. 없으면 **첫 train**.
-- **§3 다음 train 버전**: `python3 .superrelease/scripts/next-version.py --current <현재> --scheme calver --pattern <train.scheme.pattern> --today <오늘>`. 첫 train은 `--current`를 생략한다(순수 calver 모드가 current 없으면 MICRO=0을 반환 — `calver_next`). LLM 산술 금지, 반드시 스크립트.
+- **§3 다음 train 버전**: `python3 .superrelease/scripts/next-version.py --current <현재> --scheme calver --pattern <train.scheme.pattern> --today <오늘>`. 첫 train은 `--current ""`(빈 문자열)로 호출한다 — `--current`를 아예 생략하면 스크립트가 current를 config에서 조회하려다 실패하므로, 빈 문자열을 넘겨 MICRO=0을 얻는다(실측: `--current "" --scheme calver --pattern YYYY.MICRO` → `2026.0`). LLM 산술 금지, 반드시 스크립트.
 - **§4 패키지 버전 스냅샷**: `python3 .superrelease/scripts/changed-packages.py --json`으로 scope별 anchor(그 scope 태그 포맷의 마지막 태그 = 마지막 릴리스 버전)를 수집한다 — 스크립트가 scope마다 자기 마지막 태그를 내부적으로 해석한다(positional ref 아님). tagless scope(anchor가 sha)는 `version.py get --scope <name>`으로 파일 버전을 폴백하되, 개발 수식어(-SNAPSHOT·-dev 등)가 붙은 버전은 "미릴리스 개발 버전"으로 표시한다. 스냅샷은 (패키지, 버전) 표로 정리한다.
 - **§5 통합 노트**: 생성된 release-notes 스킬 절차로, 각 scope의 `anchor..HEAD` 커밋{{#if repo.mergePolicy == "squash"}}(squash 레포이므로 커밋 제목의 `(#N)`으로 PR 역참조){{/if}}을 취합해 train 통합 노트 초안을 쓰고 `.superrelease/templates/notes-train.md` 골격(스냅샷 표 + 하이라이트 + 주요 변경 + Breaking Changes rollup)으로 작성한다.
 - **§6 dry-run 프리뷰 → 커밋/PR**: 스냅샷 표·다음 train 버전·생성 태그명·실행 명령·노트 미리보기를 보여주고 확인받는다. {{#if repo.releasePath == "direct-push"}}확인 후 notes-train.md를 커밋하고 `git push origin {{repo.defaultBranch}}`.{{else}}확인 후 **릴리스 PR 경로**: `release/train-<버전>` 브랜치에 notes-train 커밋을 쌓고 push → PR 1건 생성(`gh pr create --base {{repo.defaultBranch}}`; gh 미가용이면 GitHub MCP 폴백) → **중단**(태그는 머지 후). 머지 후 재개: §1의 mid-release/중단 감지가 잡거나, 사용자가 다시 호출하면 §7부터 이어간다.{{/if}}
@@ -103,7 +103,7 @@ hotfix·backfill처럼 조건부로 생성되는 자립 스킬. `.superrelease/`
 ## 제약·검증
 
 - 동결 template dialect, 생성 SKILL.md ≤150줄, init SKILL.md ≤500줄.
-- render 엔진·스크립트 산술·조작 **무변경** — 유일한 Python 변경은 `validate_config` 규칙 3건. next-version.py의 순수 calver 모드(`--current` 생략 시 MICRO=0 포함)와 changed-packages.py `--json` anchor를 그대로 재사용한다.
+- render 엔진·스크립트 산술·조작 **무변경** — 유일한 Python 변경은 `validate_config` 규칙 3건. next-version.py 순수 calver 모드(첫 train은 `--current ""`로 MICRO=0)와 changed-packages.py `--json` anchor를 그대로 재사용한다.
 - 자립성: 생성 release-train 스킬은 `.superrelease/`·`.claude/` 상대 경로만 참조(release-notes 스킬·notes-train 템플릿을 프로즈로 참조 — 생성 스킬 간 참조 허용). 플러그인 경로 참조 금지.
 - Python 3.9+ stdlib, exit 0/1/2, 코드·메시지 영어·생성 문서 한국어.
 - TDD. 전체 스위트 + `claude plugin validate . --strict` + 골든 범위 확인.
