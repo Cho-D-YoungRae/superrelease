@@ -91,9 +91,19 @@ def backfill_app():
     return cfg
 
 
+def train_monorepo():
+    # independent + train 객체 → release-train 스킬 + notes-train 템플릿 생성
+    cfg = monorepo_config()
+    cfg["train"] = {"enabled": True,
+                    "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
+                    "tag": {"format": "train-{version}", "annotated": True,
+                            "signed": False}}
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
           "release-pr-app": release_pr_app, "hotfix-library": hotfix_library,
           "release-pr-snapshot": release_pr_snapshot, "fragment-app": fragment_app,
-          "backfill-app": backfill_app}
+          "backfill-app": backfill_app, "train-monorepo": train_monorepo}
