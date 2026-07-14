@@ -303,6 +303,101 @@ class PipelineTest(unittest.TestCase):
         self.assertIn(b"\r\n", raw)
         self.assertIn(b"Notes core", raw)
 
+    def test_unknown_scheme_type_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["scheme"] = {"type": "sequential", "pattern": None}
+        cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+        cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("scheme.type", r.stderr)
+        self.assertIn("sequential", r.stderr)
+
+    def test_calver_with_mutable_prerelease_and_next_snapshot_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+        # scope_config 기본값이 preRelease mutable + postRelease next-snapshot
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("preRelease.style", r.stderr)
+        self.assertIn("postRelease.bump", r.stderr)
+
+    def test_headver_with_next_snapshot_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["scheme"] = {"type": "headver", "pattern": "1"}
+        cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+        self.write_config(cfg)  # postRelease는 기본 next-snapshot 유지
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("postRelease.bump", r.stderr)
+
+    def test_location_missing_required_key_exits_1(self):
+        cfg = scope_config([{"file": "package.json", "type": "json-path"}])
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("versionLocations[0].path", r.stderr)
+
+    def test_location_unknown_type_exits_1(self):
+        cfg = scope_config([{"file": "x.yaml", "type": "yaml-path", "path": "v"}])
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("versionLocations[0].type", r.stderr)
+
+    def test_location_regex_two_groups_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "(a)-(b)"}])
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("exactly one capture group", r.stderr)
+
+    def test_location_regex_invalid_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1"}])
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("not a valid regex", r.stderr)
+
+    def test_github_release_with_tagless_scope_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        self.write_config(cfg)  # github.release 기본 true
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("github.release", r.stderr)
+
+    def test_github_release_dest_without_github_release_exits_1(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["github"]["release"] = False
+        self.write_config(cfg)  # destinations 기본에 github-release 포함
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("github-release", r.stderr)
+
+    def test_required_fields_reported_individually(self):
+        # 기존 통짜 빈 config 테스트를 보완 — 규칙별 단독 케이스
+        cases = [
+            (lambda c: c["scopes"][0].pop("name"), "scopes[0].name"),
+            (lambda c: c["scopes"][0].pop("path"), "scopes[0].path"),
+            (lambda c: c["scopes"][0].update(scheme={}), "scheme.type is required"),
+            (lambda c: c["scopes"][0].update(versionLocations=[]),
+             "versionLocations is required"),
+            (lambda c: c["repo"].pop("releasePath"), "repo.releasePath"),
+            (lambda c: c["superrelease"].pop("configVersion"), "configVersion"),
+        ]
+        for mutate, expect in cases:
+            with self.subTest(expect=expect):
+                cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+                mutate(cfg)
+                self.write_config(cfg)
+                r = self.render()
+                self.assertEqual(r.returncode, 1)
+                self.assertIn(expect, r.stderr)
+
 
 SWITCH_MANIFEST = {
     "entries": [
