@@ -204,6 +204,33 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertIn("태그·버전 bump·push는 하지 않는다", out)
         self.assertLessEqual(len(out.splitlines()), 149)
 
+    def test_backfill_monorepo_branch(self):
+        out = self.render_asset("skills/backfill/SKILL.md", mono_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("모노레포 순회", out)
+        self.assertIn("<scope>@", out)
+        self.assertIn("건너뜀", out)  # tagless skip
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_backfill_single_omits_monorepo_block(self):
+        out = self.render_asset("skills/backfill/SKILL.md")  # base_ctx = 단일
+        self.assertNotIn("모노레포 순회", out)
+        self.assertNotIn("<scope>@", out)
+
+    def test_backfill_release_pr_path(self):
+        ctx = base_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        out = self.render_asset("skills/backfill/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("docs/backfill-changelog", out)
+        self.assertIn("PR로 머지", out)
+        self.assertNotIn("CHANGELOG.md만 스테이징", out)  # else 분기 드롭
+
+    def test_backfill_direct_push_commits_directly(self):
+        out = self.render_asset("skills/backfill/SKILL.md")  # base_ctx = direct-push
+        self.assertIn("CHANGELOG.md만 스테이징", out)
+        self.assertNotIn("docs/backfill-changelog", out)
+
 
 class FullRenderTest(unittest.TestCase):
     def test_real_assets_render_end_to_end(self):
