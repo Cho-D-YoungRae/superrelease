@@ -23,7 +23,7 @@ status 모드: "이번 train에 뭐 들어가", "다음 train 버전" 류 요청
 2. clean working tree: `git status --porcelain` 출력이 비어 있어야 함
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/main --count` 가 0
 4. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
-5. 중단된 패키지 릴리스 확인: 어떤 패키지 scope의 파일 버전(수식어 제외)이 마지막 태그보다 높은데 그 버전 태그가 없으면 개별 릴리스가 진행 중인 것 — train은 릴리스된 조합을 묶으므로, 먼저 그 패키지 릴리스를 마치라고 안내하고 멈춰라.
+5. 중단된 패키지 릴리스 확인: 어떤 패키지 scope의 파일 버전이 개발 수식어 없는 **bare 릴리스 버전**인데 그 버전의 태그가 없으면 개별 릴리스가 진행 중인 것 — train은 릴리스된 조합을 묶으므로, 먼저 그 패키지 릴리스를 마치라고 안내하고 멈춰라.
 
 ## 2. 현재 train 버전
 

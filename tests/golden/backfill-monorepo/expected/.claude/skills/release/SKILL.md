@@ -29,7 +29,7 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/main --count` 가 0
 4. 전 scope 버전 일치: `python3 .superrelease/scripts/version.py verify` → exit 0
 5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
-6. scope별 중단 상태: 대상 scope의 파일 버전(수식어 제외)이 그 scope의 anchor 태그보다 높은데 해당 버전 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라.
+6. scope별 중단 상태: 대상 scope의 파일 버전이 개발 수식어(-SNAPSHOT류 mutable qualifier) 없는 **bare 릴리스 버전**이고 anchor 태그보다 높은데 그 버전의 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라. 태그를 쓰지 않는 scope는 이 검사를 건너뛴다.
 
 ## 2. scope별 범위 산출
 

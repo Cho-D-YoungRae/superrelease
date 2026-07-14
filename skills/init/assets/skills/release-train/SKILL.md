@@ -21,9 +21,10 @@ status 모드: "이번 train에 뭐 들어가", "다음 train 버전" 류 요청
 1. 현재 브랜치: `git branch --show-current` 결과가 `{{repo.defaultBranch}}` 여야 함
 2. clean working tree: `git status --porcelain` 출력이 비어 있어야 함
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/{{repo.defaultBranch}} --count` 가 0
-{{#if github.release}}4. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인{{/if}}
-5. 중단된 패키지 릴리스 확인: 어떤 패키지 scope의 파일 버전(수식어 제외)이 마지막 태그보다 높은데 그 버전 태그가 없으면 개별 릴리스가 진행 중인 것 — train은 릴리스된 조합을 묶으므로, 먼저 그 패키지 릴리스를 마치라고 안내하고 멈춰라.
-
+{{#if github.release}}4. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{/if}}5. 중단된 패키지 릴리스 확인: 어떤 패키지 scope의 파일 버전이 개발 수식어 없는 **bare 릴리스 버전**인데 그 버전의 태그가 없으면 개별 릴리스가 진행 중인 것 — train은 릴리스된 조합을 묶으므로, 먼저 그 패키지 릴리스를 마치라고 안내하고 멈춰라.
+{{#if repo.releasePath == "release-pr"}}6. 열린 릴리스 PR 확인: `gh pr list --state open --json headRefName,url` 결과에 `release/`로 시작하는 head 브랜치의 PR이 있으면 이전 릴리스(패키지 또는 train)가 머지 대기 중이다 — 새 train을 시작하지 말고 그 PR 상태를 보고하고 멈춰라.
+{{/if}}
 ## 2. 현재 train 버전
 
 - `git tag --list`로 태그를 모으고 `{{train.tag.format}}` 포맷({version} 자리에 CalVer)에 맞는 태그만 남긴다.
@@ -54,7 +55,7 @@ status 모드: "이번 train에 뭐 들어가", "다음 train 버전" 류 요청
 - 실행될 명령 목록(노트 커밋, {{#if repo.releasePath == "release-pr"}}PR 생성{{else}}push{{/if}}, 태그{{#if github.release}}, Release{{/if}})
 - 통합 노트 미리보기
 
-{{#if repo.releasePath == "direct-push"}}확인 후: 통합 노트 파일을 커밋하고 `git push origin {{repo.defaultBranch}}`. 이어서 7단계.{{else}}확인 후 **릴리스 PR 경로**: `release/train-<다음 버전>` 브랜치를 만들어 통합 노트 커밋을 쌓고 push → PR 1건 생성(`gh pr create --base {{repo.defaultBranch}}` — 본문에 스냅샷 표와 통합 노트를 넣어라; gh 미가용이면 GitHub MCP 폴백) → **중단**(태그는 머지 후). 머지 후 재개: PR 머지를 확인하고 `git checkout {{repo.defaultBranch}} && git pull` 한 뒤 7단계부터 이어가라. PR이 열려 있으면 대기 중임을 보고하고 멈춰라.{{/if}}
+{{#if repo.releasePath == "direct-push"}}확인 후: 통합 노트 파일을 커밋하고 `git push origin {{repo.defaultBranch}}`. 이어서 7단계.{{else}}확인 후 **릴리스 PR 경로**: `release/train-<다음 버전>` 브랜치를 만들어 통합 노트 커밋을 쌓고 push → PR 1건 생성(`gh pr create --base {{repo.defaultBranch}}` — 본문에 스냅샷 표와 통합 노트를 넣어라; gh 미가용이면 GitHub MCP 폴백) → **중단**(태그는 머지 후). 머지 후 재개: PR 머지를 확인(`gh pr view release/train-<다음 버전> --json state,mergedAt`)하고 `git checkout {{repo.defaultBranch}} && git pull` 한 뒤 7단계부터 이어가라. PR이 열려 있으면 대기 중임을 보고하고 멈춰라.{{/if}}
 
 ## 7. train 태그{{#if github.release}} + GitHub Release{{/if}}
 
