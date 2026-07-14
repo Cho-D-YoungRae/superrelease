@@ -91,6 +91,23 @@ def backfill_app():
     return cfg
 
 
+def backfill_monorepo():
+    # independent + backfill + merge → 모노레포 순회 분기 + non-squash(#6) 한 트리에
+    cfg = monorepo_config()
+    cfg["repo"]["backfill"] = True
+    cfg["repo"]["mergePolicy"] = "merge"
+    return cfg
+
+
+def backfill_release_pr():
+    # backfill + release-pr → #4 release-pr 커밋경로 블록
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["backfill"] = True
+    cfg["repo"]["releasePath"] = "release-pr"
+    return cfg
+
+
 def train_monorepo():
     # independent + train 객체 → release-train 스킬 + notes-train 템플릿 생성
     cfg = monorepo_config()
@@ -106,4 +123,6 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "rc-library": rc_library, "calver-app": calver_app,
           "release-pr-app": release_pr_app, "hotfix-library": hotfix_library,
           "release-pr-snapshot": release_pr_snapshot, "fragment-app": fragment_app,
-          "backfill-app": backfill_app, "train-monorepo": train_monorepo}
+          "backfill-app": backfill_app, "train-monorepo": train_monorepo,
+          "backfill-monorepo": backfill_monorepo,
+          "backfill-release-pr": backfill_release_pr}
