@@ -1,0 +1,63 @@
+# CLAUDE.md
+
+superrelease는 **컴파일러 패턴** Claude Code 플러그인이다: 무거운 `init` 스킬이 레포를 스캔·질문한 뒤, 프로젝트 전용 릴리스 툴킷(스킬·스크립트·config·템플릿)을 사용자 레포에 렌더한다. 제품 개요·사용법은 [README.md](README.md) 참고. 이 문서는 **플러그인 코드를 편집할 때** 필요한 명령·규율·함정을 담는다.
+
+## Commands
+
+```bash
+# 전체 테스트 (pytest 아님 — pytest 미설치)
+python3 -m unittest discover -s tests -q
+# 단일 모듈: cd 후 실행 (tests/__init__.py가 없어 `python3 -m unittest tests.<mod>`는 ModuleNotFoundError)
+cd tests && python3 -m unittest test_render_pipeline -v; cd ..
+
+# 플러그인 검증 (랜딩 전 필수)
+claude plugin validate . --strict
+
+# 골든 스냅샷 재생성 → 반드시 범위 확인
+python3 tests/update_golden.py
+git status --porcelain tests/golden   # 의도한 트리만 바뀌었는지 확인 (그 외 = 회귀)
+
+# 로컬 플러그인 개발
+claude --plugin-dir .
+```
+
+## Architecture (플러그인 편집 관점)
+
+- **`skills/init/`** — 무거운 init 스킬:
+  - `SKILL.md` — init 대화(스캔 → 번들 질문 → 렌더). ≤500줄.
+  - `scripts/render.py` — 템플릿 엔진 + 렌더 파이프라인 + `validate_config`. **플러그인 쪽 유일한 엔진**.
+  - `scripts/scan.py` — 읽기 전용 레포 스캔.
+  - `assets/` — 사용자 레포로 렌더되는 것들:
+    - `skills/{release,release-monorepo,release-notes,release-notes-monorepo,hotfix,backfill,release-train}/SKILL.md` — 생성 스킬 골격
+    - `scripts/{version,next-version,changed-packages}.py` — **verbatim 복사**(렌더 안 함)
+    - `templates/*.md`, `manifest.json`(무엇을 어디에 렌더할지 + `when` 게이트), `github/release.yml`
+  - `references/*.md` — init이 필요 시 읽는 도메인 지식(version-schemes·monorepo·bump-models·edge-cases 등).
+- **`tests/`** — `golden/<name>/expected/**`(전체 렌더 트리 스냅샷), `golden_configs.py`(대표 config `GOLDEN` 딕셔너리), `helpers.py`, `test_*.py`, `update_golden.py`.
+- **`docs/superpowers/{specs,plans}/`** — 마일스톤별 설계·구현 계획.
+
+## Gotchas / 필수 규율
+
+- **동결 template dialect** — render.py의 dialect(`{{path}}`, `{{#if x}}`/`{{#if x == "lit"}}`/`{{else}}`, `{{#unless}}`, `{{#each}}`)는 **동결**이다. 확장 금지. 생성 스킬은 이 문법만 조합한다. 단일 중괄호(`v{version}`)는 리터럴로 보존된다.
+- **바이트 불변(byte-invariance)** — 생성 스킬에 조건 블록을 추가할 때, 그 기능이 없는 config에서 **0바이트로 collapse**해 기존 골든이 바이트 동일해야 한다. 개행을 `{{#if}}` **안**에 두어라(앞이 아니라). 검증: `git status tests/golden`에 의도한 트리만.
+- **골든 규율** — `tests/golden/*/expected/**`에는 스크립트가 **verbatim 복사**된다. asset·스킬·템플릿을 바꾸면 골든 불일치는 정상 → `update_golden.py`로 재생성하고 `git status --porcelain tests/golden`이 **의도한 파일만** 보이는지 반드시 확인. `config.json`은 골든 스냅샷 대상이 아니다(harness가 스킵) — render.py 변경은 골든에 무영향.
+- **자립성** — 생성 스킬은 `.superrelease/`·`.claude/` 상대 경로만 참조하고 **`${CLAUDE_PLUGIN_ROOT}` 등 플러그인 경로는 절대 참조하지 않는다**. 렌더된 툴킷은 플러그인 없이도 동작해야 한다(팀원이 플러그인 없이 릴리스 가능).
+- **스크립트 = 무의존** — `version.py`·`next-version.py`·`changed-packages.py`는 Python 3.9+ 표준 라이브러리만. exit code `0`(성공)/`1`(검증 실패)/`2`(사용법·config 오류). 날짜·주차 산술은 `--today` 주입으로 결정론적 테스트.
+- **엔진은 안정, config 규칙만 자란다** — 기능을 추가할 때 render 엔진·스크립트 산술은 건드리지 말고, 새 제약은 `render.py`의 `validate_config`에만 넣는다.
+- **결정론은 스크립트, 판단은 LLM** — 버전 파싱·수정·산술은 스크립트로만. bump 제안·릴리스 노트 작성만 Claude가 한다.
+
+## Code style
+
+- 스크립트·코드·에러 메시지: **영어**. 생성 문서·init 프로즈·references·설계 문서: **한국어**.
+- 생성 SKILL.md **≤150줄**, init SKILL.md **≤500줄**.
+- 커밋·PR: 부작용 있는 작업(파일 수정·커밋·push·태그)은 dry-run 프리뷰 → 확인 → 실행.
+
+## Workflow
+
+- 브랜칭: **트렁크 기반(GitHub Flow)** — `main`에서 기능 브랜치 → PR → 머지. gitflow(장수 `develop`/`release/*`)는 쓰지 않는다.
+- 커밋: **Conventional Commits** (`feat`/`fix`/`docs`/`test`/`refactor`/`chore`).
+- 큰 변경의 설계·구현 계획은 `docs/superpowers/{specs,plans}/`에 남긴다(날짜-마일스톤 네이밍).
+- 기여 안내: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## 지원 현황 (조건부 기능, 전부 출하됨)
+
+단일/모노레포(fixed·independent·이중 체계 train) · SemVer/CalVer/HeadVer · pre-release(none/mutable/counter) · direct-push/release-pr(보호 브랜치) · 노트 목적지 5종(changelog/release-file/github-release/fragment/tag-message) · hotfix · CHANGELOG backfill(단일·모노레포) · release-train.
