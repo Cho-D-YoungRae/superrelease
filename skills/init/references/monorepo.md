@@ -47,7 +47,7 @@
 
 changesets 관례를 따라 `{pkg}@{ver}` 포맷(예: `my-pkg@1.2.3`)을 쓰는 것이 일반적이다.
 
-루트 release train처럼 패키지 하나에 속하지 않는 태그는 이와 별도의 포맷(예: `train-2026.0.0`)을 쓴다. 패키지 태그와 train 태그를 같은 네임스페이스에 섞으면 anchor 계산이나 changed-packages 판별이 꼬이기 때문이다.
+루트 release train처럼 패키지 하나에 속하지 않는 태그는 이와 별도의 포맷(예: `train-2026.0`)을 쓴다. 패키지 태그와 train 태그를 같은 네임스페이스에 섞으면 anchor 계산이나 changed-packages 판별이 꼬이기 때문이다.
 
 ## scope와 변경 패키지 감지
 
