@@ -295,6 +295,28 @@ def validate_config(config):
                     except re.error as e:
                         problems.append(prefix + ".pattern is not a valid regex: "
                                         + str(e))
+    branching = repo.get("branching")
+    if branching and branching not in ("trunk", "gitflow"):
+        problems.append('repo.branching must be "trunk" or "gitflow" '
+                        '(got "{}")'.format(branching))
+    if branching == "gitflow":
+        if repo.get("releasePath") != "release-pr":
+            problems.append('repo.branching "gitflow" requires releasePath '
+                            '"release-pr": the release cycle is PR-based '
+                            "(cut from the develop branch, merge to the "
+                            "default branch)")
+        if repo.get("kind") == "monorepo" or strategy:
+            problems.append('repo.branching "gitflow" is not supported for '
+                            "monorepos yet (single-skill repos only)")
+        dev = repo.get("developBranch")
+        if not dev:
+            problems.append('repo.branching "gitflow" requires '
+                            "repo.developBranch (the integration branch, "
+                            'e.g. "develop")')
+        elif dev == repo.get("defaultBranch"):
+            problems.append("repo.developBranch must differ from "
+                            "repo.defaultBranch (identical branches mean "
+                            'trunk-based — use branching "trunk")')
     gh_cfg = config.get("github") or {}
     for i, s in enumerate(scopes or []):
         tag_enabled = (s.get("tag") or {}).get("enabled", True)
