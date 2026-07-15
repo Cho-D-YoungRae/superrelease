@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -345,6 +346,40 @@ class ScanTest(unittest.TestCase):
             self.assertEqual(by_path["packages/shared"]["version"], "1.0.0")
             self.assertEqual(by_path["gradle-only"]["buildSystem"], "gradle")
             self.assertEqual(by_path["gradle-only"]["version"], "3.0.0")
+
+    def _branch(self, repo, name):
+        subprocess.run(["git", "-C", str(repo), "branch", name],
+                       check=True, capture_output=True)
+
+    def test_develop_branch_guess_variants(self):
+        for branch, expect in (("develop", "develop"),
+                               ("development", "development"),
+                               ("dev", "dev")):
+            with self.subTest(branch=branch), \
+                    tempfile.TemporaryDirectory() as tmp:
+                repo = make_git_repo(tmp, files={"VERSION": "1.0.0\n"},
+                                     commits=["chore: init"])
+                self._branch(repo, branch)
+                data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+                self.assertTrue(data["branches"]["hasDevelop"])
+                self.assertEqual(data["branches"]["developBranchGuess"], expect)
+
+    def test_develop_wins_over_dev(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"VERSION": "1.0.0\n"},
+                                 commits=["chore: init"])
+            self._branch(repo, "dev")
+            self._branch(repo, "develop")
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            self.assertEqual(data["branches"]["developBranchGuess"], "develop")
+
+    def test_no_develop_branch_guess_is_null(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"VERSION": "1.0.0\n"},
+                                 commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            self.assertFalse(data["branches"]["hasDevelop"])
+            self.assertIsNone(data["branches"]["developBranchGuess"])
 
 
 if __name__ == "__main__":
