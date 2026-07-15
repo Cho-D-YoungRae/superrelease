@@ -1,0 +1,518 @@
+# superrelease M4d 사용성·문서 정리 Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** M4a~M4c가 이연한 누적 문서 부채(README/CLAUDE.md/CHANGELOG 드리프트)와 사용성 지적(init 요약·신규 레포 부트스트랩·config 참조), 생성 스킬 프로즈 잔여물(tagless §7 빈 섹션·§5 github-release dangling·release-pr gh preflight)을 한 번에 정리한다.
+
+**Architecture:** 스펙 [2026-07-16-superrelease-m4d-docs-usability-design.md](../specs/2026-07-16-superrelease-m4d-docs-usability-design.md)의 4파트 — Tier 1(외부 문서)·Tier 2(init·references 프로즈)는 골든 무영향, Tier 3(생성 스킬 프로즈)는 영향 골든만 재생성하고 나머지 바이트 불변. render 엔진·스크립트 무변경.
+
+**Tech Stack:** 동결 template dialect(OR 없음 — 중첩 `{{#if}}`), unittest, 마크다운.
+
+**베이스:** 브랜치 `feat/superrelease-m4d` (스펙 커밋 `3367601`, main `7eaecf0`에서 분기).
+
+## Global Constraints
+
+- 전체 테스트: 레포 루트에서 `python3 -m unittest discover -s tests -q`. 단일 모듈: `cd tests && python3 -m unittest test_assets -v; cd ..` — dotted 형식 금지. pytest 미설치.
+- 동결 template dialect — AND 없음(중첩 `{{#if}}`), 단일 중괄호 리터럴 보존.
+- **바이트 불변**: Tier 3 게이트는 정상 config(tag.enabled=true, github.release=true)에서 렌더 바이트 동일 — 영향 골든(tagless-app·fragment-app)만 재생성되고 나머지는 diff 0. Tier 1·2는 골든 미복사 → 전 골든 diff 0.
+- 골든 규율: `python3 tests/update_golden.py && git status --porcelain tests/golden`이 각 태스크의 "예상 골든 diff"와 정확히 일치.
+- 생성 SKILL.md ≤150줄, init SKILL.md ≤500줄. README EN/KO 1:1(모든 변경 양쪽 미러). 코드·에러 영어 / 프로즈 한국어.
+- 커밋 Conventional Commits 한국어 + `(M4d)` 접미, 트레일러 `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` 별도 줄. 각 커밋 뒤 전체 스위트 green.
+
+---
+
+### Task 1: 외부 문서 — README(EN/KO)·CLAUDE.md·CHANGELOG
+
+**Files:**
+- Modify: `README.md`, `README_KO.md`, `CLAUDE.md`, `CHANGELOG.md`
+
+**Interfaces:**
+- Consumes: 없음.
+- Produces: 최종 외부 문서 — 이후 태스크 무의존. (전부 골든 미복사 → 골든 diff 0.)
+
+- [ ] **Step 1: README.md 로드맵 갱신** — `## Roadmap` 아래 M1~M3c 블록(현재 `M3b (current)`·`M3c` 미래형)을 전부 shipped로 교체:
+
+```markdown
+## Roadmap
+
+- **M1 (shipped)** — single repo: SemVer, mutable `-SNAPSHOT`, CHANGELOG /
+  per-release files / GitHub Releases, direct push
+- **M2 (shipped)** — monorepo: fixed/independent strategies, changed-package
+  detection, `{pkg}@{ver}` tag namespaces, dependency propagation
+- **M3a (shipped)** — version schemes: CalVer/HeadVer arithmetic, counter
+  pre-releases (`-rc.N`), moving major tags
+- **M3b (shipped)** — release paths: release-PR mode for protected branches
+  (two-phase: PR → merge → tag), hotfix flow on maintenance lines
+- **M3c (shipped)** — release trains (dual-scheme monorepos), CHANGELOG
+  backfill, `changelog.d/` fragments, tag-message notes
+- **M4 (shipped)** — hardening: gitflow branching (single-skill repos,
+  release-pr only), scan coverage (Maven/Gradle monorepo/openapi/VERSION),
+  correctness fixes
+```
+
+- [ ] **Step 2: README.md 생성물 표에 조건부 행 추가** — `## What gets generated` 표에서 `.github/release.yml` 행 뒤(표 마지막)에 추가:
+
+```markdown
+| `.claude/skills/hotfix/SKILL.md` | Hotfix skill for maintenance lines (conditional: `maintenanceLines`) |
+| `.claude/skills/backfill/SKILL.md` | One-time CHANGELOG backfill from tags (conditional: `backfill`) |
+| `.claude/skills/release-train/SKILL.md` | Root release-train skill (conditional: dual-scheme `train`) |
+| `.superrelease/templates/release-pr-body.md` | Release-PR body skeleton (conditional: `release-pr`) |
+```
+
+- [ ] **Step 3: README.md Uninstall FAQ 수정** — `- **Uninstall?**` 항목의 `.claude/skills/release*`를 교체:
+
+```markdown
+- **Uninstall?** Delete `.superrelease/` and `.claude/skills/{release*,hotfix,backfill,release-train}`
+  (and `.github/release.yml` if unused).
+```
+
+- [ ] **Step 4: README.md 지원 매트릭스 + Upgrading + config 섹션 신설** — `## Version schemes` 섹션 앞에 3개 섹션 삽입:
+
+```markdown
+## Branching
+
+| Strategy | Fits | Release path |
+|---|---|---|
+| trunk / GitHub flow | most new projects | release from `main` |
+| gitflow | teams releasing from a `develop` integration branch | single-skill repos, release-pr only (cut from develop → merge to main → tag → back-merge) |
+
+gitflow support is limited to single-skill repos on the release-pr path;
+monorepo × gitflow and direct-push gitflow are not supported.
+
+## What superrelease detects
+
+`init` scans (read-only) for version-string locations and repo signals:
+`gradle.properties`, `build.gradle(.kts)`, `package.json`, `pyproject.toml`,
+`Cargo.toml`, `Dockerfile` LABEL, `Chart.yaml`, README badge, `VERSION`,
+`openapi`/`swagger` (json·yaml), `pom.xml` (`<revision>` property is a usable
+location; a plain project `<version>` is detected but flagged not-usable),
+plus node and Gradle monorepo packages. Not detected: `libs.versions.toml`
+(a dependency catalog), Gradle internal dependencies.
+
+## Upgrading
+
+The plugin is only needed to (re)init. When a new plugin version ships,
+re-run `/superrelease:init` in an already-initialized repo: unchanged answers
+are not re-asked, and files re-render deterministically. The
+`generated by superrelease vX.Y.Z` marker line in each generated file records
+the version it was rendered from. Editing `.superrelease/config.json` by hand
+and re-running init is the official customization path.
+
+## Editing config.json
+
+`.superrelease/config.json` is the single source of truth. Key fields:
+
+| Field | Values | Notes |
+|---|---|---|
+| `repo.branching` | `trunk` \| `gitflow` | gitflow requires `releasePath: release-pr` + `developBranch` |
+| `repo.releasePath` | `direct-push` \| `release-pr` | release-pr is two-phase (PR → merge → tag) |
+| `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver require `preRelease.style: none` + `postRelease.bump: none` |
+| `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N` |
+| `scopes[].tag.enabled` | explicit boolean | required; `github.release: true` needs it true |
+| `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` \| `tag-message` | `fragment` needs a sink; `tag-message` needs an annotated/signed tag |
+
+Invalid combinations are rejected at render time with a message pointing to
+the fix — run init again after editing.
+```
+
+- [ ] **Step 5: README_KO.md에 Step 1~4 미러** — 동일 4곳을 한국어로 반영. 로드맵은 `(완료)` 접미 유지하고 M4 줄 추가(`**M4 (완료)** — 하드닝: gitflow 브랜칭(단일 스킬 레포·release-pr 전용), 스캔 커버리지(Maven/Gradle 모노레포/openapi/VERSION), 정확성 수정`). 생성물 표·Uninstall·브랜칭/감지/업그레이드/config 섹션을 README_KO의 기존 절 구조(`## 생성물 안내`, `## 버전 체계` 앞)에 맞춰 한국어로 삽입. 표 헤더·본문 한국어화(예: "전략/적합/릴리스 경로", "필드/값/비고").
+
+- [ ] **Step 6: CLAUDE.md 지원 현황에 브랜칭 축 추가** — `## 지원 현황` 줄에서 `단일/모노레포(...)` 로 시작하는 문장의 맨 앞에 삽입:
+
+```
+브랜칭(trunk/gitflow) · 단일/모노레포(fixed·independent·이중 체계 train) · ...
+```
+
+(기존 문장의 `단일/모노레포` 앞에 `브랜칭(trunk/gitflow) · `를 붙인다.)
+
+- [ ] **Step 7: CHANGELOG.md Unreleased에 M4 산출 추가** — `### Added` 목록(마지막 `- **기타** — ...` 항목 뒤)에 추가:
+
+```markdown
+- **gitflow 브랜칭 축** — `repo.branching: gitflow`(단일 스킬 레포·release-pr 전용) —
+  develop cut → 기본 브랜치 태그 → develop back-merge + SNAPSHOT 복귀 정식 사이클,
+  gitflow 전용 중단 감지 2종(머지-미태깅 PR·back-merge 누락).
+- **스캔 커버리지 확장** — pom.xml(`<revision>` 후보/project 감지·안내) · VERSION 플레인
+  파일 · openapi·swagger `info.version`(json·yaml) · Gradle 멀티모듈 패키지 수집 ·
+  `developBranchGuess`(develop/development/dev). versionCandidates `usable`/`advice` 구분.
+- **정확성 하드닝** — version.py regex 다중 캡처그룹 가드 · changed-packages
+  versionsort·rename·tag.enabled 기본값 · CalVer 동일 기간 exit 1 · validate_config
+  강화(scheme enum·non-semver 조합·location·github↔태그·branching gitflow 전제).
+```
+
+- [ ] **Step 8: 검증 + 골든 무영향 + 커밋**
+
+Run: `python3 -m unittest discover -s tests -q` → OK (문서 변경 — 테스트 무영향)
+Run: `python3 tests/update_golden.py && git status --porcelain tests/golden` → 빈 출력
+Run: `git diff --stat` — README.md·README_KO.md·CLAUDE.md·CHANGELOG.md만
+
+```bash
+git add README.md README_KO.md CLAUDE.md CHANGELOG.md
+git commit -m "docs: README(EN/KO)·CLAUDE.md·CHANGELOG — 로드맵·생성물표·매트릭스·업그레이드·config 정합 (M4d)"
+```
+
+---
+
+### Task 2: init/references 프로즈 — Phase 3 요약·신규 레포 부트스트랩·config 상호참조
+
+**Files:**
+- Modify: `skills/init/SKILL.md:21` (모드 감지 #2), `:127` (Phase 3 요약), `:134` (재init 절)
+
+**Interfaces:**
+- Consumes: Task 1의 README "Editing config.json" 섹션(상호 참조 대상).
+- Produces: 최종 init 프로즈 — 골든 미복사 → 골든 diff 0. init ≤500줄.
+
+- [ ] **Step 1: 신규 레포 모드에 버전 파일 부트스트랩 추가** — 모드 감지 #2(라인 21)의 문장 끝(`...아래 흐름을 그대로 진행`)을 교체:
+
+기존:
+
+```
+2. config가 없고 스캔 신호도 빈약하면(빌드 파일·태그·커밋이 거의 없음) → **신규 레포 제안 모드**: 레포 성격을 먼저 묻고, 성격별 권장 프리셋(라이브러리→SemVer+SNAPSHOT+next-snapshot / 앱→SemVer+dev 채널 선택)을 제시한 뒤 아래 흐름을 그대로 진행
+```
+
+신규:
+
+```
+2. config가 없고 스캔 신호도 빈약하면(빌드 파일·태그·커밋이 거의 없음) → **신규 레포 제안 모드**: 레포 성격을 먼저 묻고, 성격별 권장 프리셋(라이브러리→SemVer+SNAPSHOT+next-snapshot / 앱→SemVer+dev 채널 선택)을 제시한 뒤 아래 흐름을 그대로 진행. **버전 파일이 하나도 없으면**(versionLocations 후보 0건) Phase 3 자가검증(`version.py verify`)이 반드시 실패하므로, 성격에 맞는 버전 파일(예: `package.json`·`gradle.properties`·`VERSION`)과 초기 버전(0.1.0 등)을 Phase 3 렌더에 포함해 사용자 확인 후 함께 생성한다
+```
+
+- [ ] **Step 2: Phase 3 요약을 조건부 스킬 트리거로 일반화** — 라인 127(`5. 요약 출력: ...`)에서 `첫 사용 예시("릴리스해줘", "릴리스 준비됐는지 봐줘")` 부분을 교체:
+
+기존:
+
+```
+5. 요약 출력: 결정 테이블 / 생성 파일 목록 / 첫 사용 예시("릴리스해줘", "릴리스 준비됐는지 봐줘") / `tagTriggersDeployment`면 "태그 push = 배포 트리거" 경고 / immutableId 스니펫 안내.
+```
+
+신규:
+
+```
+5. 요약 출력: 결정 테이블 / 생성 파일 목록 / **생성된 스킬별 첫 사용 예시** — release는 "릴리스해줘"·"릴리스 준비됐는지 봐줘", 생성됐다면 hotfix는 "핫픽스"/"1.2.x에 패치", backfill은 "백필해줘"/"CHANGELOG 소급", release-train은 "train 릴리스"도 함께 나열(생성한 스킬의 실행 문구를 빠뜨리지 마라) / `tagTriggersDeployment`면 "태그 push = 배포 트리거" 경고 / immutableId 스니펫 안내.
+```
+
+- [ ] **Step 3: 재init 절에 config 참조 상호링크** — 라인 134(`3. **바뀐 부분만** 질문한다. ... 공식 커스터마이징 경로다.`)의 문장 끝을 교체:
+
+기존:
+
+```
+3. **바뀐 부분만** 질문한다. 불일치·변경 요청이 없으면 질문 0개로 Phase 3로 — "config를 손으로 고친 뒤 재init"이 공식 커스터마이징 경로다.
+```
+
+신규:
+
+```
+3. **바뀐 부분만** 질문한다. 불일치·변경 요청이 없으면 질문 0개로 Phase 3로 — "config를 손으로 고친 뒤 재init"이 공식 커스터마이징 경로다(필드·허용값·validate 규칙 요약은 README "Editing config.json" 참고).
+```
+
+- [ ] **Step 4: 검증 + 골든 무영향 + 라인 예산 + 커밋**
+
+Run: `python3 -m unittest discover -s tests -q` → OK
+Run: `python3 tests/update_golden.py && git status --porcelain tests/golden` → 빈 출력
+Run: `wc -l skills/init/SKILL.md` → ≤500
+
+```bash
+git add skills/init/SKILL.md
+git commit -m "docs: init 프로즈 — 신규 레포 버전 파일 부트스트랩·조건부 스킬 트리거 요약·config 참조 (M4d)"
+```
+
+---
+
+### Task 3: 생성 스킬 Tier 3 — §7 게이트·§5 github-release 게이트·gh preflight OR·개행 위생
+
+**Files:**
+- Modify: `skills/init/assets/skills/release/SKILL.md` (공통 규칙 개행·preflight gh·§5·§7)
+- Modify: `skills/init/assets/skills/release-monorepo/SKILL.md` (preflight gh·§5)
+- Modify: `skills/init/assets/skills/release-train/SKILL.md` (preflight gh)
+- Modify: `tests/golden_configs.py` (release-pr-nogh 신설)
+- Test: `tests/test_assets.py`
+
+**Interfaces:**
+- Consumes: 없음.
+- Produces: 렌더 마커(테스트·골든이 참조) — §7 tag.enabled 게이트, §5 github-release destination 게이트, gh preflight의 release-pr 분기. `GOLDEN`에 `release-pr-nogh` 추가(19→20).
+
+**바이트 불변 게이트(이 태스크의 핵심 수용 기준):** 각 편집 후 `python3 tests/update_golden.py && git status --porcelain tests/golden`이 **정확히** `tagless-app`(§7·§5·개행)·`fragment-app`(§5) + 신규 `release-pr-nogh`만 보여야 한다. tag.enabled=true·github.release=true 골든이 하나라도 바뀌면 개행/게이트가 잘못된 것 — 고치기 전 진행 금지.
+
+- [ ] **Step 1: 실패하는 렌더 단위 테스트 작성** — `tests/test_assets.py`. `SkillAssetsTest`에:
+
+```python
+    def test_release_skill_tagless_collapses_section_7(self):
+        ctx = base_ctx()
+        ctx["scope"]["tag"] = {"enabled": False, "format": "v{version}",
+                               "annotated": False, "signed": False,
+                               "movingMajorTag": False}
+        ctx["scope"]["anchor"] = {"type": "ref", "value": None}
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertNotIn("## 7. 태그", out)      # 빈 §7 섹션 collapse
+        self.assertNotIn("github-release", out)   # §5 범례 게이트
+
+    def test_release_skill_github_release_legend_gated(self):
+        ctx = base_ctx()
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]  # no github-release dest
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("- `github-release`: 7단계", out)
+
+    def test_release_skill_normal_config_keeps_section_7_and_legend(self):
+        out = self.render_asset("skills/release/SKILL.md")  # tag.enabled·github.release 기본 true
+        self.assertIn("## 7. 태그", out)
+        self.assertIn("- `github-release`: 7단계", out)
+
+    def test_release_skill_release_pr_no_github_has_gh_preflight(self):
+        ctx = base_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertIn("gh 인증", out)               # release-pr은 gh 필요
+        self.assertIn("PR 생성·조회에 gh", out)
+        self.assertNotIn("제한 모드(태그까지만)", out)  # github.release=false라 릴리스 제한모드 문구 아님
+
+    def test_release_skill_direct_push_no_github_has_no_gh_preflight(self):
+        ctx = base_ctx()
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("gh 인증", out)  # direct-push + no github → gh preflight 없음
+```
+
+`MonorepoAssetsTest`에 (monorepo gh preflight OR + §5 게이트 핀 — 모노레포 골든은 전부 github.release=true라 골든 무변경, 렌더 테스트로만 커버):
+
+```python
+    def test_release_monorepo_release_pr_no_github_has_gh_preflight(self):
+        ctx = mono_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        for s in ctx["scopes"]:
+            s["notes"]["destinations"] = ["changelog"]
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("gh 인증", out)
+        self.assertIn("PR 생성·조회에 gh", out)
+
+    def test_release_monorepo_github_release_legend_gated(self):
+        ctx = mono_ctx()
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertNotIn("- `github-release`: 8단계", out)
+        out_default = self.render_asset("skills/release-monorepo/SKILL.md")  # github-release dest 기본 보유
+        self.assertIn("- `github-release`: 8단계", out_default)
+```
+
+`ReleaseTrainAssetsTest`에:
+
+```python
+    def test_release_train_release_pr_no_github_has_gh_preflight(self):
+        ctx = train_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("gh 인증", out)
+        self.assertIn("PR 생성·조회에 gh", out)
+```
+
+- [ ] **Step 2: 실패 확인**
+
+Run: `cd tests && python3 -m unittest test_assets -v; cd ..`
+Expected: tagless collapse·§5 게이트·release-pr gh 신규 테스트 FAIL. `normal_config`·`direct_push_no_github`는 회귀 핀(현행 통과 가능).
+
+- [ ] **Step 3: 공통 규칙 개행 위생** — `release/SKILL.md` 라인 13을 교체(개행을 블록 안으로):
+
+기존 (라인 13, 그리고 그 뒤 빈 줄 14):
+
+```
+{{#if github.release}}- GitHub 접근: gh CLI 우선. gh 미가용이면 연결된 GitHub MCP 도구를 찾아 쓰고, 둘 다 없으면 "태그까지만 진행"하는 제한 모드를 제안하라.{{/if}}
+
+```
+
+신규 (여는 마커 뒤 불릿, 개행이 블록 안, 닫는 뒤 빈 줄 1개 유지):
+
+```
+{{#if github.release}}- GitHub 접근: gh CLI 우선. gh 미가용이면 연결된 GitHub MCP 도구를 찾아 쓰고, 둘 다 없으면 "태그까지만 진행"하는 제한 모드를 제안하라.
+{{/if}}
+```
+
+(github.release=true는 바이트 동일 — "- GitHub 접근...\n" + 빈 줄. github.release=false는 이전에 빈 줄 2개 남던 것이 1개로 정리.)
+
+- [ ] **Step 4: preflight gh-auth OR 분기** — `release/SKILL.md` 라인 23을 교체:
+
+기존:
+
+```
+{{#if github.release}}5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{/if}}{{#if scope.tag.enabled}}...
+```
+
+신규 (github.release 우선, else에서 release-pr 분기 — github.release=true는 바이트 동일):
+
+```
+{{#if github.release}}5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{else}}{{#if repo.releasePath == "release-pr"}}5. gh 인증: `gh auth status` — release-pr 경로는 PR 생성·조회에 gh가 필요하다(실패 시 GitHub MCP 폴백)
+{{/if}}{{/if}}{{#if scope.tag.enabled}}...
+```
+
+- [ ] **Step 5: §5 github-release 범례 게이트** — `release/SKILL.md` 라인 57-60 블록 전체를 교체. **핵심: release-file 불릿의 소스 줄끝 개행을 github-release each 블록의 리딩 개행으로 옮긴다** — 그래야 github-release 有 config에서 바이트 동일하고, 無 config에서 불릿 줄 전체가 사라진다.
+
+기존:
+
+```
+{{/if}}{{/each}}- `changelog`: `.superrelease/templates/changelog-entry.md` 골격으로 CHANGELOG.md 최신 항목으로 삽입 (Unreleased 섹션이 있으면 그 아래)
+- `release-file`: `{{scope.notes.perReleasePath}}{version}.md` 파일 생성 (`{{scope.notes.template}}` 사용)
+- `github-release`: 7단계 Release 본문으로 사용{{#each scope.notes.destinations}}{{#if this == "tag-message"}}
+- `tag-message`: 위 태그 명령의 `-m "<한 줄 요약>"`를 `-F <노트 파일>`로 바꿔 5단계 노트 전문을 태그 메시지에 넣어라 (annotated/signed 태그에만 유효){{/if}}{{/each}}
+```
+
+신규:
+
+```
+{{/if}}{{/each}}- `changelog`: `.superrelease/templates/changelog-entry.md` 골격으로 CHANGELOG.md 최신 항목으로 삽입 (Unreleased 섹션이 있으면 그 아래)
+- `release-file`: `{{scope.notes.perReleasePath}}{version}.md` 파일 생성 (`{{scope.notes.template}}` 사용){{#each scope.notes.destinations}}{{#if this == "github-release"}}
+- `github-release`: 7단계 Release 본문으로 사용{{/if}}{{/each}}{{#each scope.notes.destinations}}{{#if this == "tag-message"}}
+- `tag-message`: 위 태그 명령의 `-m "<한 줄 요약>"`를 `-F <노트 파일>`로 바꿔 5단계 노트 전문을 태그 메시지에 넣어라 (annotated/signed 태그에만 유효){{/if}}{{/each}}
+```
+
+핵심 delta: release-file 불릿 뒤의 소스 줄끝 `\n`을 제거하고(각 블록을 같은 줄에 이어붙임), github-release each 블록의 여는 `{{#if this == "github-release"}}` 뒤에 `\n`을 둔다. github-release 有: "release-file...사용" + "\n- github-release: ...사용" = 기존과 바이트 동일. 無: release-file 불릿만 남고 github-release 줄 전체 collapse.
+
+- [ ] **Step 6: §7 전체를 tag.enabled로 게이트** — `release/SKILL.md` 라인 80-89 블록 전체를 교체.
+
+기존:
+
+```
+## 7. 태그{{#if github.release}} + GitHub Release{{/if}}
+
+{{#if scope.tag.enabled}}- 태그명: `{{scope.tag.format}}` 의 {version}에 릴리스 버전 대입
+- push 직전 충돌 재확인: `git ls-remote --tags origin <태그>` 가 비어 있어야 함 — 결과가 있으면 **즉시 중단** (동시 릴리스 락, 버전 재사용 금지)
+- {{#if scope.tag.signed}}signed 태그: `git tag -s <태그> -m "<한 줄 요약>"`{{else}}{{#if scope.tag.annotated}}annotated 태그: `git tag -a <태그> -m "<한 줄 요약>"`{{else}}태그: `git tag <태그>`{{/if}}{{/if}} → `git push origin <태그>`{{#each scope.notes.destinations}}{{#if this == "tag-message"}}
+- **tag-message**: 위 태그 명령의 `-m "<한 줄 요약>"`를 `-F <노트 파일>`로 바꿔 5단계 노트 전문을 태그 메시지에 넣어라 (annotated/signed 태그에만 유효){{/if}}{{/each}}{{#if scope.tag.movingMajorTag}}
+- **moving major tag**: 정식 릴리스(수식어 없는 버전)에 한해 `git tag -f v<major>` → `git push -f origin v<major>` — force-push이므로 프리뷰에 별도 경고를 명시하고 개별 확인을 받아라. pre-release에는 옮기지 않는다{{/if}}
+{{/if}}{{#if github.release}}- gh 경로: {{#if github.generateNotes}}`gh api repos/{owner}/{repo}/releases/generate-notes -f tag_name=<태그>` 뼈대를 참고하되 본문은 5단계 노트로 게시 — {{/if}}`gh release create <태그> --title "<버전>" --notes-file <노트 파일>`{{#if scope.preRelease.style == "counter"}} (pre-release 버전이면 `--prerelease` 플래그를 추가하고, 승격 릴리스에는 붙이지 않는다){{/if}}
+- MCP 폴백 경로: generate-notes 뼈대 없이 5단계 노트로 Release를 생성하라.
+{{/if}}
+```
+
+신규 (헤더 앞에 `{{#if scope.tag.enabled}}` 추가, 기존 내부 `{{#if scope.tag.enabled}}` 제거, github 블록의 `\n`을 `{{#if github.release}}` 안으로 이동, 맨 끝에 tag.enabled 닫기 `{{/if}}` 추가):
+
+```
+{{#if scope.tag.enabled}}## 7. 태그{{#if github.release}} + GitHub Release{{/if}}
+
+- 태그명: `{{scope.tag.format}}` 의 {version}에 릴리스 버전 대입
+- push 직전 충돌 재확인: `git ls-remote --tags origin <태그>` 가 비어 있어야 함 — 결과가 있으면 **즉시 중단** (동시 릴리스 락, 버전 재사용 금지)
+- {{#if scope.tag.signed}}signed 태그: `git tag -s <태그> -m "<한 줄 요약>"`{{else}}{{#if scope.tag.annotated}}annotated 태그: `git tag -a <태그> -m "<한 줄 요약>"`{{else}}태그: `git tag <태그>`{{/if}}{{/if}} → `git push origin <태그>`{{#each scope.notes.destinations}}{{#if this == "tag-message"}}
+- **tag-message**: 위 태그 명령의 `-m "<한 줄 요약>"`를 `-F <노트 파일>`로 바꿔 5단계 노트 전문을 태그 메시지에 넣어라 (annotated/signed 태그에만 유효){{/if}}{{/each}}{{#if scope.tag.movingMajorTag}}
+- **moving major tag**: 정식 릴리스(수식어 없는 버전)에 한해 `git tag -f v<major>` → `git push -f origin v<major>` — force-push이므로 프리뷰에 별도 경고를 명시하고 개별 확인을 받아라. pre-release에는 옮기지 않는다{{/if}}{{#if github.release}}
+- gh 경로: {{#if github.generateNotes}}`gh api repos/{owner}/{repo}/releases/generate-notes -f tag_name=<태그>` 뼈대를 참고하되 본문은 5단계 노트로 게시 — {{/if}}`gh release create <태그> --title "<버전>" --notes-file <노트 파일>`{{#if scope.preRelease.style == "counter"}} (pre-release 버전이면 `--prerelease` 플래그를 추가하고, 승격 릴리스에는 붙이지 않는다){{/if}}
+- MCP 폴백 경로: generate-notes 뼈대 없이 5단계 노트로 Release를 생성하라.
+{{/if}}{{/if}}
+```
+
+핵심 delta: (a) `## 7.` 앞에 `{{#if scope.tag.enabled}}` 추가 (b) `\n\n{{#if scope.tag.enabled}}- 태그명` → `\n\n- 태그명`(내부 게이트 제거) (c) `...옮기지 않는다{{/if}}\n{{/if}}{{#if github.release}}- gh 경로` → `...옮기지 않는다{{/if}}{{#if github.release}}\n- gh 경로`(개행을 github 블록 안으로, tag.enabled 닫기 제거) (d) 맨 끝 `...생성하라.\n{{/if}}\n` → `...생성하라.\n{{/if}}{{/if}}\n`(github 닫기 뒤 tag.enabled 닫기 추가).
+
+- [ ] **Step 7a: release-monorepo preflight gh OR** — `release-monorepo/SKILL.md` 라인 30을 교체:
+
+기존:
+
+```
+{{#if github.release}}5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{/if}}6. scope별 중단 상태: ...
+```
+
+신규:
+
+```
+{{#if github.release}}5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{else}}{{#if repo.releasePath == "release-pr"}}5. gh 인증: `gh auth status` — release-pr 경로는 PR 생성·조회에 gh가 필요하다(실패 시 GitHub MCP 폴백)
+{{/if}}{{/if}}6. scope별 중단 상태: ...
+```
+
+(`6. scope별 중단 상태: ...` 줄 전체는 기존 그대로 둔다 — 여기선 여는/닫는 마커만 바뀐다.)
+
+- [ ] **Step 7b: release-monorepo §5 github-release 게이트** — `release-monorepo/SKILL.md` 라인 56 `- \`github-release\`: 8단계 Release 본문으로 사용`을 Step 5와 동형으로 게이트. 이 파일의 §5는 각 목적지가 개별 줄로 나열되므로(라인 53-57), 라인 55(release-file 계열 직전 줄)의 줄끝 개행을 github-release each 리딩 개행으로 옮기는 방식으로:
+
+기존 라인 56 앞뒤 맥락을 확인해, `- \`github-release\`: 8단계 Release 본문으로 사용` 줄을 `{{#each scope.notes.destinations}}{{#if this == "github-release"}}` / `{{/if}}{{/each}}`로 감싸되, **바로 윗줄의 줄끝 개행을 each 여는 마커 뒤로 이동**한다(Step 5 delta와 동일 원리). github-release 有 config(모노레포 골든 전부)는 바이트 동일, 無 config는 그 줄 collapse. 정확한 개행 배치는 골든 무변경(Step 9)으로 검증 — 모노레포 골든이 하나라도 바뀌면 개행 오류.
+
+- [ ] **Step 7c: release-train preflight gh OR** — `release-train/SKILL.md` 라인 24를 교체:
+
+기존:
+
+```
+{{#if github.release}}4. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{/if}}5. 중단된 패키지 릴리스 확인: ...
+```
+
+신규:
+
+```
+{{#if github.release}}4. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{else}}{{#if repo.releasePath == "release-pr"}}4. gh 인증: `gh auth status` — release-pr 경로는 PR 생성·조회에 gh가 필요하다(실패 시 GitHub MCP 폴백)
+{{/if}}{{/if}}5. 중단된 패키지 릴리스 확인: ...
+```
+
+train은 §5 노트에 github-release 범례가 없으므로 §5 편집 없음. 각 편집의 정확한 기존 문자열은 파일에서 문자열 매치로 찾아라.
+
+- [ ] **Step 8: 신규 골든 release-pr-nogh 등록** — `tests/golden_configs.py`의 `gitflow_app()` 뒤에 추가:
+
+```python
+def release_pr_nogh():
+    # release-pr + github.release=false — gh preflight의 release-pr 분기를 핀
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+    cfg["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+    return cfg
+```
+
+`GOLDEN` 딕셔너리 끝에 `"release-pr-nogh": release_pr_nogh` 추가.
+
+- [ ] **Step 9: 통과 + 골든 재생성 + 범위 검증 (핵심 게이트)**
+
+Run: `cd tests && python3 -m unittest test_assets -v; cd ..` → 전부 PASS
+Run: `cd tests && python3 -m unittest test_golden -v; cd ..` → FAIL(release-pr-nogh golden missing) → Step에서 재생성
+Run: `python3 tests/update_golden.py && git status --porcelain tests/golden`
+Expected: **정확히** `tagless-app`의 release/SKILL.md(§7 collapse·§5·개행) + `fragment-app`의 release/SKILL.md(§5 github-release 제거) 변경 + `release-pr-nogh/` 신규 트리. **그 외 골든이 바뀌면 게이트/개행 오류 — 고치기 전 진행 금지.**
+Run: `git diff tests/golden/tagless-app tests/golden/fragment-app` — diff가 §7·§5·개행 영역에 한정되는지 눈으로 확인.
+Run: `python3 -m unittest discover -s tests -q` → OK
+Run: `wc -l skills/init/assets/skills/*/SKILL.md` → 각 ≤150
+
+- [ ] **Step 10: 커밋**
+
+```bash
+git add skills/init/assets/skills tests/golden_configs.py tests/test_assets.py tests/golden
+git commit -m "fix: 생성 스킬 Tier 3 — tagless §7 collapse·§5 github-release 게이트·release-pr gh preflight·개행 위생 (M4d)"
+```
+
+---
+
+### Task 4: 최종 검증
+
+**Files:** 없음 (검증 전용 — 문제 발견 시에만 수정 커밋)
+
+**Interfaces:**
+- Consumes: T1~T3 전부.
+- Produces: M4d 완료 판정.
+
+- [ ] **Step 1: 전체 검증 실행 및 기록**
+
+```bash
+python3 -m unittest discover -s tests -q            # OK (234 + T3 렌더 8 = 242개 예상)
+claude plugin validate . --strict                    # PASS
+wc -l skills/init/SKILL.md skills/init/assets/skills/*/SKILL.md   # init ≤500, 생성 스킬 각 ≤150
+git status --porcelain                               # clean
+git log --oneline 3367601..HEAD                     # T1~T3 커밋 3개
+```
+
+- [ ] **Step 2: README EN/KO 1:1 대조** — README.md와 README_KO.md를 섹션별로 대조: 로드맵(shipped 갱신)·생성물 표(조건부 4행)·Uninstall glob·Branching/detects/Upgrading/config 섹션이 양쪽에 동등하게 있는지 확인. 누락 시 미러 후 재커밋.
+
+- [ ] **Step 3: 스펙 대비 완료 기준 확인**
+
+| 스펙 항목 | 태스크 |
+|---|---|
+| 파트1 README 로드맵·표·Uninstall·매트릭스·Upgrading·config | T1 |
+| 파트1 CLAUDE.md·CHANGELOG | T1 |
+| 파트2 Phase 3 요약·신규 레포 부트스트랩·config 상호참조 | T2 |
+| 파트3 §7 게이트·§5 github-release 게이트 | T3 |
+| 파트3 gh preflight OR·개행 위생 | T3 |
+| 파트4 release-pr-nogh 골든·렌더 테스트·바이트 불변 | T3 |
+
+문제 없으면 커밋 없이 종료. 발견 시 수정 후 `fix: ... (M4d)` 커밋.
