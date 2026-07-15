@@ -47,6 +47,21 @@ def train_ctx(**overrides):
     return ctx
 
 
+def gitflow_ctx(**overrides):
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["branching"] = "gitflow"
+    cfg["repo"]["developBranch"] = "develop"
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg.update(overrides)
+    ctx = dict(cfg)
+    ctx["project"] = {"name": "demo-app"}
+    ctx["plugin"] = {"version": "0.1.0"}
+    ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
+    ctx["scope"] = cfg["scopes"][0]
+    return ctx
+
+
 class SkillAssetsTest(unittest.TestCase):
     def render_asset(self, rel, ctx=None):
         text = (ASSETS / rel).read_text(encoding="utf-8")
@@ -291,6 +306,27 @@ class SkillAssetsTest(unittest.TestCase):
     def test_backfill_sort_uses_versionsort(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertIn("versionsort.suffix=-", out)
+
+    def test_release_skill_gitflow_branch_and_detection(self):
+        out = self.render_asset("skills/release/SKILL.md", gitflow_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("결과가 `develop`", out)          # preflight 1 기준 브랜치
+        self.assertIn("origin/develop", out)             # preflight 3 원격 동기화
+        self.assertIn("중단 상태 감지 (gitflow)", out)
+        self.assertIn("gh pr list --state merged", out)  # 감지 (a)
+        self.assertIn("merge-base --is-ancestor", out)   # 감지 (b)
+        self.assertIn("back-merge", out)                  # §8
+        self.assertIn("git merge main", out)
+        self.assertNotIn("chore/next-dev", out)  # gitflow 복귀는 develop 직접
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_skill_trunk_has_no_gitflow_prose(self):
+        out = self.render_asset("skills/release/SKILL.md")  # 기본 trunk·direct-push
+        self.assertIn("결과가 `main`", out)
+        self.assertNotIn("gitflow", out)
+        self.assertNotIn("back-merge", out)
+        self.assertNotIn("gh pr list --state merged", out)
+        self.assertNotIn("merge-base --is-ancestor", out)
 
 
 class FullRenderTest(unittest.TestCase):
