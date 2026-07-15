@@ -265,6 +265,11 @@ def validate_config(config):
                 problems.append('scopes[{}]: postRelease.bump must be "none" for '
                                 "calver/headver schemes (next-snapshot is "
                                 "semver-only)".format(i))
+        tag_obj = s.get("tag")
+        if not isinstance(tag_obj, dict) or not isinstance(tag_obj.get("enabled"), bool):
+            problems.append('scopes[{}].tag.enabled must be an explicit boolean '
+                            "(the template engine treats a missing key as false, "
+                            "while validation would assume true)".format(i))
         for j, loc in enumerate(s.get("versionLocations") or []):
             prefix = "scopes[{}].versionLocations[{}]".format(i, j)
             if not isinstance(loc, dict) or not loc.get("file"):

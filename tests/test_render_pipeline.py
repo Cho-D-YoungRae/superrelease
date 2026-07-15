@@ -260,15 +260,23 @@ class PipelineTest(unittest.TestCase):
         r = self.render()
         self.assertEqual(r.returncode, 0, r.stderr)
 
-    def test_tag_message_ok_when_enabled_key_omitted(self):
-        # tag object present, annotated true, but "enabled" key omitted →
-        # treated as enabled (sibling-rule convention), so tag-message is valid.
+    def test_tag_enabled_key_must_be_explicit(self):
+        # The frozen template engine resolves a missing scope.tag.enabled
+        # dot-path as falsy (truthy → lookup → _MISSING → False), while
+        # validate_config's get("enabled", True) helpers assume true when the
+        # key is omitted. That divergence let a hand-edited config with the
+        # "enabled" key deleted pass validation (exit 0) yet render a
+        # contradictory toolkit — gh release create present, tag-creation
+        # body and stall-detection absent (M4a final review #1). Require the
+        # key to be an explicit boolean so the engine/validate gap can't be
+        # exploited.
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
         cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
         cfg["scopes"][0]["tag"] = {"format": "v{version}", "annotated": True}
         self.write_config(cfg)
         r = self.render()
-        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("tag.enabled must be an explicit boolean", r.stderr)
 
     def test_tag_message_rejected_when_tag_disabled(self):
         # explicit enabled=false → no tag → tag-message cannot apply → reject.
