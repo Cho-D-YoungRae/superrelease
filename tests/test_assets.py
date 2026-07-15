@@ -240,6 +240,18 @@ class SkillAssetsTest(unittest.TestCase):
         out = self.render_asset("skills/hotfix/SKILL.md")
         self.assertIn("git describe --tags --abbrev=0 --match", out)
 
+    def test_hotfix_backport_release_marking_and_changelog(self):
+        out = self.render_asset("skills/hotfix/SKILL.md")  # github.release=true, changelog 목적지 포함
+        self.assertIn("--latest=false", out)
+        self.assertIn("CHANGELOG에도 반영", out)
+        ctx = base_ctx(github={"release": False, "generateNotes": False,
+                               "releaseYml": False})
+        ctx["scope"]["notes"]["destinations"] = ["release-file"]
+        out2 = self.render_asset("skills/hotfix/SKILL.md", ctx)
+        self.assertNotIn("--latest=false", out2)
+        self.assertNotIn("CHANGELOG에도 반영", out2)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertNotIn("{{", out)
@@ -550,6 +562,14 @@ class ReleaseTrainAssetsTest(unittest.TestCase):
         out_pr = self.render_asset("skills/release-train/SKILL.md", ctx)
         self.assertIn("열린 릴리스 PR", out_pr)
         self.assertIn("gh pr view release/train-", out_pr)
+
+    def test_release_train_warns_on_ci_tag_trigger(self):
+        ctx = train_ctx()
+        ctx["repo"]["tagTriggersDeployment"] = True
+        out = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertIn("배포를 트리거", out)
+        self.assertNotIn("배포를 트리거",
+                         self.render_asset("skills/release-train/SKILL.md", train_ctx()))
 
     def test_notes_train_renders_clean_ko(self):
         out = self.render_asset("templates/notes-train.md", train_ctx())
