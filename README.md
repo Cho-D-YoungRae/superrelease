@@ -34,7 +34,7 @@ Design principles:
 
 - Claude Code with plugin support
 - Python 3.9+ (standard library only — the generated scripts have zero dependencies)
-- `gh` CLI (authenticated) or a connected GitHub MCP server — only if you use GitHub Releases
+- `gh` CLI (authenticated) or a connected GitHub MCP server — only if you use GitHub Releases or the release-PR path
 
 ## Install
 
@@ -70,13 +70,15 @@ Local development: `claude --plugin-dir .` · validate with
 | `.superrelease/config.json` | Single source of truth for every decision |
 | `.superrelease/scripts/version.py` | Read/write/verify the version across all configured locations |
 | `.superrelease/scripts/next-version.py` | Version arithmetic (bump/release/qualifier) |
-| `.superrelease/scripts/changed-packages.py` | Detect changed packages per scope (monorepo only) |
+| `.superrelease/scripts/changed-packages.py` | Detect changed packages per scope (independent monorepos only) |
 | `.superrelease/templates/*.md` | Note & changelog skeletons (hand-editable) |
 | `.github/release.yml` | Label-based release-note categories (optional) |
 | `.claude/skills/hotfix/SKILL.md` | Hotfix skill for maintenance lines (conditional: `maintenanceLines`) |
 | `.claude/skills/backfill/SKILL.md` | One-time CHANGELOG backfill from tags (conditional: `backfill`) |
 | `.claude/skills/release-train/SKILL.md` | Root release-train skill (conditional: dual-scheme `train`) |
 | `.superrelease/templates/release-pr-body.md` | Release-PR body skeleton (conditional: `release-pr`) |
+| `.superrelease/templates/notes-package.md` | Per-package note skeleton (conditional: independent monorepo) |
+| `.superrelease/templates/notes-train.md` | Release-train note skeleton (conditional: dual-scheme train) |
 
 Committing the toolkit is what makes it a team tool: teammates without the
 plugin can release too — the generated files reference only `.superrelease/…`
@@ -97,9 +99,9 @@ paths, never the plugin.
 | Strategy | Fits | Release path |
 |---|---|---|
 | trunk / GitHub flow | most new projects | release from `main` |
-| gitflow | teams releasing from a `develop` integration branch | single-skill repos, release-pr only (cut from develop → merge to main → tag → back-merge) |
+| gitflow | teams releasing from a `develop` integration branch | single-repo (non-monorepo) projects, release-pr only (cut from develop → merge to main → tag → back-merge) |
 
-gitflow support is limited to single-skill repos on the release-pr path;
+gitflow support is limited to single-repo (non-monorepo) projects on the release-pr path;
 monorepo × gitflow and direct-push gitflow are not supported.
 
 ## What superrelease detects
