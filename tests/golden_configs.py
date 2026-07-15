@@ -118,6 +118,46 @@ def train_monorepo():
     return cfg
 
 
+def headver_app():
+    # headver + pre/post none (validate가 non-semver 조합을 강제)
+    cfg = scope_config(
+        [{"file": "package.json", "type": "json-path", "path": "version"}])
+    cfg["scopes"][0]["scheme"] = {"type": "headver", "pattern": "1"}
+    cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+    cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+    return cfg
+
+
+def fixed_monorepo():
+    # fixed = 단일 root scope에 전 패키지 버전 파일 — 흐름은 단일 레포와 동일
+    cfg = scope_config(
+        [{"file": "package.json", "type": "json-path", "path": "version"},
+         {"file": "packages/a/package.json", "type": "json-path", "path": "version"}])
+    cfg["repo"]["kind"] = "monorepo"
+    cfg["repo"]["monorepoStrategy"] = "fixed"
+    return cfg
+
+
+def tagless_app():
+    # tagless: anchor.value가 범위 기준. GitHub Release는 태그 필수라 비활성
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["scopes"][0]["tag"] = {"enabled": False, "format": "v{version}",
+                               "annotated": False, "signed": False,
+                               "movingMajorTag": False}
+    cfg["scopes"][0]["anchor"] = {"type": "ref", "value": None}
+    cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+    cfg["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+    return cfg
+
+
+def monorepo_release_pr():
+    # independent 모노레포 × release-pr — release-monorepo의 PR 분기 고정
+    cfg = monorepo_config()
+    cfg["repo"]["releasePath"] = "release-pr"
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
@@ -125,4 +165,6 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "release-pr-snapshot": release_pr_snapshot, "fragment-app": fragment_app,
           "backfill-app": backfill_app, "train-monorepo": train_monorepo,
           "backfill-monorepo": backfill_monorepo,
-          "backfill-release-pr": backfill_release_pr}
+          "backfill-release-pr": backfill_release_pr,
+          "headver-app": headver_app, "fixed-monorepo": fixed_monorepo,
+          "tagless-app": tagless_app, "monorepo-release-pr": monorepo_release_pr}

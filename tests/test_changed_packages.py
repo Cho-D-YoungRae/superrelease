@@ -125,6 +125,37 @@ class ChangedPackagesTest(unittest.TestCase):
             r = run_script(sd / "changed-packages.py", "--json")
             self.assertEqual(r.returncode, 2)
 
+    def test_prerelease_tag_not_preferred_over_final(self):
+        # a@1.0.1-rc.1이 a@1.0.1(정식)보다 anchor로 선호되면 안 된다
+        g(self.repo, "tag", "-a", "a@1.0.1-rc.1", "-m", "x")
+        g(self.repo, "tag", "-a", "a@1.0.1", "-m", "x")
+        by = self.scopes_by_name(self.run_cp("--scope", "a", "--json").stdout)
+        self.assertEqual(by["a"]["anchor"], "a@1.0.1")
+
+    def test_rename_out_of_scope_counts_as_change(self):
+        g(self.repo, "tag", "-a", "b@0.1.0", "-m", "x")
+        write(self.repo / "packages" / "a" / "util.js", "1\n")
+        g(self.repo, "add", "-A")
+        g(self.repo, "commit", "-qm", "feat: a util (#2)")
+        g(self.repo, "tag", "-a", "a@0.2.0", "-m", "x")
+        g(self.repo, "mv", "packages/a/util.js", "packages/b/util.js")
+        g(self.repo, "commit", "-qm", "refactor: move util (#3)")
+        by = self.scopes_by_name(self.run_cp("--json").stdout)
+        self.assertTrue(by["a"]["hasChanges"])   # 원 위치 삭제도 a의 변경이다
+        self.assertIn("packages/a/util.js", by["a"]["changed"])
+        self.assertTrue(by["b"]["hasChanges"])
+
+    def test_enabled_key_omitted_treated_as_tagged(self):
+        cfg = monorepo_config()
+        for s in cfg["scopes"]:
+            del s["tag"]["enabled"]
+        (self.repo / ".superrelease" / "config.json").write_text(
+            json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+        g(self.repo, "tag", "-a", "a@0.1.0", "-m", "x")
+        by = self.scopes_by_name(self.run_cp("--scope", "a", "--json").stdout)
+        self.assertEqual(by["a"]["anchor"], "a@0.1.0")
+        self.assertEqual(by["a"]["anchorType"], "tag")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,9 +27,10 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 2. clean working tree: `git status --porcelain` 출력이 비어 있어야 함
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/{{repo.defaultBranch}} --count` 가 0
 4. 전 scope 버전 일치: `python3 .superrelease/scripts/version.py verify` → exit 0
-{{#if github.release}}5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인{{/if}}
-6. scope별 중단 상태: 대상 scope의 파일 버전(수식어 제외)이 그 scope의 anchor 태그보다 높은데 해당 버전 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라.
-
+{{#if github.release}}5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
+{{/if}}6. scope별 중단 상태: 대상 scope의 파일 버전이 개발 수식어(-SNAPSHOT류 mutable qualifier) 없는 **bare 릴리스 버전**이고 anchor 태그보다 높은데 그 버전의 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라. 태그를 쓰지 않는 scope는 이 검사를 건너뛴다.
+{{#if repo.releasePath == "release-pr"}}7. 열린 릴리스 PR 확인: `gh pr list --state open --json headRefName,url` 결과에 `release/`로 시작하는 head 브랜치의 PR이 있으면 이전 릴리스가 머지 대기 중이다 — 새 릴리스를 시작하지 말고 그 PR 상태를 보고하고 멈춰라(머지 후 재개는 6번이 잡는다).
+{{/if}}
 ## 2. scope별 범위 산출
 
 - anchor는 changed-packages 출력의 값(그 scope 태그 포맷의 최신 태그). anchor가 없으면 **첫 릴리스** — 커밋을 나열하지 말고 "Initial release"로 다뤄라.
@@ -72,7 +73,7 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 {{#if repo.tagTriggersDeployment}}- ⚠️ **이 태그는 CI 배포를 트리거합니다** — 프리뷰에 반드시 명시
 {{/if}}- 릴리스 노트 미리보기 + 의존성 전파 체인
 
-{{#if repo.releasePath == "direct-push"}}확인 후: scope별로 버전 파일 + 노트 파일을 커밋하고(여러 scope면 scope당 1커밋) `git push origin {{repo.defaultBranch}}`.{{else}}확인 후 **릴리스 PR 경로**: 릴리스 브랜치 하나를 만들어(`release/<첫 scope>@<버전>`, 복수 대상이면 `+N` 접미 — 브랜치명을 프리뷰에 명시) scope당 1커밋으로 쌓고 push → PR 1건 생성(`gh pr create --base {{repo.defaultBranch}}` — 제목에 포함 릴리스를 나열하고, 본문은 `.superrelease/templates/release-pr-body.md` 골격에 scope별 섹션을 채워라; gh 미가용이면 GitHub MCP 폴백) → **중단한다**(태그는 머지 후). 머지 후 재개: 1단계 preflight 6의 중단 상태 감지가 잡는다 — PR 머지 확인 후 `git checkout {{repo.defaultBranch}} && git pull` 하고 scope별로 8단계(태그)부터 이어가라. PR이 열려 있으면 대기 중임을 보고하고 멈춰라.{{/if}}
+{{#if repo.releasePath == "direct-push"}}확인 후: scope별로 버전 파일 + 노트 파일을 커밋하고(여러 scope면 scope당 1커밋) `git push origin {{repo.defaultBranch}}`.{{else}}확인 후 **릴리스 PR 경로**: 릴리스 브랜치 하나를 만들어(`release/<첫 scope>@<버전>`, 복수 대상이면 `+N` 접미 — 브랜치명을 프리뷰에 명시) scope당 1커밋으로 쌓고 push → PR 1건 생성(`gh pr create --base {{repo.defaultBranch}}` — 제목에 포함 릴리스를 나열하고, 본문은 `.superrelease/templates/release-pr-body.md` 골격에 scope별 섹션을 채워라; gh 미가용이면 GitHub MCP 폴백) → **중단한다**(태그는 머지 후). 머지 후 재개: 1단계 preflight 6의 scope별 중단 상태 감지가 잡는다 — PR 머지 확인(`gh pr view <릴리스 브랜치명> --json state,mergedAt`) 후 `git checkout {{repo.defaultBranch}} && git pull` 하고 scope별로 8단계(태그)부터 이어가라. PR이 열려 있으면 대기 중임을 보고하고 멈춰라.{{/if}}
 
 ## 8. 태그{{#if github.release}} + GitHub Release{{/if}} (scope별)
 

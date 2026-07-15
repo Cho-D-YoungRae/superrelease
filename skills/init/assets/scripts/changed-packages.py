@@ -55,7 +55,8 @@ def latest_tag(tag_format):
     if "{version}" not in (tag_format or ""):
         return None
     glob = tag_format.replace("{version}", "*")
-    lines = [l for l in git("tag", "--list", glob, "--sort=-v:refname").splitlines()
+    lines = [l for l in git("-c", "versionsort.suffix=-", "tag", "--list", glob,
+                            "--sort=-v:refname").splitlines()
              if l.strip()]
     return lines[0] if lines else None
 
@@ -69,7 +70,7 @@ def resolve_anchor(scope, ref):
     if ref:
         return ref, "ref"
     tag_cfg = scope.get("tag") or {}
-    if tag_cfg.get("enabled"):
+    if tag_cfg.get("enabled", True):
         tag = latest_tag(tag_cfg.get("format") or "")
         return (tag, "tag") if tag else (None, "none")
     value = (scope.get("anchor") or {}).get("value")
@@ -80,7 +81,7 @@ def changed_for(scope, ref):
     anchor, kind = resolve_anchor(scope, ref)
     prefix = path_prefix(scope.get("path"))
     if anchor:
-        out = git("diff", "--name-only", anchor + "..HEAD")
+        out = git("diff", "--name-only", "--no-renames", anchor + "..HEAD")
     else:
         out = git("ls-files", "--", scope.get("path") or ".")
     files = [f for f in out.splitlines() if f.strip()]

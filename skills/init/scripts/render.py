@@ -250,6 +250,62 @@ def validate_config(config):
             problems.append('scopes[{}]: notes destination "fragment" needs at '
                             "least one sink (changelog/release-file/"
                             "github-release/tag-message)".format(i))
+    for i, s in enumerate(scopes or []):
+        scheme_type = (s.get("scheme") or {}).get("type")
+        if scheme_type and scheme_type not in ("semver", "calver", "headver"):
+            problems.append('scopes[{}].scheme.type must be "semver", "calver" or '
+                            '"headver" (got "{}"; sequential is not supported yet)'
+                            .format(i, scheme_type))
+        if scheme_type in ("calver", "headver"):
+            if (s.get("preRelease") or {}).get("style", "none") not in (None, "none"):
+                problems.append('scopes[{}]: preRelease.style must be "none" for '
+                                "calver/headver schemes (qualifier arithmetic is "
+                                "semver-only)".format(i))
+            if (s.get("postRelease") or {}).get("bump", "none") not in (None, "none"):
+                problems.append('scopes[{}]: postRelease.bump must be "none" for '
+                                "calver/headver schemes (next-snapshot is "
+                                "semver-only)".format(i))
+        tag_obj = s.get("tag")
+        if not isinstance(tag_obj, dict) or not isinstance(tag_obj.get("enabled"), bool):
+            problems.append('scopes[{}].tag.enabled must be an explicit boolean '
+                            "(the template engine treats a missing key as false, "
+                            "while validation would assume true)".format(i))
+        for j, loc in enumerate(s.get("versionLocations") or []):
+            prefix = "scopes[{}].versionLocations[{}]".format(i, j)
+            if not isinstance(loc, dict) or not loc.get("file"):
+                problems.append(prefix + ".file is required")
+                continue
+            ltype = loc.get("type")
+            if ltype not in ("properties-key", "json-path", "regex"):
+                problems.append(prefix + '.type must be "properties-key", '
+                                '"json-path" or "regex" (got "{}")'.format(ltype))
+            elif ltype == "properties-key" and not loc.get("key"):
+                problems.append(prefix + '.key is required for type "properties-key"')
+            elif ltype == "json-path" and not loc.get("path"):
+                problems.append(prefix + '.path is required for type "json-path"')
+            elif ltype == "regex":
+                pattern = loc.get("pattern")
+                if not pattern:
+                    problems.append(prefix + '.pattern is required for type "regex"')
+                else:
+                    try:
+                        if re.compile(pattern).groups != 1:
+                            problems.append(prefix + ".pattern must have exactly "
+                                            "one capture group")
+                    except re.error as e:
+                        problems.append(prefix + ".pattern is not a valid regex: "
+                                        + str(e))
+    gh_cfg = config.get("github") or {}
+    for i, s in enumerate(scopes or []):
+        tag_enabled = (s.get("tag") or {}).get("enabled", True)
+        dests = (s.get("notes") or {}).get("destinations") or []
+        if gh_cfg.get("release") and not tag_enabled:
+            problems.append("scopes[{}]: github.release requires tag.enabled "
+                            "(GitHub Releases are tag-based) — disable "
+                            "github.release or enable tags".format(i))
+        if not gh_cfg.get("release") and "github-release" in dests:
+            problems.append('scopes[{}]: notes destination "github-release" '
+                            "requires github.release: true".format(i))
     return problems
 
 
