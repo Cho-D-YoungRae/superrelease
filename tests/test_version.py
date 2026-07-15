@@ -186,5 +186,47 @@ class MultiScopeTest(VersionTestBase):
         self.assertIn("scope b", r.stdout)
 
 
+class RegexGuardTest(VersionTestBase):
+    def test_multi_group_pattern_set_exits_2_without_writing(self):
+        content = "A-1.0.0 and B-1.0.0 end\n"
+        repo = self.repo_with(
+            [{"file": "V.md", "type": "regex",
+              "pattern": r"A-(\d+\.\d+\.\d+)|B-(\d+\.\d+\.\d+)"}],
+            {"V.md": content})
+        r = run_script(vp(repo), "set", "2.0.0")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("exactly one capture group", r.stderr)
+        self.assertEqual((Path(repo) / "V.md").read_text(encoding="utf-8"), content)
+
+    def test_multi_group_pattern_get_exits_2(self):
+        repo = self.repo_with(
+            [{"file": "V.md", "type": "regex", "pattern": r"(a)-(\d+)"}],
+            {"V.md": "a-1\n"})
+        r = run_script(vp(repo), "get")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("exactly one capture group", r.stderr)
+
+    def test_invalid_regex_exits_2(self):
+        repo = self.repo_with(
+            [{"file": "V.md", "type": "regex", "pattern": r"ver-([0-9]+"}],
+            {"V.md": "ver-1\n"})
+        r = run_script(vp(repo), "get")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("invalid pattern", r.stderr)
+
+    def test_alternation_single_group_replaces_participating_matches(self):
+        # 그룹이 1개면 비참여 alternation 가지는 건너뛰고 참여 매치만 치환한다
+        repo = self.repo_with(
+            [{"file": "V.md", "type": "regex",
+              "pattern": r"version-([0-9][0-9.]*)-blue|version_badge"}],
+            {"V.md": "version_badge\nversion-1.2.3-blue\n"})
+        r = run_script(vp(repo), "set", "1.2.4")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        text = (Path(repo) / "V.md").read_text(encoding="utf-8")
+        self.assertIn("version-1.2.4-blue", text)
+        self.assertIn("version_badge\n", text)
+        self.assertEqual(run_script(vp(repo), "get").stdout.strip(), "1.2.4")
+
+
 if __name__ == "__main__":
     unittest.main()
