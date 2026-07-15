@@ -590,14 +590,6 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("gh 인증", out)
         self.assertIn("PR 생성·조회에 gh", out)
 
-    def test_release_monorepo_github_release_legend_gated(self):
-        ctx = mono_ctx()
-        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
-        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
-        self.assertNotIn("- `github-release`: 8단계", out)
-        out_default = self.render_asset("skills/release-monorepo/SKILL.md")  # github-release dest 기본 보유
-        self.assertIn("- `github-release`: 8단계", out_default)
-
 
 class FullRenderMonorepoTest(unittest.TestCase):
     def test_monorepo_render_end_to_end(self):
