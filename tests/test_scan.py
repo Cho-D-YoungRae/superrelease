@@ -271,6 +271,57 @@ class ScanTest(unittest.TestCase):
                 commits=["chore: init"])
             self.assertNotIn("openapi.yaml", self._candidates_by_file(repo))
 
+    def test_gradle_multimodule_packages_collected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"settings.gradle":
+                           'rootProject.name = "demo"\n'
+                           'include(":app")\n'
+                           "include ':lib-a', ':lib-b'\n"
+                           'include(":nested:core")\n',
+                       "app/build.gradle": 'version = "1.0.0"\n',
+                       "lib-a/gradle.properties": "version=2.0.0\n",
+                       "lib-b/build.gradle.kts": 'version = "3.0.0"\n',
+                       "nested/core/build.gradle": "// no version\n"},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            mono = data["monorepo"]
+            self.assertTrue(mono["suspected"])
+            by_path = {p["path"]: p for p in mono["packages"]}
+            self.assertEqual(sorted(by_path),
+                             ["app", "lib-a", "lib-b", "nested/core"])
+            self.assertEqual(by_path["app"]["version"], "1.0.0")
+            self.assertEqual(by_path["lib-a"]["version"], "2.0.0")   # properties 우선
+            self.assertEqual(by_path["lib-b"]["version"], "3.0.0")
+            self.assertIsNone(by_path["nested/core"]["version"])
+            self.assertEqual(by_path["nested/core"]["name"], "core")
+            self.assertTrue(all(p["buildSystem"] == "gradle"
+                                for p in mono["packages"]))
+
+    def test_node_packages_carry_build_system_field(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"pnpm-workspace.yaml": 'packages:\n  - "packages/*"\n',
+                       "packages/a/package.json":
+                           '{"name": "a", "version": "0.1.0"}\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            self.assertEqual(data["monorepo"]["packages"][0]["buildSystem"],
+                             "node")
+
+    def test_gradle_module_missing_dir_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"settings.gradle": 'include(":ghost")\ninclude(":real")\n',
+                       "real/build.gradle": 'version = "1.0.0"\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            self.assertEqual([p["path"] for p in data["monorepo"]["packages"]],
+                             ["real"])
+
 
 if __name__ == "__main__":
     unittest.main()

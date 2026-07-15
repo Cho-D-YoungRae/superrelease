@@ -320,7 +320,49 @@ def _node_packages(repo):
                     deps.update(block)
             packages.append({"path": rel, "name": data.get("name"),
                              "version": data.get("version"),
+                             "buildSystem": "node",
                              "_deps": sorted(deps)})
+    return packages
+
+
+def _gradle_packages(repo):
+    """Resolve settings.gradle(.kts) include paths (":a:b" -> "a/b") and
+    collect each existing module's version (gradle.properties key first,
+    then build.gradle(.kts) assignment)."""
+    seen, packages = set(), []
+    for name in ("settings.gradle", "settings.gradle.kts"):
+        text = read(repo / name)
+        if not text:
+            continue
+        for line in text.splitlines():
+            if not re.match(r"^\s*include[ (]", line):
+                continue
+            for mod in re.findall(r"['\"]:?([A-Za-z0-9._:-]+)['\"]", line):
+                rel = mod.replace(":", "/")
+                if rel in seen:
+                    continue
+                seen.add(rel)
+                d = repo / rel
+                if not d.is_dir():
+                    continue
+                version = None
+                props = read(d / "gradle.properties")
+                if props:
+                    m = re.search(r"^\s*version\s*=\s*(\S+)\s*$", props, re.M)
+                    if m:
+                        version = m.group(1)
+                if version is None:
+                    for bname in ("build.gradle.kts", "build.gradle"):
+                        btext = read(d / bname)
+                        if btext:
+                            m = re.search(GRADLE_VERSION_PATTERN, btext, re.M)
+                            if m:
+                                version = m.group(1)
+                                break
+                packages.append({"path": rel,
+                                 "name": rel.rsplit("/", 1)[-1],
+                                 "version": version,
+                                 "buildSystem": "gradle"})
     return packages
 
 
@@ -345,6 +387,9 @@ def scan_monorepo(repo):
             if dep in names and names[dep] != p["path"]:
                 internal.append({"fromPath": p["path"], "fromName": p.get("name"),
                                  "toPath": names[dep], "toName": dep})
+    node_paths = {p["path"] for p in packages}
+    packages += [g for g in _gradle_packages(repo)
+                 if g["path"] not in node_paths]
     return {"suspected": bool(signals) or len(packages) > 1,
             "signals": signals, "packages": packages,
             "internalDependencies": internal,
