@@ -158,6 +158,16 @@ def monorepo_release_pr():
     return cfg
 
 
+def gitflow_app():
+    # gitflow: develop cut → main 머지·태그 → back-merge. release-pr 전용(validate 강제)
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["branching"] = "gitflow"
+    cfg["repo"]["developBranch"] = "develop"
+    cfg["repo"]["releasePath"] = "release-pr"
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
@@ -167,4 +177,5 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "backfill-monorepo": backfill_monorepo,
           "backfill-release-pr": backfill_release_pr,
           "headver-app": headver_app, "fixed-monorepo": fixed_monorepo,
-          "tagless-app": tagless_app, "monorepo-release-pr": monorepo_release_pr}
+          "tagless-app": tagless_app, "monorepo-release-pr": monorepo_release_pr,
+          "gitflow-app": gitflow_app}
