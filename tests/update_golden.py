@@ -7,6 +7,7 @@ NOTE: bumping the plugin version in .claude-plugin/plugin.json changes the
 generated markers, so goldens must be regenerated (and reviewed) afterwards.
 """
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -31,7 +32,8 @@ def render_into(name, build, dest_root):
             [sys.executable, str(PLUGIN_SCRIPTS / "render.py"),
              "--config", str(repo / ".superrelease" / "config.json"),
              "--assets", str(ASSETS), "--repo", str(repo), "--now", NOW],
-            capture_output=True, text=True)
+            capture_output=True, text=True,
+            env={**os.environ, "GIT_CEILING_DIRECTORIES": tmp})
         if proc.returncode != 0:
             sys.stderr.write(proc.stderr)
             sys.exit(1)
