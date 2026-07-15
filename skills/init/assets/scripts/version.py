@@ -89,6 +89,17 @@ def properties_pattern(key):
     return re.compile(r"^(\s*" + re.escape(key) + r"\s*=\s*)(.*?)(\s*)$", re.MULTILINE)
 
 
+def location_pattern(path, pattern):
+    try:
+        pat = re.compile(pattern, re.MULTILINE)
+    except re.error as e:
+        fail(str(path) + ": invalid pattern '" + pattern + "': " + str(e), 2)
+    if pat.groups != 1:
+        fail(str(path) + ": pattern '" + pattern
+             + "' must have exactly one capture group, found " + str(pat.groups), 2)
+    return pat
+
+
 def loc_path(scope, loc):
     return (repo_root() / scope.get("path", ".") / loc["file"]).resolve()
 
@@ -122,13 +133,11 @@ def read_location(scope, loc):
             fail(str(path) + ": invalid JSON: " + str(e), 1)
         return json_path_get(obj, loc["path"], path)
     if t == "regex":
-        m = re.search(loc["pattern"], text, re.MULTILINE)
-        if not m or not m.lastindex:
+        pat = location_pattern(path, loc["pattern"])
+        matches = [m for m in pat.finditer(text) if m.start(1) != -1]
+        if not matches:
             fail(str(path) + ": pattern '" + loc["pattern"] + "' not found (needs one capture group)", 1)
-        if m.lastindex != 1:
-            fail(str(path) + ": pattern '" + loc["pattern"] + "' must have exactly one capture group, found "
-                 + str(m.lastindex), 2)
-        return m.group(1)
+        return matches[0].group(1)
     fail("unknown location type: " + str(t), 2)
 
 
@@ -186,12 +195,10 @@ def set_location(scope, loc, new_version):
             sync_package_lock(path, new_version)
         return old
     if t == "regex":
-        matches = [m for m in re.finditer(loc["pattern"], text, re.MULTILINE) if m.lastindex]
+        pat = location_pattern(path, loc["pattern"])
+        matches = [m for m in pat.finditer(text) if m.start(1) != -1]
         if not matches:
             fail(str(path) + ": pattern '" + loc["pattern"] + "' not found (needs one capture group)", 1)
-        if matches[0].lastindex != 1:
-            fail(str(path) + ": pattern '" + loc["pattern"] + "' must have exactly one capture group, found "
-                 + str(matches[0].lastindex), 2)
         old = matches[0].group(1)
         for m in reversed(matches):
             text = text[:m.start(1)] + new_version + text[m.end(1):]

@@ -158,6 +158,47 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("gh pr create", out)
         self.assertNotIn("chore/next-dev", out)
 
+    def test_release_skill_stall_detection_mutable_exception(self):
+        out = self.render_asset("skills/release/SKILL.md")  # 기본 mutable SNAPSHOT
+        self.assertIn("중단 상태 감지", out)
+        self.assertIn("정상 개발 상태", out)
+        self.assertIn("`-SNAPSHOT` 수식어", out)
+
+    def test_release_skill_stall_detection_counter_has_no_mutable_clause(self):
+        ctx = base_ctx()
+        ctx["scope"]["preRelease"] = {"style": "counter", "qualifier": "rc"}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertIn("중단 상태 감지", out)
+        self.assertNotIn("정상 개발 상태", out)
+
+    def test_release_skill_tagless_drops_stall_detection(self):
+        ctx = base_ctx()
+        ctx["scope"]["tag"]["enabled"] = False
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("중단 상태 감지", out)
+
+    def test_release_skill_release_pr_open_pr_guard(self):
+        ctx = base_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertIn("열린 릴리스 PR", out)
+        self.assertIn("gh pr list --state open", out)
+        self.assertIn("gh pr view release/", out)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_skill_direct_push_has_no_open_pr_guard(self):
+        out = self.render_asset("skills/release/SKILL.md")
+        self.assertNotIn("열린 릴리스 PR", out)
+        self.assertNotIn("gh pr list", out)
+
+    def test_release_skill_anchor_uses_tag_format_glob(self):
+        out = self.render_asset("skills/release/SKILL.md")
+        self.assertIn("versionsort.suffix=-", out)
+        self.assertNotIn("git describe", out)
+        self.assertIn("v{version}", out)  # glob 파생 기준 포맷 노출
+
     def test_release_pr_body_template_language_blocks(self):
         ko = self.render_asset("templates/release-pr-body.md")
         self.assertIn("릴리스 {version}", ko)
@@ -195,6 +236,22 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertIn("수동으로", out)
         self.assertLessEqual(len(out.splitlines()), 149)
 
+    def test_hotfix_anchor_describe_has_match_filter(self):
+        out = self.render_asset("skills/hotfix/SKILL.md")
+        self.assertIn("git describe --tags --abbrev=0 --match", out)
+
+    def test_hotfix_backport_release_marking_and_changelog(self):
+        out = self.render_asset("skills/hotfix/SKILL.md")  # github.release=true, changelog 목적지 포함
+        self.assertIn("--latest=false", out)
+        self.assertIn("CHANGELOG에도 반영", out)
+        ctx = base_ctx(github={"release": False, "generateNotes": False,
+                               "releaseYml": False})
+        ctx["scope"]["notes"]["destinations"] = ["release-file"]
+        out2 = self.render_asset("skills/hotfix/SKILL.md", ctx)
+        self.assertNotIn("--latest=false", out2)
+        self.assertNotIn("CHANGELOG에도 반영", out2)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertNotIn("{{", out)
@@ -230,6 +287,10 @@ class SkillAssetsTest(unittest.TestCase):
         out = self.render_asset("skills/backfill/SKILL.md")  # base_ctx = direct-push
         self.assertIn("CHANGELOG.md만 스테이징", out)
         self.assertNotIn("docs/backfill-changelog", out)
+
+    def test_backfill_sort_uses_versionsort(self):
+        out = self.render_asset("skills/backfill/SKILL.md")
+        self.assertIn("versionsort.suffix=-", out)
 
 
 class FullRenderTest(unittest.TestCase):
@@ -386,6 +447,17 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertNotIn("gh pr create", out)
         self.assertNotIn("chore/next-dev", out)
 
+    def test_release_monorepo_stall_detection_and_open_pr_guard(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertIn("bare 릴리스 버전", out)
+        self.assertNotIn("열린 릴리스 PR", out)
+        ctx = mono_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        out_pr = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertIn("열린 릴리스 PR", out_pr)
+        self.assertIn("gh pr view", out_pr)
+        self.assertLessEqual(len(out_pr.splitlines()), 149)
+
     def test_release_notes_monorepo_renders_clean(self):
         out = self.render_asset("skills/release-notes-monorepo/SKILL.md")
         self.assertNotIn("{{", out)
@@ -448,6 +520,10 @@ class ReleaseTrainAssetsTest(unittest.TestCase):
         self.assertIn("--pattern YYYY.MICRO", out)
         self.assertIn("train-{version}", out)  # tag.format 단일 중괄호 보존
 
+    def test_release_train_tag_listing_uses_versionsort(self):
+        out = self.render_asset("skills/release-train/SKILL.md", train_ctx())
+        self.assertIn("versionsort.suffix=-", out)
+
     def test_release_train_direct_push_path(self):
         out = self.render_asset("skills/release-train/SKILL.md", train_ctx())
         self.assertIn("git push origin main", out)
@@ -476,6 +552,24 @@ class ReleaseTrainAssetsTest(unittest.TestCase):
         out = self.render_asset("skills/release-train/SKILL.md", ctx)
         self.assertNotIn("gh release create", out)
         self.assertNotIn("gh auth status", out)
+
+    def test_release_train_stall_detection_and_open_pr_guard(self):
+        out = self.render_asset("skills/release-train/SKILL.md", train_ctx())
+        self.assertIn("bare 릴리스 버전", out)
+        self.assertNotIn("열린 릴리스 PR", out)
+        ctx = train_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        out_pr = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertIn("열린 릴리스 PR", out_pr)
+        self.assertIn("gh pr view release/train-", out_pr)
+
+    def test_release_train_warns_on_ci_tag_trigger(self):
+        ctx = train_ctx()
+        ctx["repo"]["tagTriggersDeployment"] = True
+        out = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertIn("배포를 트리거", out)
+        self.assertNotIn("배포를 트리거",
+                         self.render_asset("skills/release-train/SKILL.md", train_ctx()))
 
     def test_notes_train_renders_clean_ko(self):
         out = self.render_asset("templates/notes-train.md", train_ctx())
