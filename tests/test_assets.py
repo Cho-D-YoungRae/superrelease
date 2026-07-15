@@ -267,6 +267,15 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("CHANGELOG에도 반영", out2)
         self.assertLessEqual(len(out.splitlines()), 149)
 
+    def test_hotfix_gitflow_mentions_develop_backport(self):
+        ctx = gitflow_ctx()
+        ctx["repo"]["maintenanceLines"] = True
+        out = self.render_asset("skills/hotfix/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("`develop` 반영도 함께", out)
+        out_trunk = self.render_asset("skills/hotfix/SKILL.md")
+        self.assertNotIn("반영도 함께", out_trunk)
+
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertNotIn("{{", out)
