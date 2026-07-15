@@ -344,6 +344,19 @@ class ScanTest(unittest.TestCase):
                 commits=["chore: init"])
             self.assertNotIn("openapi.json", self._candidates_by_file(repo))
 
+    def test_claude_plugin_manifest_is_json_path_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={".claude-plugin/plugin.json":
+                       '{"name": "demo", "version": "1.3.0"}\n'},
+                commits=["chore: init"])
+            cand = self._candidates_by_file(repo)[".claude-plugin/plugin.json"]
+            self.assertEqual(cand["type"], "json-path")
+            self.assertEqual(cand["path"], "version")
+            self.assertEqual(cand["value"], "1.3.0")
+            self.assertNotIn("usable", cand)  # usable 후보는 키 생략(package.json·openapi와 동일)
+
     def test_gradle_multimodule_packages_collected(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_git_repo(
