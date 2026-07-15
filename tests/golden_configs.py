@@ -168,6 +168,16 @@ def gitflow_app():
     return cfg
 
 
+def release_pr_nogh():
+    # release-pr + github.release=false — gh preflight의 release-pr 분기를 핀
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+    cfg["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
@@ -178,4 +188,4 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "backfill-release-pr": backfill_release_pr,
           "headver-app": headver_app, "fixed-monorepo": fixed_monorepo,
           "tagless-app": tagless_app, "monorepo-release-pr": monorepo_release_pr,
-          "gitflow-app": gitflow_app}
+          "gitflow-app": gitflow_app, "release-pr-nogh": release_pr_nogh}
