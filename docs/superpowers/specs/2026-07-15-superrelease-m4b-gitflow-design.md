@@ -84,6 +84,7 @@ validate 규칙 5종:
 - 모노레포(fixed·independent)·train × gitflow — validate 거부 + 후속 표시.
 - develop 보호 브랜치 완전 대응 — back-merge PR 안내까지만.
 - git-flow CLI 연동, README 갱신(M4d).
+- **최종 리뷰 반영**: gitflow 릴리스 PR은 머지 커밋(--no-ff) 전제 — squash 머지는 태그 조상에서 develop 이력을 끊어 §2 범위를 오염시키므로 스킬이 머지 커밋을 요구한다(§2 anchor 규칙 자체는 무변경이나 머지 방식 전제가 붙는다).
 
 ## 예상 태스크 (writing-plans에서 확정)
 
