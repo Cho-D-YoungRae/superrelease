@@ -47,6 +47,21 @@ def train_ctx(**overrides):
     return ctx
 
 
+def gitflow_ctx(**overrides):
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["branching"] = "gitflow"
+    cfg["repo"]["developBranch"] = "develop"
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg.update(overrides)
+    ctx = dict(cfg)
+    ctx["project"] = {"name": "demo-app"}
+    ctx["plugin"] = {"version": "0.1.0"}
+    ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
+    ctx["scope"] = cfg["scopes"][0]
+    return ctx
+
+
 class SkillAssetsTest(unittest.TestCase):
     def render_asset(self, rel, ctx=None):
         text = (ASSETS / rel).read_text(encoding="utf-8")
@@ -252,6 +267,15 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("CHANGELOG에도 반영", out2)
         self.assertLessEqual(len(out.splitlines()), 149)
 
+    def test_hotfix_gitflow_mentions_develop_backport(self):
+        ctx = gitflow_ctx()
+        ctx["repo"]["maintenanceLines"] = True
+        out = self.render_asset("skills/hotfix/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("`develop` 반영도 함께", out)
+        out_trunk = self.render_asset("skills/hotfix/SKILL.md")
+        self.assertNotIn("반영도 함께", out_trunk)
+
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertNotIn("{{", out)
@@ -291,6 +315,41 @@ class SkillAssetsTest(unittest.TestCase):
     def test_backfill_sort_uses_versionsort(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertIn("versionsort.suffix=-", out)
+
+    def test_release_skill_gitflow_branch_and_detection(self):
+        out = self.render_asset("skills/release/SKILL.md", gitflow_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("결과가 `develop`", out)          # preflight 1 기준 브랜치
+        self.assertIn("origin/develop", out)             # preflight 3 원격 동기화
+        self.assertIn("중단 상태 감지 (gitflow)", out)
+        self.assertIn("gh pr list --state merged", out)  # 감지 (a)
+        self.assertIn("merge-base --is-ancestor", out)   # 감지 (b)
+        self.assertIn("back-merge", out)                  # §8
+        self.assertIn("git merge main", out)
+        self.assertNotIn("chore/next-dev", out)  # gitflow 복귀는 develop 직접
+        self.assertIn("머지 커밋", out)                       # Critical #1 merge-commit 요구
+        self.assertIn('--search "head:release/"', out)        # Important #3
+        self.assertIn("--merged origin/main", out)            # Important #2
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_skill_trunk_has_no_gitflow_prose(self):
+        out = self.render_asset("skills/release/SKILL.md")  # 기본 trunk·direct-push
+        self.assertIn("결과가 `main`", out)
+        self.assertNotIn("gitflow", out)
+        self.assertNotIn("back-merge", out)
+        self.assertNotIn("gh pr list --state merged", out)
+        self.assertNotIn("merge-base --is-ancestor", out)
+        self.assertNotIn("**머지 커밋**", out)
+
+        # §6 "머지 후 재개" 문단(및 squash resume 핀)은 release-pr 경로에만 존재 —
+        # trunk·release-pr로 별도 렌더링해 확인한다. bare "머지 커밋"은 이 문단의
+        # 기존 문구("...머지 커밋을 받아...")와 우연히 겹치므로(Critical #1과 무관)
+        # Edit B가 추가한 굵게 표시된 문구로 특정해 오탐을 피한다.
+        pr_ctx = base_ctx()
+        pr_ctx["repo"]["releasePath"] = "release-pr"
+        pr_out = self.render_asset("skills/release/SKILL.md", pr_ctx)  # trunk·release-pr
+        self.assertNotIn("**머지 커밋**", pr_out)              # gitflow 전용 머지-커밋 요구 프로즈 미노출
+        self.assertIn("squash 머지로 sha가 바뀐다", pr_out)    # trunk resume 문구 불변 핀
 
 
 class FullRenderTest(unittest.TestCase):

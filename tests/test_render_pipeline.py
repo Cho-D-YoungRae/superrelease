@@ -298,6 +298,52 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertIn("manifest not found", r.stderr)
 
+    def test_branching_enum_rejected(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "git-flow"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("repo.branching", r.stderr)
+
+    def test_gitflow_requires_release_pr(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["developBranch"] = "develop"  # releasePath는 기본 direct-push
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("release-pr", r.stderr)
+
+    def test_gitflow_rejected_for_monorepo(self):
+        cfg = monorepo_config()
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["developBranch"] = "develop"
+        cfg["repo"]["releasePath"] = "release-pr"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("monorepo", r.stderr)
+
+    def test_gitflow_requires_develop_branch(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["releasePath"] = "release-pr"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("developBranch", r.stderr)
+
+    def test_gitflow_develop_must_differ_from_default(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["releasePath"] = "release-pr"
+        cfg["repo"]["developBranch"] = "main"  # defaultBranch와 동일
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("must differ", r.stderr)
+
     def test_crlf_dest_preserved_on_update(self):
         self.render()
         notes = self.repo / ".superrelease/templates/notes.md"
