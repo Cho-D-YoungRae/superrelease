@@ -60,4 +60,4 @@ claude --plugin-dir .
 
 ## 지원 현황 (조건부 기능, 전부 출하됨)
 
-단일/모노레포(fixed·independent·이중 체계 train) · SemVer/CalVer/HeadVer · pre-release(none/mutable/counter) · direct-push/release-pr(보호 브랜치) · 노트 목적지 5종(changelog/release-file/github-release/fragment/tag-message) · hotfix · CHANGELOG backfill(단일·모노레포) · release-train.
+브랜칭(trunk/gitflow) · 단일/모노레포(fixed·independent·이중 체계 train) · SemVer/CalVer/HeadVer · pre-release(none/mutable/counter) · direct-push/release-pr(보호 브랜치) · 노트 목적지 5종(changelog/release-file/github-release/fragment/tag-message) · hotfix · CHANGELOG backfill(단일·모노레포) · release-train.
