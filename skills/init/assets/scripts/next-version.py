@@ -143,7 +143,12 @@ def calver_next(current, pattern, today):
         else:
             pieces.append(CALVER_RENDER[val](today))
     if None not in pieces:
-        return "".join(pieces)
+        result = "".join(pieces)
+        if result == (current or "").strip():
+            fail("calver pattern '" + pattern + "' has no MICRO token and the "
+                 "computed version equals the current version (" + result
+                 + "); a same-period re-release needs MICRO in the pattern", 1)
+        return result
     same_period = re.compile(
         "^" + "".join(r"(\d+)" if p is None else re.escape(p) for p in pieces) + "$")
     m = same_period.match(current or "")
