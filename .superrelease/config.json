@@ -27,7 +27,8 @@
       "path": ".",
       "scheme": {"type": "semver", "pattern": null},
       "versionLocations": [
-        {"file": ".claude-plugin/plugin.json", "type": "json-path", "path": "version"}
+        {"file": ".claude-plugin/plugin.json", "type": "json-path", "path": "version"},
+        {"file": ".claude-plugin/marketplace.json", "type": "json-path", "path": "metadata.version"}
       ],
       "tag": {"enabled": true, "format": "v{version}", "annotated": true, "signed": false, "movingMajorTag": false},
       "bump": {"mode": "auto-confirm", "sources": ["conventional-commits"], "fallback": "diff", "compatCheck": null},
