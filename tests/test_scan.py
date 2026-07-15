@@ -51,6 +51,45 @@ OPENAPI_YAML = (
     "  version: 2.4.0\n"
     "paths: {}\n")
 
+POM_COMMENTED_REVISION = (
+    '<project xmlns="http://maven.apache.org/POM/4.0.0">\n'
+    "  <modelVersion>4.0.0</modelVersion>\n"
+    "  <!-- <revision>0.9.0</revision> legacy -->\n"
+    "  <artifactId>demo</artifactId>\n"
+    "  <version>${revision}</version>\n"
+    "  <properties>\n"
+    "    <revision>1.2.0</revision>\n"
+    "  </properties>\n"
+    "</project>\n")
+
+POM_PROFILE_REVISION = (
+    '<project xmlns="http://maven.apache.org/POM/4.0.0">\n'
+    "  <modelVersion>4.0.0</modelVersion>\n"
+    "  <artifactId>demo</artifactId>\n"
+    "  <version>${revision}</version>\n"
+    "  <properties>\n"
+    "    <revision>1.2.0</revision>\n"
+    "  </properties>\n"
+    "  <profiles>\n"
+    "    <profile>\n"
+    "      <properties>\n"
+    "        <revision>1.2.0-SNAPSHOT</revision>\n"
+    "      </properties>\n"
+    "    </profile>\n"
+    "  </profiles>\n"
+    "</project>\n")
+
+OPENAPI_YAML_TWO_VERSIONS = (
+    "openapi: 3.0.3\n"
+    "info:\n"
+    "  title: Demo API\n"
+    "  version: 2.4.0\n"
+    "components:\n"
+    "  schemas:\n"
+    "    Widget:\n"
+    "      properties:\n"
+    "        version: 1.0.0\n")
+
 
 class ScanTest(unittest.TestCase):
     def test_gradle_app_repo(self):
@@ -229,6 +268,23 @@ class ScanTest(unittest.TestCase):
                                  commits=["chore: init"])
             self.assertNotIn("pom.xml", self._candidates_by_file(repo))
 
+    def test_pom_commented_revision_downgraded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"pom.xml": POM_COMMENTED_REVISION},
+                                 commits=["chore: init"])
+            cand = self._candidates_by_file(repo)["pom.xml"]
+            self.assertEqual(cand["value"], "1.2.0")   # ET reads the canonical one
+            self.assertIs(cand["usable"], False)         # but the regex is ambiguous
+            self.assertNotIn("pattern", cand)
+
+    def test_pom_profile_revision_downgraded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"pom.xml": POM_PROFILE_REVISION},
+                                 commits=["chore: init"])
+            cand = self._candidates_by_file(repo)["pom.xml"]
+            self.assertIs(cand["usable"], False)
+            self.assertNotIn("pattern", cand)
+
     def test_version_file_versionish_content_is_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_git_repo(tmp, files={"VERSION": "1.4.2\n"},
@@ -271,6 +327,22 @@ class ScanTest(unittest.TestCase):
                 tmp, files={"openapi.yaml": "version: 9.9.9\npaths: {}\n"},
                 commits=["chore: init"])
             self.assertNotIn("openapi.yaml", self._candidates_by_file(repo))
+
+    def test_openapi_yaml_multiple_version_keys_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp,
+                                 files={"openapi.yaml": OPENAPI_YAML_TWO_VERSIONS},
+                                 commits=["chore: init"])
+            self.assertNotIn("openapi.yaml", self._candidates_by_file(repo))
+
+    def test_openapi_json_non_versionish_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"openapi.json":
+                       '{"info": {"title": "x", "version": "N/A"}}\n'},
+                commits=["chore: init"])
+            self.assertNotIn("openapi.json", self._candidates_by_file(repo))
 
     def test_gradle_multimodule_packages_collected(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -346,6 +418,20 @@ class ScanTest(unittest.TestCase):
             self.assertEqual(by_path["packages/shared"]["version"], "1.0.0")
             self.assertEqual(by_path["gradle-only"]["buildSystem"], "gradle")
             self.assertEqual(by_path["gradle-only"]["version"], "3.0.0")
+
+    def test_gradle_commented_include_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"settings.gradle":
+                           'include(":app") // include(":legacy")\n',
+                       "app/build.gradle": 'version = "1.0.0"\n',
+                       "legacy/build.gradle": 'version = "9.9.9"\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            paths = [p["path"] for p in data["monorepo"]["packages"]]
+            self.assertIn("app", paths)
+            self.assertNotIn("legacy", paths)
 
     def _branch(self, repo, name):
         subprocess.run(["git", "-C", str(repo), "branch", name],
