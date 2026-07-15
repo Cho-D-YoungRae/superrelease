@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-첫 릴리스(`v0.1.0`) 준비 중 — 아래는 0.1.0에 포함될 초기 기능이다. 태그를 찍는 시점에 이
-섹션을 `## [0.1.0] - YYYY-MM-DD`로 옮기고 새 Unreleased 섹션을 연다.
+## [0.1.0] - 2026-07-16
 
 ### Added
 
@@ -42,4 +41,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   versionsort·rename·tag.enabled 기본값 · CalVer 동일 기간 exit 1 · validate_config
   강화(scheme enum·non-semver 조합·location·github↔태그·branching gitflow 전제).
 
-[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/commits/main
+[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.1.0
