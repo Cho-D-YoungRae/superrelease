@@ -9,6 +9,47 @@ SCAN = PLUGIN_SCRIPTS / "scan.py"
 
 DEPLOY_YML = "on:\n  push:\n    tags:\n      - 'v*'\njobs: {}\n"
 
+POM_WITH_REVISION = (
+    '<project xmlns="http://maven.apache.org/POM/4.0.0">\n'
+    "  <modelVersion>4.0.0</modelVersion>\n"
+    "  <groupId>com.example</groupId>\n"
+    "  <artifactId>demo</artifactId>\n"
+    "  <version>${revision}</version>\n"
+    "  <properties>\n"
+    "    <revision>1.2.0-SNAPSHOT</revision>\n"
+    "  </properties>\n"
+    "</project>\n")
+
+POM_PLAIN_VERSION = (
+    "<project>\n"
+    "  <modelVersion>4.0.0</modelVersion>\n"
+    "  <parent>\n"
+    "    <groupId>g</groupId>\n"
+    "    <artifactId>p</artifactId>\n"
+    "    <version>9.9.9</version>\n"
+    "  </parent>\n"
+    "  <artifactId>demo</artifactId>\n"
+    "  <version>1.2.0</version>\n"
+    "</project>\n")
+
+POM_PARENT_ONLY = (
+    "<project>\n"
+    "  <modelVersion>4.0.0</modelVersion>\n"
+    "  <parent>\n"
+    "    <groupId>g</groupId>\n"
+    "    <artifactId>p</artifactId>\n"
+    "    <version>9.9.9</version>\n"
+    "  </parent>\n"
+    "  <artifactId>demo</artifactId>\n"
+    "</project>\n")
+
+OPENAPI_YAML = (
+    "openapi: 3.0.3\n"
+    "info:\n"
+    "  title: Demo API\n"
+    "  version: 2.4.0\n"
+    "paths: {}\n")
+
 
 class ScanTest(unittest.TestCase):
     def test_gradle_app_repo(self):
@@ -156,6 +197,79 @@ class ScanTest(unittest.TestCase):
             names = [p.get("name") for p in data["monorepo"]["packages"]]
             self.assertIn("b", names)     # valid package still enumerated
             self.assertNotIn(None, names) # the "[]" package was skipped, not crashed on
+
+    def _candidates_by_file(self, repo):
+        data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+        return {c["file"]: c for c in data["versionCandidates"]}
+
+    def test_pom_revision_property_is_usable_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"pom.xml": POM_WITH_REVISION},
+                                 commits=["chore: init"])
+            cand = self._candidates_by_file(repo)["pom.xml"]
+            self.assertEqual(cand["type"], "regex")
+            self.assertEqual(cand["value"], "1.2.0-SNAPSHOT")
+            self.assertEqual(cand["pattern"], "<revision>([^<]+)</revision>")
+            self.assertNotIn("usable", cand)
+
+    def test_pom_plain_version_detected_but_not_usable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"pom.xml": POM_PLAIN_VERSION},
+                                 commits=["chore: init"])
+            cand = self._candidates_by_file(repo)["pom.xml"]
+            self.assertEqual(cand["value"], "1.2.0")  # parent의 9.9.9가 아니라 project 직계
+            self.assertIs(cand["usable"], False)
+            self.assertEqual(cand["advice"], "maven-project-version")
+            self.assertNotIn("pattern", cand)
+
+    def test_pom_parent_only_yields_no_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"pom.xml": POM_PARENT_ONLY},
+                                 commits=["chore: init"])
+            self.assertNotIn("pom.xml", self._candidates_by_file(repo))
+
+    def test_version_file_versionish_content_is_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"VERSION": "1.4.2\n"},
+                                 commits=["chore: init"])
+            cand = self._candidates_by_file(repo)["VERSION"]
+            self.assertEqual(cand["type"], "regex")
+            self.assertEqual(cand["value"], "1.4.2")
+            self.assertEqual(cand["pattern"], "^(\\S+)\\s*$")
+
+    def test_version_file_prose_is_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp, files={"VERSION": "see docs for versioning policy\n"},
+                commits=["chore: init"])
+            self.assertNotIn("VERSION", self._candidates_by_file(repo))
+
+    def test_openapi_json_info_version_is_json_path_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"openapi.json":
+                       '{"openapi": "3.0.3", "info": {"title": "x", "version": "2.4.0"}}\n'},
+                commits=["chore: init"])
+            cand = self._candidates_by_file(repo)["openapi.json"]
+            self.assertEqual(cand["type"], "json-path")
+            self.assertEqual(cand["path"], "info.version")
+            self.assertEqual(cand["value"], "2.4.0")
+
+    def test_openapi_yaml_indented_info_version_is_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(tmp, files={"swagger.yaml": OPENAPI_YAML},
+                                 commits=["chore: init"])
+            cand = self._candidates_by_file(repo)["swagger.yaml"]
+            self.assertEqual(cand["type"], "regex")
+            self.assertEqual(cand["value"], "2.4.0")
+
+    def test_openapi_yaml_toplevel_version_key_not_matched(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp, files={"openapi.yaml": "version: 9.9.9\npaths: {}\n"},
+                commits=["chore: init"])
+            self.assertNotIn("openapi.yaml", self._candidates_by_file(repo))
 
 
 if __name__ == "__main__":
