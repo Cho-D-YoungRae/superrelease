@@ -35,7 +35,7 @@ description: hotfix-library 프로젝트의 이미 릴리스된 버전에 핫픽
 ## 4. patch 버전·노트
 
 - 다음 버전은 **patch 고정**: `python3 .superrelease/scripts/next-version.py --bump patch` (현재 버전은 라인의 파일에서 자동으로 읽힌다)
-- 범위 anchor는 이 라인의 마지막 태그: 라인 체크아웃 상태에서 `git describe --tags --abbrev=0`
+- 범위 anchor는 이 라인의 마지막 태그: 라인 체크아웃 상태에서 `git describe --tags --abbrev=0 --match '<glob>'` (`<glob>`은 config `scopes[].tag.format`의 `{version}`을 `*`로 치환 — 이 라인에서 도달 가능한, 포맷에 맞는 태그만)
 - 버전 반영: `python3 .superrelease/scripts/version.py set <패치 버전>`
 - 노트: `.claude/skills/release-notes/SKILL.md` 절차로 초안을 쓰고, config `scopes[].notes.destinations` 목적지 반영은 release 스킬 5단계와 동일하게 하라.
 

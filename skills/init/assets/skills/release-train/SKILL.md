@@ -27,8 +27,8 @@ status 모드: "이번 train에 뭐 들어가", "다음 train 버전" 류 요청
 {{/if}}
 ## 2. 현재 train 버전
 
-- `git tag --list`로 태그를 모으고 `{{train.tag.format}}` 포맷({version} 자리에 CalVer)에 맞는 태그만 남긴다.
-- 버전 순으로 정렬해 최신 태그에서 접두사를 떼면 현재 train 버전이다. 맞는 태그가 하나도 없으면 **첫 train**이다.
+- `git -c versionsort.suffix=- tag --list '<glob>' --sort=-v:refname`로 태그를 모은다 — `<glob>`은 `{{train.tag.format}}`의 `{version}`을 `*`로 치환한 것({version} 자리는 CalVer).
+- 첫(최신) 태그에서 접두사를 떼면 현재 train 버전이다. 맞는 태그가 하나도 없으면 **첫 train**이다.
 
 ## 3. 다음 train 버전
 

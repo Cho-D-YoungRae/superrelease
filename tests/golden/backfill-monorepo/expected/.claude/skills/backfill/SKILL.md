@@ -16,7 +16,7 @@ description: backfill-monorepo 프로젝트의 CHANGELOG를 과거 태그 이력
 ## 1. 대상 태그 구간 산출
 
 - `git tag --list`로 태그를 모으고, config `scopes[0].tag.format`의 {version} 패턴에 맞는 태그만 남긴다(과거 혼재 포맷 태그는 무시 — 표준 포맷 규칙).
-- 남은 태그를 버전 순으로 정렬한다. 연속한 두 태그 `A`, `B`가 한 구간 `A..B`이며, **이 구간은 태그 B 버전의 릴리스 항목**이다(그 사이 커밋이 B에서 나갔다). 가장 이른 태그는 선행 태그가 없으므로 그 태그 자체를 "Initial release"로 다룬다(`git log <firstTag>`).
+- 남은 태그를 버전 순으로 정렬한다(오름차순: `git -c versionsort.suffix=- tag --list '<glob>' --sort=v:refname` — `<glob>`은 위 tag.format의 `{version}`을 `*`로 치환). 연속한 두 태그 `A`, `B`가 한 구간 `A..B`이며, **이 구간은 태그 B 버전의 릴리스 항목**이다(그 사이 커밋이 B에서 나갔다). 가장 이른 태그는 선행 태그가 없으므로 그 태그 자체를 "Initial release"로 다룬다(`git log <firstTag>`).
 
 ## 2. 멱등 — 이미 있는 버전 건너뛰기
 
