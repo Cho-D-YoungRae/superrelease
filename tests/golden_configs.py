@@ -189,6 +189,19 @@ def release_pr_merge():
     return cfg
 
 
+def claude_plugin():
+    # Claude Code 플러그인 프리셋 — plugin.json + marketplace.json sync, release-pr, github
+    cfg = scope_config([
+        {"file": ".claude-plugin/plugin.json", "type": "json-path", "path": "version"},
+        {"file": ".claude-plugin/marketplace.json", "type": "json-path", "path": "metadata.version"}])
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg["repo"]["mergePolicy"] = "merge"
+    cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+    cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+    cfg["github"] = {"release": True, "generateNotes": False, "releaseYml": False}
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
@@ -200,4 +213,4 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "headver-app": headver_app, "fixed-monorepo": fixed_monorepo,
           "tagless-app": tagless_app, "monorepo-release-pr": monorepo_release_pr,
           "gitflow-app": gitflow_app, "release-pr-nogh": release_pr_nogh,
-          "release-pr-merge": release_pr_merge}
+          "release-pr-merge": release_pr_merge, "claude-plugin": claude_plugin}

@@ -357,6 +357,65 @@ class ScanTest(unittest.TestCase):
             self.assertEqual(cand["value"], "1.3.0")
             self.assertNotIn("usable", cand)  # usable 후보는 키 생략(package.json·openapi와 동일)
 
+    def test_plugin_manifest_detected_plugin_json_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp, files={".claude-plugin/plugin.json": '{"name": "demo", "version": "1.3.0"}\n'},
+                commits=["chore: init"])
+            pm = json.loads(run_script(SCAN, "--repo", repo).stdout)["pluginManifest"]
+            self.assertEqual(pm["detected"], True)
+            self.assertEqual(pm["version"], "1.3.0")
+            self.assertNotIn("marketplaceVersion", pm)
+
+    def test_plugin_manifest_marketplace_self_listed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={
+                    ".claude-plugin/plugin.json": '{"name": "demo", "version": "1.3.0"}\n',
+                    ".claude-plugin/marketplace.json":
+                        '{"name": "demo", "metadata": {"version": "1.3.0"},'
+                        ' "plugins": [{"name": "demo", "source": "./"}]}\n'},
+                commits=["chore: init"])
+            pm = json.loads(run_script(SCAN, "--repo", repo).stdout)["pluginManifest"]
+            self.assertEqual(pm["marketplaceVersion"], "1.3.0")
+            self.assertIs(pm["marketplaceSelfListed"], True)
+
+    def test_plugin_manifest_marketplace_multi_not_self_listed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={
+                    ".claude-plugin/plugin.json": '{"name": "demo", "version": "1.3.0"}\n',
+                    ".claude-plugin/marketplace.json":
+                        '{"metadata": {"version": "9.9.9"},'
+                        ' "plugins": [{"name": "demo", "source": "./"},'
+                        ' {"name": "other", "source": "./other"}]}\n'},
+                commits=["chore: init"])
+            pm = json.loads(run_script(SCAN, "--repo", repo).stdout)["pluginManifest"]
+            self.assertIs(pm["marketplaceSelfListed"], False)
+
+    def test_plugin_manifest_single_plugin_name_mismatch_not_self_listed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={
+                    ".claude-plugin/plugin.json": '{"name": "demo", "version": "1.3.0"}\n',
+                    ".claude-plugin/marketplace.json":
+                        '{"metadata": {"version": "1.3.0"},'
+                        ' "plugins": [{"name": "different", "source": "./"}]}\n'},
+                commits=["chore: init"])
+            pm = json.loads(run_script(SCAN, "--repo", repo).stdout)["pluginManifest"]
+            self.assertIs(pm["marketplaceSelfListed"], False)   # name 불일치 → 게이트 차단
+            self.assertEqual(pm["marketplaceVersion"], "1.3.0")  # 감지는 유지
+
+    def test_plugin_manifest_absent_for_non_plugin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp, files={"package.json": '{"name": "x", "version": "1.0.0"}\n'},
+                commits=["chore: init"])
+            self.assertIsNone(json.loads(run_script(SCAN, "--repo", repo).stdout)["pluginManifest"])
+
     def test_gradle_multimodule_packages_collected(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_git_repo(
