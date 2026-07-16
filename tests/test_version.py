@@ -254,6 +254,20 @@ class JsonPathSurgicalTest(VersionTestBase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual((Path(repo) / "plugin.json").read_text(encoding="utf-8"), PLUGIN_INLINE)
 
+    def test_noop_still_syncs_stale_package_lock(self):
+        stale_lock = json.dumps({
+            "name": "demo", "version": "1.0.0", "lockfileVersion": 3,
+            "packages": {"": {"name": "demo", "version": "1.0.0"}},
+        }, indent=2) + "\n"
+        repo = self.repo_with(
+            [{"file": "package.json", "type": "json-path", "path": "version"}],
+            {"package.json": PKG, "package-lock.json": stale_lock})
+        run_script(vp(repo), "set", "1.2.3")  # no-op for package.json (이미 1.2.3)
+        lock = json.loads((Path(repo) / "package-lock.json").read_text(encoding="utf-8"))
+        self.assertEqual(lock["version"], "1.2.3")             # stale lock 재동기화
+        self.assertEqual(lock["packages"][""]["version"], "1.2.3")
+        self.assertEqual((Path(repo) / "package.json").read_text(encoding="utf-8"), PKG)  # 원본 불변
+
     def test_ambiguous_match_falls_back_with_correct_value(self):
         fixture = ('{\n  "version": "1.0.0",\n  "meta": { "version": "1.0.0" }\n}\n')
         repo = self.repo_with(

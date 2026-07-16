@@ -187,7 +187,11 @@ def set_location(scope, loc, new_version):
             fail(str(path) + ": invalid JSON: " + str(e), 1)
         old = json_path_get(obj, loc["path"], path)
         if old == new_version:
-            return old  # no-op: leave the file untouched
+            # already current: don't rewrite the JSON (preserve formatting),
+            # but still reconcile package-lock as the pre-surgical path did
+            if path.name == "package.json":
+                sync_package_lock(path, new_version)
+            return old
         key = loc["path"].split(".")[-1]
         vpat = re.compile('("' + re.escape(key) + r'"\s*:\s*")' + re.escape(old) + '(")')
         if len(vpat.findall(text)) == 1:
