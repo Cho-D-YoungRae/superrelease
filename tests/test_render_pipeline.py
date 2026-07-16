@@ -154,6 +154,18 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("semver", r.stderr)
 
+    def test_gitflow_rejected_for_non_semver_scheme(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["developBranch"] = "develop"
+        cfg["repo"]["releasePath"] = "release-pr"
+        cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("gitflow", r.stderr)
+        self.assertIn("semver", r.stderr)
+
     def test_backfill_ok_for_independent(self):
         cfg = monorepo_config()  # 2 scopes, both tag.enabled=True
         cfg["repo"]["backfill"] = True
