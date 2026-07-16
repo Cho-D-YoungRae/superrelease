@@ -17,6 +17,7 @@ import argparse
 import json
 import re
 import subprocess
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 CC_RE = re.compile(
@@ -29,11 +30,18 @@ DOCKER_VERSION_PATTERN = (
     "LABEL\\s+(?:org\\.opencontainers\\.image\\.)?version=\\\"?([^\\\"\\s]+)\\\"?")
 CHART_VERSION_PATTERN = "^version:\\s*(\\S+)"
 BADGE_VERSION_PATTERN = "badge/version-([0-9][A-Za-z0-9.%-]*)-"
+POM_REVISION_PATTERN = "<revision>([^<]+)</revision>"
+VERSION_FILE_PATTERN = "^(\\S+)\\s*$"
+OPENAPI_YAML_PATTERN = "^[ \\t]+version:\\s*[\"']?([0-9][^\"'\\s#]*)"
+VERSIONISH_RE = re.compile(r"^v?\d[\w.+-]*$")
+OPENAPI_FILES = ("openapi.json", "openapi.yaml", "openapi.yml",
+                 "swagger.json", "swagger.yaml", "swagger.yml")
 TAG_PATTERNS = {
     "semver-v": r"^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
     "semver": r"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
     "short": r"^v?\d+\.\d+$",
 }
+DEVELOP_BRANCH_NAMES = ("develop", "development", "dev")
 
 
 def git(repo, *args):
@@ -74,6 +82,32 @@ def scan_build_systems(repo):
     return found
 
 
+def _pom_project_fields(text):
+    """Return (project version, revision property) from a POM, matching tags
+    by localname so namespaced and plain POMs both parse. (None, None) on
+    parse failure or non-project root."""
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError:
+        return None, None
+
+    def local(el):
+        return el.tag.rsplit("}", 1)[-1]
+
+    if local(root) != "project":
+        return None, None
+    version = revision = None
+    for child in root:
+        name = local(child)
+        if name == "version" and (child.text or "").strip():
+            version = child.text.strip()
+        elif name == "properties":
+            for prop in child:
+                if local(prop) == "revision" and (prop.text or "").strip():
+                    revision = prop.text.strip()
+    return version, revision
+
+
 def scan_version_candidates(repo):
     out = []
 
@@ -93,6 +127,20 @@ def scan_version_candidates(repo):
             m = re.search(GRADLE_VERSION_PATTERN, text, re.M)
             if m:
                 add(name, "regex", m.group(1), pattern=GRADLE_VERSION_PATTERN)
+    text = read(repo / "pom.xml")
+    if text:
+        version, revision = _pom_project_fields(text)
+        if revision is not None and re.findall(POM_REVISION_PATTERN, text) == [revision]:
+            add("pom.xml", "regex", revision, pattern=POM_REVISION_PATTERN)
+        elif revision is not None:
+            # revision exists but the text pattern is ambiguous (a commented or
+            # profile-overridden <revision> the regex would read instead of the
+            # canonical one) — get/set cannot safely target it.
+            add("pom.xml", "regex", revision,
+                usable=False, advice="maven-project-version")
+        elif version is not None:
+            add("pom.xml", "regex", version,
+                usable=False, advice="maven-project-version")
     text = read(repo / "package.json")
     if text:
         try:
@@ -126,6 +174,32 @@ def scan_version_candidates(repo):
         m = re.search(BADGE_VERSION_PATTERN, text)
         if m:
             add("README.md", "regex", m.group(1), pattern=BADGE_VERSION_PATTERN)
+    text = read(repo / "VERSION")
+    if text:
+        stripped = text.strip()
+        if stripped and "\n" not in stripped and VERSIONISH_RE.match(stripped):
+            add("VERSION", "regex", stripped, pattern=VERSION_FILE_PATTERN)
+    for name in OPENAPI_FILES:
+        text = read(repo / name)
+        if not text:
+            continue
+        if name.endswith(".json"):
+            try:
+                info = json.loads(text).get("info")
+            except (json.JSONDecodeError, AttributeError):
+                continue
+            v = info.get("version") if isinstance(info, dict) else None
+            if isinstance(v, str) and VERSIONISH_RE.match(v.strip()):
+                add(name, "json-path", v.strip(), path="info.version")
+                break
+        else:
+            matches = re.findall(OPENAPI_YAML_PATTERN, text, re.M)
+            # Only a safe regex location when exactly one indented version: key
+            # exists — set() would clobber every match, and with no stdlib YAML
+            # parser we cannot identify which one is info.version otherwise.
+            if len(matches) == 1 and VERSIONISH_RE.match(matches[0]):
+                add(name, "regex", matches[0], pattern=OPENAPI_YAML_PATTERN)
+                break
     return out
 
 
@@ -182,8 +256,10 @@ def scan_branches(repo):
     remote = [b.strip() for b in (git(repo, "branch", "-r") or "").splitlines()
               if b.strip() and "->" not in b]
     names = set(local) | {r.split("/", 1)[-1] for r in remote}
+    guess = next((n for n in DEVELOP_BRANCH_NAMES if n in names), None)
     return {"current": current, "defaultGuess": default,
-            "hasDevelop": "develop" in names,
+            "hasDevelop": guess is not None,
+            "developBranchGuess": guess,
             "releaseBranches": sorted(n for n in names if n.startswith("release/")),
             "hotfixBranches": sorted(n for n in names if n.startswith("hotfix/"))}
 
@@ -256,7 +332,50 @@ def _node_packages(repo):
                     deps.update(block)
             packages.append({"path": rel, "name": data.get("name"),
                              "version": data.get("version"),
+                             "buildSystem": "node",
                              "_deps": sorted(deps)})
+    return packages
+
+
+def _gradle_packages(repo):
+    """Resolve settings.gradle(.kts) include paths (":a:b" -> "a/b") and
+    collect each existing module's version (gradle.properties key first,
+    then build.gradle(.kts) assignment)."""
+    seen, packages = set(), []
+    for name in ("settings.gradle", "settings.gradle.kts"):
+        text = read(repo / name)
+        if not text:
+            continue
+        for line in text.splitlines():
+            line = re.sub(r"//.*|/\*.*?\*/", "", line)
+            if not re.match(r"^\s*include[ (]", line):
+                continue
+            for mod in re.findall(r"['\"]:?([A-Za-z0-9._:-]+)['\"]", line):
+                rel = mod.replace(":", "/")
+                if rel in seen:
+                    continue
+                seen.add(rel)
+                d = repo / rel
+                if not d.is_dir():
+                    continue
+                version = None
+                props = read(d / "gradle.properties")
+                if props:
+                    m = re.search(r"^\s*version\s*=\s*(\S+)\s*$", props, re.M)
+                    if m:
+                        version = m.group(1)
+                if version is None:
+                    for bname in ("build.gradle.kts", "build.gradle"):
+                        btext = read(d / bname)
+                        if btext:
+                            m = re.search(GRADLE_VERSION_PATTERN, btext, re.M)
+                            if m:
+                                version = m.group(1)
+                                break
+                packages.append({"path": rel,
+                                 "name": rel.rsplit("/", 1)[-1],
+                                 "version": version,
+                                 "buildSystem": "gradle"})
     return packages
 
 
@@ -281,6 +400,9 @@ def scan_monorepo(repo):
             if dep in names and names[dep] != p["path"]:
                 internal.append({"fromPath": p["path"], "fromName": p.get("name"),
                                  "toPath": names[dep], "toName": dep})
+    node_paths = {p["path"] for p in packages}
+    packages += [g for g in _gradle_packages(repo)
+                 if g["path"] not in node_paths]
     return {"suspected": bool(signals) or len(packages) > 1,
             "signals": signals, "packages": packages,
             "internalDependencies": internal,
