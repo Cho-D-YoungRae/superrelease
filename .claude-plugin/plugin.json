@@ -1,6 +1,6 @@
 {
   "name": "superrelease",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Analyzes your project and generates a tailored, self-contained release toolkit (skills, scripts, config, templates) committed into your repo",
   "author": { "name": "Cho-D-Youngrae", "email": "yrc9229@gmail.com" },
   "repository": "https://github.com/Cho-D-YoungRae/superrelease",
