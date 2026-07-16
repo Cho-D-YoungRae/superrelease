@@ -178,6 +178,17 @@ def release_pr_nogh():
     return cfg
 
 
+def release_pr_merge():
+    # release-pr + mergePolicy merge (비-gitflow, 단일 레포) — §6 resume "머지 커밋으로" 핀
+    cfg = scope_config(
+        [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg["repo"]["mergePolicy"] = "merge"
+    cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+    cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
@@ -188,4 +199,5 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "backfill-release-pr": backfill_release_pr,
           "headver-app": headver_app, "fixed-monorepo": fixed_monorepo,
           "tagless-app": tagless_app, "monorepo-release-pr": monorepo_release_pr,
-          "gitflow-app": gitflow_app, "release-pr-nogh": release_pr_nogh}
+          "gitflow-app": gitflow_app, "release-pr-nogh": release_pr_nogh,
+          "release-pr-merge": release_pr_merge}
