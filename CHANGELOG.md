@@ -32,5 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   tag-message.
 - **기타** — pre-release 스타일(none/mutable/counter) · moving major tag · GitHub Release
   (`--generate-notes` 하이브리드 · `release.yml`) · CHANGELOG backfill.
+- **gitflow 브랜칭 축** — `repo.branching: gitflow`(단일 스킬 레포·release-pr 전용) —
+  develop cut → 기본 브랜치 태그 → develop back-merge + SNAPSHOT 복귀 정식 사이클,
+  gitflow 전용 중단 감지 2종(머지-미태깅 PR·back-merge 누락).
+- **스캔 커버리지 확장** — pom.xml(`<revision>` 후보/project 감지·안내) · VERSION 플레인
+  파일 · openapi·swagger `info.version`(json·yaml) · Gradle 멀티모듈 패키지 수집 ·
+  `developBranchGuess`(develop/development/dev). versionCandidates `usable`/`advice` 구분.
+- **정확성 하드닝** — version.py regex 다중 캡처그룹 가드 · changed-packages
+  versionsort·rename·tag.enabled 기본값 · CalVer 동일 기간 exit 1 · validate_config
+  강화(scheme enum·non-semver 조합·location·github↔태그·branching gitflow 전제).
 
 [Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/commits/main
