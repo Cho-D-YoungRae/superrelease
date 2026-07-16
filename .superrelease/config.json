@@ -1,0 +1,43 @@
+{
+  "superrelease": {
+    "pluginVersion": "0.1.0",
+    "configVersion": 1,
+    "generatedAt": "2026-07-16T00:00:00+00:00"
+  },
+  "repo": {
+    "kind": "app",
+    "defaultBranch": "main",
+    "mergePolicy": "merge",
+    "releasePath": "release-pr",
+    "branching": "trunk",
+    "developBranch": null,
+    "maintenanceLines": false,
+    "releaseCommitFormat": "chore(release): {version}",
+    "tagTriggersDeployment": false,
+    "monorepoStrategy": null
+  },
+  "github": {
+    "release": true,
+    "generateNotes": false,
+    "releaseYml": false
+  },
+  "scopes": [
+    {
+      "name": "root",
+      "path": ".",
+      "scheme": {"type": "semver", "pattern": null},
+      "versionLocations": [
+        {"file": ".claude-plugin/plugin.json", "type": "json-path", "path": "version"}
+      ],
+      "tag": {"enabled": true, "format": "v{version}", "annotated": true, "signed": false, "movingMajorTag": false},
+      "bump": {"mode": "auto-confirm", "sources": ["conventional-commits"], "fallback": "diff", "compatCheck": null},
+      "preRelease": {"style": "none", "qualifier": null},
+      "devChannel": {"enabled": false, "qualifier": null, "immutableId": []},
+      "postRelease": {"bump": "none"},
+      "notes": {"destinations": ["changelog", "github-release"], "language": "ko", "audience": "developers", "tone": "neutral", "template": "notes-single.md", "perReleasePath": "docs/releases/"},
+      "anchor": {"type": "tag", "value": null},
+      "dependents": []
+    }
+  ],
+  "decisions": []
+}
