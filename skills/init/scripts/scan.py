@@ -41,6 +41,7 @@ TAG_PATTERNS = {
     "semver": r"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
     "short": r"^v?\d+\.\d+$",
 }
+DEVELOP_BRANCH_NAMES = ("develop", "development", "dev")
 
 
 def git(repo, *args):
@@ -246,8 +247,10 @@ def scan_branches(repo):
     remote = [b.strip() for b in (git(repo, "branch", "-r") or "").splitlines()
               if b.strip() and "->" not in b]
     names = set(local) | {r.split("/", 1)[-1] for r in remote}
+    guess = next((n for n in DEVELOP_BRANCH_NAMES if n in names), None)
     return {"current": current, "defaultGuess": default,
-            "hasDevelop": "develop" in names,
+            "hasDevelop": guess is not None,
+            "developBranchGuess": guess,
             "releaseBranches": sorted(n for n in names if n.startswith("release/")),
             "hotfixBranches": sorted(n for n in names if n.startswith("hotfix/"))}
 
