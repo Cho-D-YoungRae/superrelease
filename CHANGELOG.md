@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-16
+
+### Added
+
+- **Claude Code 플러그인 지원** — scan이 `.claude-plugin/plugin.json`을 버전 소스로 감지하고, init이 "Claude Code 플러그인" 성격을 인식해 프리셋(SemVer · `plugin.json` json-path · tag `v{version}` · changelog+github-release · pre/post none)을 선두 추천한다. marketplace가 이 플러그인 하나만 나열(self-listed)하면 `.claude-plugin/marketplace.json`의 `metadata.version`을 2차 sync 위치로 함께 제안한다.
+
+### Fixed
+
+- **version.py json-path `set`을 surgical write로** — 버전 값만 치환해 inline JSON 배열/객체(`author`·`keywords` 등)를 보존하고, 동일 버전 재지정(no-op)은 파일을 바꾸지 않는다(기존엔 전체 재직렬화로 재포맷). 다중 위치도 각각 최소 diff로 동기화.
+- **release 스킬 재개 안내가 mergePolicy를 반영** — 비-gitflow release-PR 재개 문구가 merge 정책이면 "머지 커밋으로"로 정확히 안내한다(기존 "squash 머지로" 하드코딩).
+
 ## [0.1.0] - 2026-07-16
 
 ### Added
@@ -41,5 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   versionsort·rename·tag.enabled 기본값 · CalVer 동일 기간 exit 1 · validate_config
   강화(scheme enum·non-semver 조합·location·github↔태그·branching gitflow 전제).
 
-[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.1.0
