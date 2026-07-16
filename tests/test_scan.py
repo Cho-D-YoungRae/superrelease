@@ -395,6 +395,20 @@ class ScanTest(unittest.TestCase):
             pm = json.loads(run_script(SCAN, "--repo", repo).stdout)["pluginManifest"]
             self.assertIs(pm["marketplaceSelfListed"], False)
 
+    def test_plugin_manifest_single_plugin_name_mismatch_not_self_listed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={
+                    ".claude-plugin/plugin.json": '{"name": "demo", "version": "1.3.0"}\n',
+                    ".claude-plugin/marketplace.json":
+                        '{"metadata": {"version": "1.3.0"},'
+                        ' "plugins": [{"name": "different", "source": "./"}]}\n'},
+                commits=["chore: init"])
+            pm = json.loads(run_script(SCAN, "--repo", repo).stdout)["pluginManifest"]
+            self.assertIs(pm["marketplaceSelfListed"], False)   # name 불일치 → 게이트 차단
+            self.assertEqual(pm["marketplaceVersion"], "1.3.0")  # 감지는 유지
+
     def test_plugin_manifest_absent_for_non_plugin(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = make_git_repo(
