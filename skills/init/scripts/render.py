@@ -317,6 +317,12 @@ def validate_config(config):
             problems.append("repo.developBranch must differ from "
                             "repo.defaultBranch (identical branches mean "
                             'trunk-based — use branching "trunk")')
+        if scopes and any(
+                (s.get("scheme") or {}).get("type", "semver") != "semver"
+                for s in scopes):
+            problems.append('repo.branching "gitflow" requires semver scopes: '
+                            "the gitflow hotfix skill patch-bumps and does not "
+                            "apply to calver/headver schemes")
     gh_cfg = config.get("github") or {}
     for i, s in enumerate(scopes or []):
         tag_enabled = (s.get("tag") or {}).get("enabled", True)
