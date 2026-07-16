@@ -35,6 +35,17 @@ claude --plugin-dir .
 - **`tests/`** — `golden/<name>/expected/**`(전체 렌더 트리 스냅샷), `golden_configs.py`(대표 config `GOLDEN` 딕셔너리), `helpers.py`, `test_*.py`, `update_golden.py`.
 - **`docs/superpowers/{specs,plans}/`** — 마일스톤별 설계·구현 계획.
 
+## Dogfooding (자기 릴리스 툴킷)
+
+superrelease는 **자기 자신을 릴리스**한다 — `.superrelease/`와 `.claude/skills/{release,release-notes}/`는 이 레포의 `.superrelease/config.json`으로 렌더된 **생성물**이다(플러그인 소스 아님).
+
+- **template**(수정 대상): `skills/init/assets/{skills,scripts,templates}/…`
+- **rendered**(생성물, 직접 수정 금지): `.claude/skills/…`, `.superrelease/{scripts,templates}/…`
+
+asset을 수정하면 반드시 재렌더하라:
+`python3 skills/init/scripts/render.py --config .superrelease/config.json --assets skills/init/assets --repo . --now <ISO>`
+`tests/test_dogfood_selfrender.py`가 커밋 툴킷 == asset 재렌더를 강제한다(드리프트 시 실패).
+
 ## Gotchas / 필수 규율
 
 - **동결 template dialect** — render.py의 dialect(`{{path}}`, `{{#if x}}`/`{{#if x == "lit"}}`/`{{else}}`, `{{#unless}}`, `{{#each}}`)는 **동결**이다. 확장 금지. 생성 스킬은 이 문법만 조합한다. 단일 중괄호(`v{version}`)는 리터럴로 보존된다.
