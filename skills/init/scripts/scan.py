@@ -467,6 +467,7 @@ def scan_plugin_manifest(repo):
                 isinstance(plugins, list) and len(plugins) == 1
                 and isinstance(plugins[0], dict)
                 and plugins[0].get("source") in (".", "./")
+                and isinstance(pj.get("name"), str)
                 and plugins[0].get("name") == pj.get("name"))
     return out
 
