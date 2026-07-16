@@ -11,6 +11,15 @@ LOCK = json.dumps({
     "packages": {"": {"name": "demo", "version": "1.2.3"}},
 }, indent=2) + "\n"
 
+# inline 배열/객체를 가진 JSON (Claude Code plugin.json 형태) — surgical write가 보존해야 한다
+PLUGIN_INLINE = (
+    '{\n'
+    '  "name": "demo",\n'
+    '  "version": "0.1.0",\n'
+    '  "author": { "name": "A", "email": "a@x" },\n'
+    '  "keywords": ["a", "b", "c"]\n'
+    '}\n')
+
 
 def vp(repo):
     return Path(repo) / ".superrelease" / "scripts" / "version.py"
@@ -226,6 +235,34 @@ class RegexGuardTest(VersionTestBase):
         self.assertIn("version-1.2.4-blue", text)
         self.assertIn("version_badge\n", text)
         self.assertEqual(run_script(vp(repo), "get").stdout.strip(), "1.2.4")
+
+
+class JsonPathSurgicalTest(VersionTestBase):
+    def test_inline_structures_preserved(self):
+        repo = self.repo_with(
+            [{"file": "plugin.json", "type": "json-path", "path": "version"}],
+            {"plugin.json": PLUGIN_INLINE})
+        run_script(vp(repo), "set", "0.2.0")
+        expected = PLUGIN_INLINE.replace('"version": "0.1.0"', '"version": "0.2.0"')
+        self.assertEqual((Path(repo) / "plugin.json").read_text(encoding="utf-8"), expected)
+
+    def test_noop_leaves_file_untouched(self):
+        repo = self.repo_with(
+            [{"file": "plugin.json", "type": "json-path", "path": "version"}],
+            {"plugin.json": PLUGIN_INLINE})
+        r = run_script(vp(repo), "set", "0.1.0")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((Path(repo) / "plugin.json").read_text(encoding="utf-8"), PLUGIN_INLINE)
+
+    def test_ambiguous_match_falls_back_with_correct_value(self):
+        fixture = ('{\n  "version": "1.0.0",\n  "meta": { "version": "1.0.0" }\n}\n')
+        repo = self.repo_with(
+            [{"file": "f.json", "type": "json-path", "path": "meta.version"}],
+            {"f.json": fixture})
+        run_script(vp(repo), "set", "2.0.0")
+        obj = json.loads((Path(repo) / "f.json").read_text(encoding="utf-8"))
+        self.assertEqual(obj["meta"]["version"], "2.0.0")   # 대상만
+        self.assertEqual(obj["version"], "1.0.0")           # 최상위 불변(값 정확)
 
 
 if __name__ == "__main__":

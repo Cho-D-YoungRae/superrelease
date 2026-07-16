@@ -185,12 +185,22 @@ def set_location(scope, loc, new_version):
         except json.JSONDecodeError as e:
             fail(str(path) + ": invalid JSON: " + str(e), 1)
         old = json_path_get(obj, loc["path"], path)
-        cur = obj
-        parts = loc["path"].split(".")
-        for part in parts[:-1]:
-            cur = cur[part]
-        cur[parts[-1]] = new_version
-        write_text_preserving(path, dump_json_like(text, obj), crlf)
+        if old == new_version:
+            return old  # no-op: leave the file untouched
+        key = loc["path"].split(".")[-1]
+        vpat = re.compile('("' + re.escape(key) + r'"\s*:\s*")' + re.escape(old) + '(")')
+        if len(vpat.findall(text)) == 1:
+            # surgical: replace only the target value, preserving all other formatting
+            text = vpat.sub(lambda m: m.group(1) + new_version + m.group(2), text, count=1)
+            write_text_preserving(path, text, crlf)
+        else:
+            # ambiguous (key/value not unique) — fall back to a full re-dump
+            cur = obj
+            parts = loc["path"].split(".")
+            for part in parts[:-1]:
+                cur = cur[part]
+            cur[parts[-1]] = new_version
+            write_text_preserving(path, dump_json_like(text, obj), crlf)
         if path.name == "package.json":
             sync_package_lock(path, new_version)
         return old
