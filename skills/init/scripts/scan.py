@@ -149,6 +149,14 @@ def scan_version_candidates(repo):
                 add("package.json", "json-path", v, path="version")
         except json.JSONDecodeError:
             pass
+    text = read(repo / ".claude-plugin" / "plugin.json")
+    if text:
+        try:
+            v = json.loads(text).get("version")
+            if isinstance(v, str):
+                add(".claude-plugin/plugin.json", "json-path", v, path="version")
+        except json.JSONDecodeError:
+            pass
     text = read(repo / "pyproject.toml")
     if text:
         m = re.search(PYPROJECT_VERSION_PATTERN, text, re.M)
