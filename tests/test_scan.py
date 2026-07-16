@@ -322,6 +322,30 @@ class ScanTest(unittest.TestCase):
             self.assertEqual([p["path"] for p in data["monorepo"]["packages"]],
                              ["real"])
 
+    def test_mixed_node_and_gradle_dedup_node_wins(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_git_repo(
+                tmp,
+                files={"pnpm-workspace.yaml": 'packages:\n  - "packages/*"\n',
+                       "packages/shared/package.json":
+                           '{"name": "shared", "version": "1.0.0"}\n',
+                       "packages/shared/build.gradle": 'version = "2.0.0"\n',
+                       "settings.gradle":
+                           'include(":packages:shared")\ninclude(":gradle-only")\n',
+                       "gradle-only/build.gradle": 'version = "3.0.0"\n'},
+                commits=["chore: init"])
+            data = json.loads(run_script(SCAN, "--repo", repo).stdout)
+            by_path = {p["path"]: p for p in data["monorepo"]["packages"]}
+            # packages/shared is in both node workspace and gradle include —
+            # node wins (single entry, node buildSystem, node version), the
+            # gradle duplicate is deduped out.
+            self.assertEqual(sorted(by_path),
+                             ["gradle-only", "packages/shared"])
+            self.assertEqual(by_path["packages/shared"]["buildSystem"], "node")
+            self.assertEqual(by_path["packages/shared"]["version"], "1.0.0")
+            self.assertEqual(by_path["gradle-only"]["buildSystem"], "gradle")
+            self.assertEqual(by_path["gradle-only"]["version"], "3.0.0")
+
 
 if __name__ == "__main__":
     unittest.main()
