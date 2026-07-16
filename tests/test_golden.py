@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from golden_configs import GOLDEN
-from helpers import ASSETS, PLUGIN_SCRIPTS, write
+from helpers import ASSETS, PLUGIN_SCRIPTS, normalize_marker_version, write
 
 GOLDEN_ROOT = Path(__file__).resolve().parent / "golden"
 NOW = "2026-01-01T00:00:00+00:00"
@@ -34,7 +34,7 @@ class GoldenRenderTest(unittest.TestCase):
             rel = f.relative_to(root).as_posix()
             if skip_config and rel == ".superrelease/config.json":
                 continue
-            out[rel] = f.read_text(encoding="utf-8")
+            out[rel] = normalize_marker_version(f.read_text(encoding="utf-8"))
         return out
 
     def test_golden_snapshots(self):
