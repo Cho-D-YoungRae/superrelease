@@ -130,8 +130,14 @@ def scan_version_candidates(repo):
     text = read(repo / "pom.xml")
     if text:
         version, revision = _pom_project_fields(text)
-        if revision is not None:
+        if revision is not None and re.findall(POM_REVISION_PATTERN, text) == [revision]:
             add("pom.xml", "regex", revision, pattern=POM_REVISION_PATTERN)
+        elif revision is not None:
+            # revision exists but the text pattern is ambiguous (a commented or
+            # profile-overridden <revision> the regex would read instead of the
+            # canonical one) — get/set cannot safely target it.
+            add("pom.xml", "regex", revision,
+                usable=False, advice="maven-project-version")
         elif version is not None:
             add("pom.xml", "regex", version,
                 usable=False, advice="maven-project-version")
@@ -183,13 +189,16 @@ def scan_version_candidates(repo):
             except (json.JSONDecodeError, AttributeError):
                 continue
             v = info.get("version") if isinstance(info, dict) else None
-            if isinstance(v, str) and v.strip():
+            if isinstance(v, str) and VERSIONISH_RE.match(v.strip()):
                 add(name, "json-path", v.strip(), path="info.version")
                 break
         else:
-            m = re.search(OPENAPI_YAML_PATTERN, text, re.M)
-            if m and VERSIONISH_RE.match(m.group(1)):
-                add(name, "regex", m.group(1), pattern=OPENAPI_YAML_PATTERN)
+            matches = re.findall(OPENAPI_YAML_PATTERN, text, re.M)
+            # Only a safe regex location when exactly one indented version: key
+            # exists — set() would clobber every match, and with no stdlib YAML
+            # parser we cannot identify which one is info.version otherwise.
+            if len(matches) == 1 and VERSIONISH_RE.match(matches[0]):
+                add(name, "regex", matches[0], pattern=OPENAPI_YAML_PATTERN)
                 break
     return out
 
@@ -338,6 +347,7 @@ def _gradle_packages(repo):
         if not text:
             continue
         for line in text.splitlines():
+            line = re.sub(r"//.*|/\*.*?\*/", "", line)
             if not re.match(r"^\s*include[ (]", line):
                 continue
             for mod in re.findall(r"['\"]:?([A-Za-z0-9._:-]+)['\"]", line):
