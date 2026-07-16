@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import ASSETS, PLUGIN_SCRIPTS, ROOT, write
+from helpers import ASSETS, PLUGIN_SCRIPTS, ROOT, normalize_marker_version, write
 
 CONFIG = ROOT / ".superrelease" / "config.json"
 # self-render로 관리되는 툴킷 서브트리
@@ -44,7 +44,7 @@ class DogfoodSelfRenderTest(unittest.TestCase):
             rel = f.relative_to(repo).as_posix()
             if rel == ".superrelease/config.json":
                 continue
-            out[rel] = f.read_text(encoding="utf-8")
+            out[rel] = normalize_marker_version(f.read_text(encoding="utf-8"))
         return out
 
     def _committed_toolkit(self):
@@ -52,7 +52,8 @@ class DogfoodSelfRenderTest(unittest.TestCase):
         for d in TOOLKIT_DIRS:
             base = ROOT / d
             for f in sorted(p for p in base.rglob("*") if p.is_file() and _is_source(p)):
-                out[f.relative_to(ROOT).as_posix()] = f.read_text(encoding="utf-8")
+                out[f.relative_to(ROOT).as_posix()] = normalize_marker_version(
+                    f.read_text(encoding="utf-8"))
         return out
 
     def test_committed_toolkit_matches_self_render(self):
