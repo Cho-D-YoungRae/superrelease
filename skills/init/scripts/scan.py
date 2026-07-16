@@ -437,6 +437,41 @@ def scan_ci(repo):
                     "before treating tag push as a deploy trigger"}
 
 
+def scan_plugin_manifest(repo):
+    text = read(repo / ".claude-plugin" / "plugin.json")
+    if not text:
+        return None
+    try:
+        pj = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    version = pj.get("version")
+    if not isinstance(version, str):
+        return None
+    out = {"detected": True, "version": version}
+    mtext = read(repo / ".claude-plugin" / "marketplace.json")
+    if mtext:
+        try:
+            mp = json.loads(mtext)
+        except json.JSONDecodeError:
+            mp = None
+        if isinstance(mp, dict):
+            meta = mp.get("metadata")
+            mv = meta.get("version") if isinstance(meta, dict) else None
+            if isinstance(mv, str):
+                out["marketplaceVersion"] = mv
+            plugins = mp.get("plugins")
+            # self-listed: the marketplace lists exactly this plugin via a local source,
+            # so metadata.version mirrors the plugin version (safe to sync)
+            out["marketplaceSelfListed"] = bool(
+                isinstance(plugins, list) and len(plugins) == 1
+                and isinstance(plugins[0], dict)
+                and plugins[0].get("source") in (".", "./")
+                and isinstance(pj.get("name"), str)
+                and plugins[0].get("name") == pj.get("name"))
+    return out
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="scan.py",
@@ -460,6 +495,7 @@ def main(argv=None):
         "monorepo": scan_monorepo(repo),
         "changelog": scan_changelog(repo),
         "ci": scan_ci(repo),
+        "pluginManifest": scan_plugin_manifest(repo),
         "python": ".".join(str(v) for v in sys.version_info[:3]),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
