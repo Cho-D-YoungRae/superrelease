@@ -272,9 +272,9 @@ class SkillAssetsTest(unittest.TestCase):
         ctx["repo"]["maintenanceLines"] = True
         out = self.render_asset("skills/hotfix/SKILL.md", ctx)
         self.assertNotIn("{{", out)
-        self.assertIn("`develop` 반영도 함께", out)
+        self.assertIn("back-merge", out)   # gitflow: develop back-merge 흐름
         out_trunk = self.render_asset("skills/hotfix/SKILL.md")
-        self.assertNotIn("반영도 함께", out_trunk)
+        self.assertNotIn("back-merge", out_trunk)
 
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
