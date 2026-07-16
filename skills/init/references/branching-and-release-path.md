@@ -40,15 +40,15 @@ git flow는 2010년 Vincent Driessen이 제안한 브랜칭 모델로, `develop`
 
 중단 상태 감지도 gitflow 전용 2종으로 동작한다: ① 머지됐는데 미태깅인 release PR(태그 재개) ② 최신 릴리스 태그가 develop에서 도달 불가(back-merge 누락 — 복구). 파일 버전 기반 감지는 develop에서 미탐이라 쓰지 않는다.
 
-gitflow의 **hotfix 흐름**(main에서 `hotfix/*` cut → main 머지·태그 → develop back-merge)은 후속 지원 예정이다. 그때까지 main 긴급 패치는 병렬 유지보수 라인(아래) 또는 수동 절차로 다룬다.
+gitflow의 **hotfix 흐름**(main HEAD에서 `hotfix/*` cut → patch bump → main 머지·태그 → develop back-merge + SNAPSHOT 복귀)은 hotfix 스킬이 수행한다 — gitflow 레포면 `maintenanceLines` 없이도 hotfix 스킬이 생성된다(production hotfix는 gitflow에 내재된 흐름이다). 아래 병렬 유지보수 라인은 별개 개념이다(과거 메이저 라인 패치).
 
 ## 병렬 유지보수 라인이 필요한 경우
 
 여러 released 버전을 동시에 유지보수해야 하는 제품 — 예를 들어 `release/1.x`를 계속 패치하면서 동시에 `release/2.x`나 main도 따로 진행하는 경우다.
 
-이렇게 병렬 유지보수 라인을 운영하는지 여부(config `repo.maintenanceLines`)가 곧 hotfix 스킬을 생성할지 말지를 가르는 조건이다 — 유지보수 라인이 없다면 hotfix 스킬 자체가 필요 없다.
+이렇게 병렬 유지보수 라인을 운영하는지 여부(config `repo.maintenanceLines`)가 **trunk 레포에서** hotfix 스킬을 생성할지 말지를 가르는 조건이다(gitflow 레포는 위 production hotfix로 항상 생성된다) — trunk에서 유지보수 라인이 없다면 hotfix 스킬 자체가 필요 없다.
 
-**hotfix 스킬은 config `repo.maintenanceLines: true`로 설정하면 생성된다** — semver 단일 스킬 레포 한정이며, independent 모노레포·비semver scope와의 조합은 render가 모두 거부한다. gitflow 레포와의 조합은 허용된다(병렬 라인 패치는 gitflow에도 존재한다).
+**hotfix 스킬은 `repo.maintenanceLines: true` 또는 `repo.branching: gitflow`면 생성된다** — semver 단일 스킬 레포 한정이며, independent 모노레포·비semver scope와의 조합은 render가 모두 거부한다. gitflow면 production hotfix 흐름(main cut → develop back-merge)으로, trunk+maintenanceLines면 유지보수 라인 흐름(`release/1.2.x` 패치)으로 렌더된다(gitflow+maintenanceLines면 gitflow 흐름).
 
 반대로 과거 메이저 버전에 대한 보안 패치를 계속 내야 하는 라이브러리나 엔터프라이즈 제품이라면, trunk-based만으로는 "이미 릴리스된 옛 버전에 패치를 얹는" 시나리오를 감당하기 어렵다.
 

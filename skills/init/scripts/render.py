@@ -317,6 +317,12 @@ def validate_config(config):
             problems.append("repo.developBranch must differ from "
                             "repo.defaultBranch (identical branches mean "
                             'trunk-based — use branching "trunk")')
+        if scopes and any(
+                (s.get("scheme") or {}).get("type", "semver") != "semver"
+                for s in scopes):
+            problems.append('repo.branching "gitflow" requires semver scopes: '
+                            "the gitflow hotfix skill patch-bumps and does not "
+                            "apply to calver/headver schemes")
     gh_cfg = config.get("github") or {}
     for i, s in enumerate(scopes or []):
         tag_enabled = (s.get("tag") or {}).get("enabled", True)
@@ -444,11 +450,17 @@ def main(argv=None):
     except json.JSONDecodeError as e:
         sys.stderr.write("error: invalid manifest JSON: " + str(e) + "\n")
         sys.exit(2)
-    plugin_json = assets_dir.resolve().parents[2] / ".claude-plugin" / "plugin.json"
-    if not plugin_json.is_file():
-        sys.stderr.write("error: plugin.json not found: " + str(plugin_json) + "\n")
-        sys.exit(2)
-    plugin_version = json.loads(plugin_json.read_text(encoding="utf-8"))["version"]
+    # Marker version comes from the config's recorded pluginVersion — deterministic,
+    # decoupled from the live .claude-plugin/plugin.json so superrelease's own
+    # releases (which bump plugin.json) don't churn every golden's marker. Fall
+    # back to the plugin manifest when config predates this field.
+    plugin_version = (config.get("superrelease") or {}).get("pluginVersion")
+    if not plugin_version:
+        plugin_json = assets_dir.resolve().parents[2] / ".claude-plugin" / "plugin.json"
+        if not plugin_json.is_file():
+            sys.stderr.write("error: plugin.json not found: " + str(plugin_json) + "\n")
+            sys.exit(2)
+        plugin_version = json.loads(plugin_json.read_text(encoding="utf-8"))["version"]
     now = args.now or datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     ctx = build_context(config, repo_dir, plugin_version, now)

@@ -3,8 +3,9 @@
 
 Run from the repo root:  python3 tests/update_golden.py
 Then review `git diff` — goldens are reviewed, committed artifacts.
-NOTE: bumping the plugin version in .claude-plugin/plugin.json changes the
-generated markers, so goldens must be regenerated (and reviewed) afterwards.
+NOTE: the generated marker version comes from config.superrelease.pluginVersion
+(fixed at 0.1.0 per fixture), so superrelease's own plugin.json bumps no longer
+churn every golden's marker.
 """
 import json
 import os
