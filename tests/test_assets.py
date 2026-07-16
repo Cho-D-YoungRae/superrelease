@@ -351,6 +351,47 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("**머지 커밋**", pr_out)              # gitflow 전용 머지-커밋 요구 프로즈 미노출
         self.assertIn("squash 머지로 sha가 바뀐다", pr_out)    # trunk resume 문구 불변 핀
 
+    def test_release_skill_tagless_collapses_section_7(self):
+        ctx = base_ctx()
+        ctx["scope"]["tag"] = {"enabled": False, "format": "v{version}",
+                               "annotated": False, "signed": False,
+                               "movingMajorTag": False}
+        ctx["scope"]["anchor"] = {"type": "ref", "value": None}
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertNotIn("## 7. 태그", out)      # 빈 §7 섹션 collapse
+        self.assertNotIn("github-release", out)   # §5 범례 게이트
+
+    def test_release_skill_github_release_legend_gated(self):
+        ctx = base_ctx()
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]  # no github-release dest
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("- `github-release`: 7단계", out)
+
+    def test_release_skill_normal_config_keeps_section_7_and_legend(self):
+        out = self.render_asset("skills/release/SKILL.md")  # tag.enabled·github.release 기본 true
+        self.assertIn("## 7. 태그", out)
+        self.assertIn("- `github-release`: 7단계", out)
+
+    def test_release_skill_release_pr_no_github_has_gh_preflight(self):
+        ctx = base_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertIn("gh 인증", out)               # release-pr은 gh 필요
+        self.assertIn("PR 생성·조회에 gh", out)
+        self.assertNotIn("제한 모드(태그까지만)", out)  # github.release=false라 릴리스 제한모드 문구 아님
+
+    def test_release_skill_direct_push_no_github_has_no_gh_preflight(self):
+        ctx = base_ctx()
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("gh 인증", out)  # direct-push + no github → gh preflight 없음
+
 
 class FullRenderTest(unittest.TestCase):
     def test_real_assets_render_end_to_end(self):
@@ -538,6 +579,25 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("하이라이트", both)
         self.assertIn("Highlights", both)
 
+    def test_release_monorepo_release_pr_no_github_has_gh_preflight(self):
+        ctx = mono_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        for s in ctx["scopes"]:
+            s["notes"]["destinations"] = ["changelog"]
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("gh 인증", out)
+        self.assertIn("PR 생성·조회에 gh", out)
+
+    def test_release_monorepo_github_release_legend_gated(self):
+        ctx = mono_ctx()
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertNotIn("- `github-release`: 8단계", out)
+        out_default = self.render_asset("skills/release-monorepo/SKILL.md")  # github-release dest 기본 보유
+        self.assertIn("- `github-release`: 8단계", out_default)
+
 
 class FullRenderMonorepoTest(unittest.TestCase):
     def test_monorepo_render_end_to_end(self):
@@ -636,6 +696,15 @@ class ReleaseTrainAssetsTest(unittest.TestCase):
         self.assertIn("포함 버전 스냅샷", out)
         self.assertIn("demo-mono train {version}", out)  # 헤딩 단일 중괄호 보존
         self.assertNotIn("Version Snapshot", out)  # en 블록은 ko에서 드롭
+
+    def test_release_train_release_pr_no_github_has_gh_preflight(self):
+        ctx = train_ctx()
+        ctx["repo"]["releasePath"] = "release-pr"
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        out = self.render_asset("skills/release-train/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("gh 인증", out)
+        self.assertIn("PR 생성·조회에 gh", out)
 
 
 if __name__ == "__main__":

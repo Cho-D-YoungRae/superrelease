@@ -22,7 +22,8 @@ status 모드: "이번 train에 뭐 들어가", "다음 train 버전" 류 요청
 2. clean working tree: `git status --porcelain` 출력이 비어 있어야 함
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/{{repo.defaultBranch}} --count` 가 0
 {{#if github.release}}4. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
-{{/if}}5. 중단된 패키지 릴리스 확인: 어떤 패키지 scope의 파일 버전이 개발 수식어 없는 **bare 릴리스 버전**인데 그 버전의 태그가 없으면 개별 릴리스가 진행 중인 것 — train은 릴리스된 조합을 묶으므로, 먼저 그 패키지 릴리스를 마치라고 안내하고 멈춰라.
+{{else}}{{#if repo.releasePath == "release-pr"}}4. gh 인증: `gh auth status` — release-pr 경로는 PR 생성·조회에 gh가 필요하다(실패 시 GitHub MCP 폴백)
+{{/if}}{{/if}}5. 중단된 패키지 릴리스 확인: 어떤 패키지 scope의 파일 버전이 개발 수식어 없는 **bare 릴리스 버전**인데 그 버전의 태그가 없으면 개별 릴리스가 진행 중인 것 — train은 릴리스된 조합을 묶으므로, 먼저 그 패키지 릴리스를 마치라고 안내하고 멈춰라.
 {{#if repo.releasePath == "release-pr"}}6. 열린 릴리스 PR 확인: `gh pr list --state open --json headRefName,url` 결과에 `release/`로 시작하는 head 브랜치의 PR이 있으면 이전 릴리스(패키지 또는 train)가 머지 대기 중이다 — 새 train을 시작하지 말고 그 PR 상태를 보고하고 멈춰라.
 {{/if}}
 ## 2. 현재 train 버전
