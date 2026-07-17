@@ -3,7 +3,7 @@
   "owner": { "name": "Cho-D-Youngrae", "email": "yrc9229@gmail.com" },
   "metadata": {
     "description": "Project-aware release management for Claude Code — one fat init generates a lean per-project release toolkit",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
