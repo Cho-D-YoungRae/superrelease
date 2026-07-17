@@ -75,10 +75,8 @@ Local development: `claude --plugin-dir .` · validate with
 | `.github/release.yml` | Label-based release-note categories (optional) |
 | `.claude/skills/hotfix/SKILL.md` | Hotfix skill for maintenance lines (conditional: `maintenanceLines`) |
 | `.claude/skills/backfill/SKILL.md` | One-time CHANGELOG backfill from tags (conditional: `backfill`) |
-| `.claude/skills/release-train/SKILL.md` | Root release-train skill (conditional: dual-scheme `train`) |
 | `.superrelease/templates/release-pr-body.md` | Release-PR body skeleton (conditional: `release-pr`) |
 | `.superrelease/templates/notes-package.md` | Per-package note skeleton (conditional: independent monorepo) |
-| `.superrelease/templates/notes-train.md` | Release-train note skeleton (conditional: dual-scheme train) |
 
 Committing the toolkit is what makes it a team tool: teammates without the
 plugin can release too — the generated files reference only `.superrelease/…`
@@ -134,7 +132,7 @@ and re-running init is the official customization path.
 | `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver require `preRelease.style: none` + `postRelease.bump: none` |
 | `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N` |
 | `scopes[].tag.enabled` | explicit boolean | required; `github.release: true` needs it true |
-| `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` \| `tag-message` | `fragment` needs a sink; `tag-message` needs an annotated/signed tag |
+| `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` | `fragment` needs at least one other destination as a sink |
 
 Invalid combinations are rejected at render time with a message pointing to
 the fix — run init again after editing.
@@ -177,7 +175,7 @@ On Windows, replace `python3` with `py -3`.
   ecosystem recalls (`npm deprecate`, PyPI yank) — the skills will guide you.
 - **Dev-server builds?** Keep `-SNAPSHOT` (no bump) and pair it with an
   immutable identifier (commit SHA via Spring build-info, Docker `sha-…` tags).
-- **Uninstall?** Delete `.superrelease/` and `.claude/skills/{release*,hotfix,backfill,release-train}`
+- **Uninstall?** Delete `.superrelease/` and `.claude/skills/{release*,hotfix,backfill}`
   (and `.github/release.yml` if unused).
 
 ## Roadmap
@@ -195,3 +193,11 @@ On Windows, replace `python3` with `py -3`.
 - **M4 (shipped)** — hardening: gitflow branching (single-skill repos,
   release-pr only), scan coverage (Maven/Gradle monorepo/openapi/VERSION),
   correctness fixes
+- **Scope trim (unreleased)** — removed release trains (dual-scheme monorepos)
+  and the `tag-message` notes destination; both are rejected at render time
+  with a pointer to the supported alternative
+
+Not planned (out of scope, no support promised): sequential versioning,
+monorepo × gitflow, direct-push gitflow, release trains, `tag-message` notes,
+`pom.xml` project `<version>` direct writes, `libs.versions.toml`, artifact
+publishing, CI workflow generation.

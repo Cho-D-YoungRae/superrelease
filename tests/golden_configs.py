@@ -76,10 +76,10 @@ def release_pr_snapshot():
 
 
 def fragment_app():
-    # fragment(소스) + changelog·tag-message(sink) — tag는 기본 annotated
+    # fragment(소스) + changelog(sink)
     cfg = scope_config(
         [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
-    cfg["scopes"][0]["notes"]["destinations"] = ["fragment", "changelog", "tag-message"]
+    cfg["scopes"][0]["notes"]["destinations"] = ["fragment", "changelog"]
     return cfg
 
 
@@ -105,16 +105,6 @@ def backfill_release_pr():
         [{"file": "gradle.properties", "type": "properties-key", "key": "version"}])
     cfg["repo"]["backfill"] = True
     cfg["repo"]["releasePath"] = "release-pr"
-    return cfg
-
-
-def train_monorepo():
-    # independent + train 객체 → release-train 스킬 + notes-train 템플릿 생성
-    cfg = monorepo_config()
-    cfg["train"] = {"enabled": True,
-                    "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
-                    "tag": {"format": "train-{version}", "annotated": True,
-                            "signed": False}}
     return cfg
 
 
@@ -207,7 +197,7 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "rc-library": rc_library, "calver-app": calver_app,
           "release-pr-app": release_pr_app, "hotfix-library": hotfix_library,
           "release-pr-snapshot": release_pr_snapshot, "fragment-app": fragment_app,
-          "backfill-app": backfill_app, "train-monorepo": train_monorepo,
+          "backfill-app": backfill_app,
           "backfill-monorepo": backfill_monorepo,
           "backfill-release-pr": backfill_release_pr,
           "headver-app": headver_app, "fixed-monorepo": fixed_monorepo,

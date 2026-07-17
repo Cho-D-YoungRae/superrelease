@@ -4,7 +4,7 @@
 
 아래 세 갈래 중 어느 쪽을 택하는지가 태그 네임스페이스, 내부 의존성 전파, scope 설정 전반에 영향을 준다.
 
-## 전략 3종
+## 전략 2종
 
 **fixed(고정)**: 레포 안의 모든 패키지가 항상 같은 버전 번호를 공유한다. 패키지 하나만 바뀌어도 전체가 같이 bump된다.
 
@@ -20,12 +20,7 @@
 - 장점: 버전 번호가 "이 패키지가 실제로 얼마나 바뀌었는지"를 정직하게 반영한다.
 - 대가: 어떤 패키지가 어떤 버전과 호환되는지를 더 꼼꼼히 관리해야 한다.
 
-**이중 체계**: 루트에는 CalVer 기반 release train 버전을 두고, 그 안에 포함된 개별 패키지는 자기 SemVer를 그대로 유지한다.
-
-- 대표 사례: Spring Cloud. 루트 train은 `2020.0.x`처럼 CalVer 스타일 이름을 쓰지만, 그 train에 포함된 `spring-cloud-config`, `spring-cloud-netflix` 같은 모듈들은 각자의 SemVer 버전을 유지한다.
-- 의도: "이번 train에 어떤 조합의 모듈 버전들이 함께 검증됐는가"를 train 버전 하나로 표현한다.
-- superrelease 구현: `monorepoStrategy: "independent"`(패키지는 개별 릴리스 그대로) + top-level `train` 객체. train은 **file-less** — 버전 SSOT는 최신 `train-{version}` 태그이고, 버전 파일을 두지 않는다. 루트 train 릴리스는 별도 `release-train` 스킬이 담당한다: 각 패키지의 **마지막 릴리스(태그) 버전**을 스냅샷하고(개발 `-SNAPSHOT` 버전이 아니라 태그 버전이라야 "검증된 조합"이 정확), 통합 노트(notes-train)를 쓰고, CalVer `train-{version}` 태그를 단다. direct-push·release-pr(보호 브랜치) 양쪽을 지원한다.
-- train CalVer 어휘 한계: superrelease의 CalVer는 `YYYY·YY·0M·MM·0D·DD·MICRO` 7토큰(MICRO 최대 1회)만 계산하므로 Spring Cloud의 3파트 `2020.0.1`(연도.MINOR.PATCH)은 그대로 표현할 수 없다 — `YYYY.MICRO`(`2026.0`, `2026.1`)를 기본으로 제안한다.
+**이중 체계(참고 — 지원하지 않음)**: 루트에는 CalVer 기반 release train 버전을 두고, 그 안의 개별 패키지는 자기 SemVer를 유지하는 방식이다. 대표 사례는 Spring Cloud — 루트 train은 `2020.0.x`처럼 CalVer 스타일 이름을 쓰고, `spring-cloud-config` 같은 모듈들은 각자의 SemVer를 유지하며, "이번 train에 어떤 조합이 함께 검증됐는가"를 train 버전 하나로 표현한다. superrelease는 이 방식을 지원하지 않는다 — config에 `train` 객체가 있으면 render가 거부한다. independent로 패키지를 개별 릴리스하고, 검증된 조합 공표가 필요하면 릴리스 노트나 문서에 조합 표를 남기는 운용을 권한다.
 
 ## 내부 의존성 전파
 
@@ -47,7 +42,7 @@
 
 changesets 관례를 따라 `{pkg}@{ver}` 포맷(예: `my-pkg@1.2.3`)을 쓰는 것이 일반적이다.
 
-루트 release train처럼 패키지 하나에 속하지 않는 태그는 이와 별도의 포맷(예: `train-2026.0`)을 쓴다. 패키지 태그와 train 태그를 같은 네임스페이스에 섞으면 anchor 계산이나 changed-packages 판별이 꼬이기 때문이다.
+패키지 하나에 속하지 않는 루트 태그(과거에 쓰던 통합 태그, 인프라 마킹 등)가 이미 있다면 패키지 네임스페이스와 겹치지 않는지 확인해야 한다. 네임스페이스가 섞이면 anchor 계산이나 changed-packages 판별이 꼬이기 때문이다.
 
 ## scope와 변경 패키지 감지
 
@@ -81,8 +76,8 @@ M2에서 릴리스 노트 설정(언어·독자·어조·목적지)은 **전 sco
 
 ## 지원 현황
 
-fixed / independent 전략, `dependents` 전파, `changed-packages.py` 변경 감지는 **M2부터 지원된다**. init이 모노레포를 감지하면 전략을 묻고, independent를 선택하면 scope를 패키지 수만큼 확장한다.
+fixed / independent 전략, `dependents` 전파, `changed-packages.py` 변경 감지가 지원된다. init이 모노레포를 감지하면 전략을 묻고, independent를 선택하면 scope를 패키지 수만큼 확장한다.
 
 fixed는 단일 scope로 모델링된다 — 모든 패키지의 버전 파일을 root scope의 `versionLocations`에 모아 함께 bump하며, 릴리스 흐름은 단일 레포와 동일하다. independent는 scope별 태그 네임스페이스(`<scope>@{version}`)와 scope 단위 릴리스 흐름(변경 감지 → scope별 bump → scope별 태그 → dependents 전파)을 쓴다.
 
-**이중 체계(dual-system)와 release-train은 M3c-3a에서 지원된다** — init이 이중 체계를 물어 `train` 객체를 기록하면 조건부로 `release-train` 스킬이 생성된다. 모노레포 backfill도 M3c-3b에서 지원된다 — backfill 스킬이 scope별 태그 네임스페이스(`<scope>@{version}`)를 순회해 `## <scope>@<version>` 항목으로 소급한다(전 scope가 tagless면 render가 거부한다).
+이중 체계(dual-system)·release-train은 지원하지 않는다(위 "전략 2종" 참고). 모노레포 backfill은 지원된다 — backfill 스킬이 scope별 태그 네임스페이스(`<scope>@{version}`)를 순회해 `## <scope>@<version>` 항목으로 소급한다(전 scope가 tagless면 render가 거부한다).

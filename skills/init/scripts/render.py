@@ -222,34 +222,28 @@ def validate_config(config):
         problems.append("repo.backfill requires at least one tagged scope; "
                         "backfill walks tag intervals and cannot run when "
                         "every scope is tagless (tag.enabled false)")
-    train = config.get("train") or {}
-    if train.get("enabled"):
-        if strategy != "independent":
-            problems.append("train (release-train) requires the independent "
-                            "monorepo strategy (dual-scheme = independent "
-                            "packages + a CalVer train)")
-        if (train.get("scheme") or {}).get("type") != "calver":
-            problems.append('train.scheme.type must be "calver" '
-                            "(the release train root uses CalVer)")
-        if not (train.get("scheme") or {}).get("pattern"):
-            problems.append("train.scheme.pattern is required "
-                            "(a CalVer pattern, e.g. YYYY.MICRO)")
-        tag_format = (train.get("tag") or {}).get("format")
-        if not (tag_format and "{version}" in tag_format):
-            problems.append('train.tag.format is required and must contain '
-                            '"{version}" (e.g. train-{version})')
-    sinks = {"changelog", "release-file", "github-release", "tag-message"}
+    if (config.get("train") or {}).get("enabled"):
+        problems.append("train (release-train) is no longer supported — delete "
+                        'the top-level "train" object and release packages '
+                        "individually (publish a verified combination in notes "
+                        "or docs if needed)")
+    known_dests = {"changelog", "release-file", "github-release", "fragment"}
+    sinks = known_dests - {"fragment"}
     for i, s in enumerate(scopes or []):
         dests = (s.get("notes") or {}).get("destinations") or []
-        tag = s.get("tag") or {}
-        if "tag-message" in dests and not (
-                tag.get("enabled", True) and (tag.get("annotated") or tag.get("signed"))):
-            problems.append('scopes[{}]: notes destination "tag-message" requires '
-                            "an annotated or signed tag".format(i))
+        for d in dests:
+            if d == "tag-message":
+                problems.append('scopes[{}]: notes destination "tag-message" is '
+                                "no longer supported — move notes to changelog/"
+                                "release-file/github-release".format(i))
+            elif d not in known_dests:
+                problems.append('scopes[{}]: unknown notes destination "{}" '
+                                "(supported: changelog, release-file, "
+                                "github-release, fragment)".format(i, d))
         if "fragment" in dests and not (sinks & set(dests)):
             problems.append('scopes[{}]: notes destination "fragment" needs at '
                             "least one sink (changelog/release-file/"
-                            "github-release/tag-message)".format(i))
+                            "github-release)".format(i))
     for i, s in enumerate(scopes or []):
         scheme_type = (s.get("scheme") or {}).get("type")
         if scheme_type and scheme_type not in ("semver", "calver", "headver"):

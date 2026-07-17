@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- **release-train(이중 체계 모노레포) 제거** — 루트 CalVer train + 패키지 SemVer 이중 체계,
+  `release-train` 스킬, `notes-train` 템플릿을 정리했다(니치 운용 대비 유지비 — 범위 축소).
+  config에 `train` 객체가 있으면 render가 대안 안내와 함께 거부한다: independent로 패키지를
+  개별 릴리스하고, 검증된 조합 공표가 필요하면 릴리스 노트·문서에 조합 표를 남긴다.
+- **`tag-message` 노트 목적지 제거** — annotated 태그 메시지에 노트 전문을 넣는 목적지를
+  정리했다. annotated/signed 태그 메시지에는 한 줄 요약만 남고, 노트 전문은 나머지 목적지
+  (changelog/release-file/github-release/fragment)로 보낸다. `notes.destinations`의
+  `tag-message`는 render가 거부하며, 목적지 값 자체가 닫힌 집합으로 검증된다(오타도 거부).
+
+### Changed
+
+- **로드맵 정리** — init·references·README의 "후속 버전 지원 예정" 표기를 "지원하지 않음"으로
+  정리했다(sequential, 모노레포×gitflow, direct-push gitflow, `libs.versions.toml`,
+  pom 직접 쓰기 등 — 지원 계획 없음). 0.3.0에서 이미 출하된 gitflow production hotfix가
+  init 지원 범위 절에 "후속"으로 남아 있던 낡은 문구도 바로잡았다.
+
 ## [0.3.0] - 2026-07-17
 
 ### Added

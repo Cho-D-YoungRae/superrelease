@@ -28,7 +28,7 @@ claude --plugin-dir .
   - `scripts/render.py` — 템플릿 엔진 + 렌더 파이프라인 + `validate_config`. **플러그인 쪽 유일한 엔진**.
   - `scripts/scan.py` — 읽기 전용 레포 스캔.
   - `assets/` — 사용자 레포로 렌더되는 것들:
-    - `skills/{release,release-monorepo,release-notes,release-notes-monorepo,hotfix,backfill,release-train}/SKILL.md` — 생성 스킬 골격
+    - `skills/{release,release-monorepo,release-notes,release-notes-monorepo,hotfix,backfill}/SKILL.md` — 생성 스킬 골격
     - `scripts/{version,next-version,changed-packages}.py` — **verbatim 복사**(렌더 안 함)
     - `templates/*.md`, `manifest.json`(무엇을 어디에 렌더할지 + `when` 게이트), `github/release.yml`
   - `references/*.md` — init이 필요 시 읽는 도메인 지식(version-schemes·monorepo·bump-models·edge-cases 등).
@@ -71,4 +71,6 @@ asset을 수정하면 반드시 재렌더하라:
 
 ## 지원 현황 (조건부 기능, 전부 출하됨)
 
-브랜칭(trunk/gitflow) · 단일/모노레포(fixed·independent·이중 체계 train) · SemVer/CalVer/HeadVer · pre-release(none/mutable/counter) · direct-push/release-pr(보호 브랜치) · 노트 목적지 5종(changelog/release-file/github-release/fragment/tag-message) · hotfix · CHANGELOG backfill(단일·모노레포) · release-train.
+브랜칭(trunk/gitflow) · 단일/모노레포(fixed·independent) · SemVer/CalVer/HeadVer · pre-release(none/mutable/counter) · direct-push/release-pr(보호 브랜치) · 노트 목적지 4종(changelog/release-file/github-release/fragment) · hotfix · CHANGELOG backfill(단일·모노레포).
+
+제거된 기능(지원 계획 없음, `validate_config`가 거부): release-train(이중 체계 모노레포) · tag-message 노트 목적지.
