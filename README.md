@@ -61,6 +61,90 @@ Local development: `claude --plugin-dir .` · validate with
    - "릴리스 준비됐는지 봐줘" — status only (stops after the bump proposal)
    - "이번 릴리스 노트만 미리 써줘" — drafts notes, no side effects
 
+## Use cases
+
+**How init gathers what it needs.** init never guesses silently. `scan.py`
+reads build files, version-string candidates, tags, recent commits
+(Conventional-Commits rate, squash evidence), branches (including a
+develop-branch guess) and monorepo signals — all read-only — and checks branch
+protection via `gh`. Everything inferable is presented as a recommendation
+table with its evidence ("accept all / tune per item"); only what can't be
+inferred becomes a question. On a fresh repo with no signals, init switches to
+proposal mode: it asks the repo's character first, offers a preset (library /
+app / Claude Code plugin) and includes creating the missing version file in
+the render. Re-init asks only about what changed since the last run.
+
+### Skill roles
+
+| Skill | Generated | Say | Role |
+|---|---|---|---|
+| release | always | "릴리스해줘" / "release it" / "릴리스 준비됐는지 봐줘" | The orchestrator: preflight gates → change range → bump proposal with rationale → version files → notes → commit or release PR → tag + GitHub Release → post-release. Status-style requests stop after the bump proposal. |
+| release-notes | always | "release notes만 미리 써줘" / "changelog 정리" | Drafts notes only — no file writes, no push. The release skill reuses it at its notes step. |
+| hotfix | `maintenanceLines` or gitflow | "핫픽스" / "1.2.x에 패치" | Patch release on a maintenance line (`release/1.2.x`), or the gitflow production-hotfix cycle from the default branch. |
+| backfill | `backfill` | "백필해줘" / "CHANGELOG 소급" | One-time: reconstructs missing CHANGELOG entries from existing tag history. Idempotent, touches CHANGELOG.md only. |
+
+Each skill's frontmatter description embeds the project name and both Korean
+and English trigger phrases, so Claude picks the right skill from natural
+requests — no slash command needed. Committing the toolkit is what makes this
+work for every teammate's Claude, not just yours.
+
+### On gitflow, which skill runs where
+
+| Branch | What happens |
+|---|---|
+| `feature/*` | Normal development — no release skill involved. Conventional Commits written here become the bump evidence later (and `changelog.d/` fragments, if configured). |
+| `develop` | Where a release starts. "릴리스해줘" → the release skill verifies it is on `develop`, proposes the bump from `anchor..HEAD`, strips `-SNAPSHOT`, writes notes, cuts `release/<version>` and opens a PR to the default branch — then stops. |
+| `release/<version>` | A short-lived PR branch the skill created. Humans review and **merge with a merge commit** (squash would break the next release's range). Not a long-lived stabilization branch — those are not part of this cycle. |
+| `main` | After the merge, "릴리스해줘" again: preflight detects the merged-but-untagged state and resumes — tag on the merge commit (+ GitHub Release), then back-merge into `develop` and return it to the next `-SNAPSHOT`. |
+| hotfix | "핫픽스" → the hotfix skill cuts `hotfix/<patch>` from the default branch HEAD, PRs back to it, tags after merge, then back-merges into `develop`. |
+
+### Walkthrough 1 — new backend service (single repo, Gradle multi-module, gitflow)
+
+A fresh Spring-style backend: one repo, several Gradle modules, one deployable.
+
+- No signals yet → proposal mode. Character: **app**. A multi-module build
+  that ships as one deployable is a **single version** (one root scope) — not
+  a monorepo; init asks rather than assuming from `settings.gradle`.
+- init proposes creating `gradle.properties` with `version=0.1.0-SNAPSHOT`,
+  SemVer, mutable `-SNAPSHOT` + next-snapshot, tag `v{version}`,
+  changelog + GitHub Releases.
+- Choosing gitflow locks the release path to release-pr, records
+  `developBranch`, and — since the branch doesn't exist yet — init tells you
+  to create and push `develop`, and advises (never runs) branch protection.
+  The hotfix skill is generated in its gitflow flavor.
+- Day-to-day follows the branch table above.
+
+### Walkthrough 2 — existing monorepo (frontend + multi-module backend, per-app SemVer)
+
+A monorepo with a frontend package and a backend whose bootable modules
+(api / batch / worker) version independently.
+
+- scan lists workspace/module packages with their versions and internal
+  dependencies; you confirm the **independent** strategy and the scope list.
+  Each scope gets its own `pkg@{version}` tag namespace;
+  `changed-packages.py` detects which scopes changed since their last tag,
+  and `dependents` propagates patch releases through internal dependencies.
+- Version locations are flexible: `properties-key` can target different keys
+  in a **shared** file (e.g. one backend `gradle.properties` holding
+  `apiVersion` / `batchVersion` / `workerVersion`). scan won't auto-detect
+  custom key names — add them at the version-locations question.
+- Existing tags but a thin CHANGELOG → init offers **backfill**.
+- Honest limits: monorepo × gitflow and a root CalVer bundle version
+  (release-train style) are **not supported** — monorepos release from the
+  default branch (direct-push or release-pr). See *Not planned* below.
+
+### Walkthrough 3 — new Claude Code plugin
+
+- With `.claude-plugin/plugin.json` present, scan detects it and init leads
+  with the plugin preset: SemVer, `plugin.json` as the version source, tag
+  `v{version}`, changelog + GitHub Releases, no SNAPSHOT convention. On a
+  brand-new repo without the manifest, answer "Claude Code plugin" in
+  proposal mode and init includes creating `plugin.json` in the render.
+- If the repo self-lists its marketplace (`marketplace.json` pointing at
+  `"./"`), `metadata.version` is kept in sync as a second location.
+- Protected `main` → release-pr path. superrelease itself runs on exactly
+  this toolkit (dogfooding).
+
 ## What gets generated (commit all of it)
 
 | Path | Role |
