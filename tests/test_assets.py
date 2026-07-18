@@ -53,6 +53,25 @@ def gitflow_ctx(**overrides):
     return ctx
 
 
+def gitflow_mono_ctx(**overrides):
+    cfg = monorepo_config()
+    cfg["repo"]["branching"] = "gitflow"
+    cfg["repo"]["developBranch"] = "develop"
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg["bundle"] = {"enabled": True,
+                     "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"},
+                     "notesPath": "docs/releases/"}
+    cfg.update(overrides)
+    ctx = dict(cfg)
+    ctx["project"] = {"name": "demo-mono"}
+    ctx["plugin"] = {"version": "0.1.0"}
+    ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
+    ctx["scope"] = cfg["scopes"][0]
+    ctx["derived"] = {"anyTagEnabled": any(
+        s["tag"]["enabled"] for s in cfg["scopes"])}
+    return ctx
+
+
 class SkillAssetsTest(unittest.TestCase):
     def render_asset(self, rel, ctx=None):
         text = (ASSETS / rel).read_text(encoding="utf-8")
@@ -593,6 +612,48 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("열린 릴리스 PR", out_pr)
         self.assertIn("gh pr view", out_pr)
         self.assertLessEqual(len(out_pr.splitlines()), 149)
+
+    def test_release_monorepo_gitflow_branch(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md",
+                                gitflow_mono_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("--ref origin/main", out)
+        self.assertIn("`develop`", out)
+        self.assertIn("origin/main..HEAD", out)
+        self.assertIn("merge-base --is-ancestor origin/main", out)
+        self.assertIn("back-merge", out)
+        self.assertIn("gh pr merge --merge", out)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_monorepo_bundle_round_note(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md",
+                                gitflow_mono_ctx())
+        self.assertIn("--current-among", out)
+        self.assertIn("notes-bundle.md", out)
+        self.assertIn("docs/releases/", out)
+        self.assertIn("release/<라운드>", out)
+
+    def test_release_monorepo_all_tagless_collapses_tag_section(self):
+        ctx = gitflow_mono_ctx()
+        for s in ctx["scopes"]:
+            s["tag"]["enabled"] = False
+            s["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        ctx["derived"] = {"anyTagEnabled": False}
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertNotIn("## 8. 태그", out)
+        self.assertNotIn("anchor.value", out)
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_monorepo_trunk_has_no_gitflow_or_bundle(self):
+        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertNotIn("--ref origin", out)
+        self.assertNotIn("--current-among", out)
+        self.assertNotIn("back-merge", out)
+        self.assertNotIn("merge-base", out)
+        self.assertIn("## 8. 태그", out)   # trunk(태그 기본)는 §8 유지
 
     def test_release_notes_monorepo_renders_clean(self):
         out = self.render_asset("skills/release-notes-monorepo/SKILL.md")
