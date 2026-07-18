@@ -119,7 +119,10 @@ def split_calver_pattern(pattern):
     return parts
 
 
-def calver_next(current, pattern, today):
+def parse_calver_pattern(pattern):
+    """Split and validate a calver pattern; returns the parts list.
+    Shared by calver_next (next computation) and calver_max (candidate
+    selection) so both reject unsupported tokens identically."""
     if not pattern:
         fail("calver requires --pattern or scheme.pattern in config", 2)
     parts = split_calver_pattern(pattern)
@@ -135,6 +138,33 @@ def calver_next(current, pattern, today):
         fail("invalid calver pattern (no tokens): " + pattern, 2)
     if tokens.count("MICRO") > 1:
         fail("calver pattern may contain MICRO at most once: " + pattern, 2)
+    return parts
+
+
+def calver_max(candidates, pattern):
+    """Return the highest candidate matching the calver pattern (numeric
+    token comparison — lexicographic order breaks on MICRO 10 vs 2).
+    Non-matching candidates are ignored; zero matches is an error."""
+    parts = parse_calver_pattern(pattern)
+    regex = re.compile("^" + "".join(
+        re.escape(val) if kind == "lit" else r"(\d+)"
+        for kind, val in parts) + "$")
+    best = best_key = None
+    for cand in candidates:
+        m = regex.match(cand.strip())
+        if not m:
+            continue
+        key = tuple(int(g) for g in m.groups())
+        if best_key is None or key > best_key:
+            best, best_key = cand.strip(), key
+    if best is None:
+        fail("no candidate matches calver pattern '" + pattern
+             + "' (wrong notes path?)", 1)
+    return best
+
+
+def calver_next(current, pattern, today):
+    parts = parse_calver_pattern(pattern)
     pieces = []  # rendered date/literal strings; None marks the MICRO slot
     for kind, val in parts:
         if kind == "lit":
@@ -179,6 +209,9 @@ def main(argv=None):
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--current", help="current version (omit to read via version.py)")
     mode.add_argument("--scope", help="scope name for config mode")
+    mode.add_argument("--current-among", nargs="+", metavar="VER",
+                      help="calver only: take the highest pattern-matching "
+                           "candidate as the current version")
     parser.add_argument("--scheme", choices=["semver", "calver", "headver"],
                         help="version scheme (config mode default: scheme.type)")
     parser.add_argument("--pattern", help="calver pattern, e.g. YYYY.MM.MICRO")
@@ -201,7 +234,7 @@ def main(argv=None):
     # Read the config only for what it can still supply (scheme type,
     # calver pattern, headver head); the current version is fetched via
     # version.py, which parses the config itself.
-    if args.current is None and (scheme is None
+    if args.current is None and args.current_among is None and (scheme is None
                                  or (scheme == "calver" and pattern is None)
                                  or (scheme == "headver" and head is None)):
         cfg_scheme = load_scope(args.scope).get("scheme") or {}
@@ -224,16 +257,26 @@ def main(argv=None):
             fail("--head does not apply to calver", 2)
         if scheme == "headver" and args.pattern is not None:
             fail("--pattern does not apply to headver (use --head)", 2)
+        if args.current_among is not None and scheme != "calver":
+            fail("--current-among applies to calver only", 2)
         today = parse_today(args.today)
-        current = args.current if args.current is not None \
-            else current_from_config(args.scope)
         if scheme == "calver":
+            if args.current_among is not None:
+                current = calver_max(args.current_among, pattern)
+            elif args.current is not None:
+                current = args.current
+            else:
+                current = current_from_config(args.scope)
             print(calver_next(current, pattern, today))
         else:
+            current = args.current if args.current is not None \
+                else current_from_config(args.scope)
             print(headver_next(current, head, today))
         return
 
     # semver
+    if args.current_among is not None:
+        fail("--current-among applies to calver only", 2)
     if args.today:
         fail("--today only applies to calver/headver", 2)
     if args.pattern or args.head:
