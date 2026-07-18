@@ -290,6 +290,7 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("--scope", out)
         self.assertNotIn("hotfix/<첫 scope>@", out)
         self.assertNotIn("--current-among", out)
+        self.assertIn("release 스킬 6단계와 같은 표준 프리뷰", out)  # 단일 레포는 §6 유지
 
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
@@ -711,6 +712,7 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("--scope", out)
         self.assertIn("hotfix/<첫 scope>@<패치 버전>", out)
         self.assertIn("--current-among", out)      # bundle 라운드 노트
+        self.assertIn("release 스킬 7단계와 같은 표준 프리뷰", out)  # 모노레포 프리뷰는 release-monorepo §7
         self.assertLessEqual(len(out.splitlines()), 149)
 
 
