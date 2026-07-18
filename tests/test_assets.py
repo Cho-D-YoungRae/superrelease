@@ -329,6 +329,7 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertIn("merge-base --is-ancestor origin/main", out)
         self.assertNotIn("--merged origin/main", out)   # 옛 태그 도달성 감지 제거
         self.assertNotIn("anchor가 없으면", out)          # 첫 릴리스 특례 드롭
+        self.assertIn("태그(7단계)와", out)              # tag-enabled gitflow keeps the tag-step announcement
 
     def test_release_skill_gitflow_tagless(self):
         ctx = gitflow_ctx()
@@ -345,6 +346,9 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("anchor.value", out)            # anchor 갱신 문구 없음
         self.assertNotIn("## 7. 태그", out)
         self.assertLessEqual(len(out.splitlines()), 149)
+        self.assertNotIn("태그(7단계)와", out)          # Fix A: tagless drops the tag-step announcement
+        self.assertIn("머지 확인 후 **back-merge**", out)  # Fix B: §8 back-merge intro corrected
+        self.assertNotIn("태그 push 후", out)            # Fix B: no tag-push trigger when tagless
 
     def test_release_skill_trunk_has_no_gitflow_prose(self):
         out = self.render_asset("skills/release/SKILL.md")  # 기본 trunk·direct-push
