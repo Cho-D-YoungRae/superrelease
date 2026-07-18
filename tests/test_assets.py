@@ -712,6 +712,7 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("--scope", out)
         self.assertIn("hotfix/<첫 scope>@<패치 버전>", out)
         self.assertIn("--current-among", out)      # bundle 라운드 노트
+        self.assertIn("확장자 제거", out)  # --current-among은 확장자 포함 파일명을 거부한다
         self.assertIn("release 스킬 7단계와 같은 표준 프리뷰", out)  # 모노레포 프리뷰는 release-monorepo §7
         self.assertLessEqual(len(out.splitlines()), 149)
 
