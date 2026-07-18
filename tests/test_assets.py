@@ -285,6 +285,12 @@ class SkillAssetsTest(unittest.TestCase):
         out_trunk = self.render_asset("skills/hotfix/SKILL.md")
         self.assertNotIn("back-merge", out_trunk)
 
+    def test_hotfix_gitflow_single_has_no_monorepo_prose(self):
+        out = self.render_asset("skills/hotfix/SKILL.md", gitflow_ctx())
+        self.assertNotIn("--scope", out)
+        self.assertNotIn("hotfix/<첫 scope>@", out)
+        self.assertNotIn("--current-among", out)
+
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
         self.assertNotIn("{{", out)
@@ -697,6 +703,15 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertNotIn("{{", out)
         self.assertIn("gh 인증", out)
         self.assertIn("PR 생성·조회에 gh", out)
+
+    def test_hotfix_gitflow_monorepo_branch(self):
+        ctx = gitflow_mono_ctx()
+        out = self.render_asset("skills/hotfix/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("--scope", out)
+        self.assertIn("hotfix/<첫 scope>@<패치 버전>", out)
+        self.assertIn("--current-among", out)      # bundle 라운드 노트
+        self.assertLessEqual(len(out.splitlines()), 149)
 
 
 class FullRenderMonorepoTest(unittest.TestCase):
