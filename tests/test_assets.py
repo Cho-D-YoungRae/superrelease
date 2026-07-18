@@ -319,7 +319,31 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("chore/next-dev", out)  # gitflow 복귀는 develop 직접
         self.assertIn("머지 커밋", out)                       # Critical #1 merge-commit 요구
         self.assertIn('--search "head:release/"', out)        # Important #3
-        self.assertIn("--merged origin/main", out)            # Important #2
+        self.assertNotIn("--merged origin/main", out)   # task 5: 태그 도달성(versionsort --merged) 감지 제거 — anchor는 main
+        self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_skill_gitflow_anchor_is_main(self):
+        out = self.render_asset("skills/release/SKILL.md", gitflow_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("origin/main..HEAD", out)
+        self.assertIn("merge-base --is-ancestor origin/main", out)
+        self.assertNotIn("--merged origin/main", out)   # 옛 태그 도달성 감지 제거
+        self.assertNotIn("anchor가 없으면", out)          # 첫 릴리스 특례 드롭
+
+    def test_release_skill_gitflow_tagless(self):
+        ctx = gitflow_ctx()
+        ctx["scope"]["tag"]["enabled"] = False
+        ctx["scope"]["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        ctx["derived"] = {"anyTagEnabled": False}
+        out = self.render_asset("skills/release/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("중단 상태 감지", out)              # tagless여도 감지 존재
+        self.assertNotIn("7단계(태그)부터", out)          # 태그 재개 항목은 드롭
+        self.assertIn("merge-base --is-ancestor", out)
+        self.assertNotIn("anchor.value", out)            # anchor 갱신 문구 없음
+        self.assertNotIn("## 7. 태그", out)
         self.assertLessEqual(len(out.splitlines()), 149)
 
     def test_release_skill_trunk_has_no_gitflow_prose(self):
