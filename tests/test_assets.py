@@ -18,6 +18,8 @@ def base_ctx(**overrides):
     ctx["plugin"] = {"version": "0.1.0"}
     ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
     ctx["scope"] = cfg["scopes"][0]
+    ctx["derived"] = {"anyTagEnabled": any(
+        s["tag"]["enabled"] for s in cfg["scopes"])}
     return ctx
 
 
@@ -29,6 +31,8 @@ def mono_ctx(**overrides):
     ctx["plugin"] = {"version": "0.1.0"}
     ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
     ctx["scope"] = cfg["scopes"][0]
+    ctx["derived"] = {"anyTagEnabled": any(
+        s["tag"]["enabled"] for s in cfg["scopes"])}
     return ctx
 
 
@@ -44,6 +48,8 @@ def gitflow_ctx(**overrides):
     ctx["plugin"] = {"version": "0.1.0"}
     ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
     ctx["scope"] = cfg["scopes"][0]
+    ctx["derived"] = {"anyTagEnabled": any(
+        s["tag"]["enabled"] for s in cfg["scopes"])}
     return ctx
 
 

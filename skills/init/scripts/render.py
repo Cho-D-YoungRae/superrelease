@@ -363,6 +363,11 @@ def build_context(config, repo_dir, plugin_version, now):
     ctx["plugin"] = {"version": plugin_version}
     ctx["generated"] = {"at": now}
     ctx["scope"] = (config.get("scopes") or [{}])[0]
+    # Array predicates are inexpressible in the frozen dialect; precompute
+    # the few the templates need.
+    ctx["derived"] = {"anyTagEnabled": any(
+        (s.get("tag") or {}).get("enabled")
+        for s in config.get("scopes") or [])}
     return ctx
 
 

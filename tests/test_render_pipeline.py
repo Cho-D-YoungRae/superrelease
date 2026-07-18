@@ -23,7 +23,9 @@ MANIFEST = {
 }
 ASSET_FILES = {
     "skills/release/SKILL.md":
-        "---\nname: release\ndescription: {{project.name}} 릴리스\n---\n\n# {{project.name}} release\n",
+        "---\nname: release\ndescription: {{project.name}} 릴리스\n---\n\n"
+        "# {{project.name}} release\n"
+        "{{#if derived.anyTagEnabled}}TAGGED\n{{/if}}",
     "scripts/tool.py": "#!/usr/bin/env python3\nprint('hi')\n",
     "templates/notes.md": "# Notes {{scope.name}}\n",
     "github/release.yml": "changelog:\n  categories: []\n",
@@ -61,6 +63,24 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(lines[4], MARKER_MD)
         self.assertIn("target-repo 릴리스", skill)  # project.name = 디렉터리명 폴백
         self.assertNotIn("{{", skill)
+
+    def test_derived_any_tag_enabled_true(self):
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("TAGGED", skill)
+
+    def test_derived_any_tag_enabled_false_when_all_tagless(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("TAGGED", skill)
 
     def test_verbatim_executable_and_marker_after_shebang(self):
         self.render()
