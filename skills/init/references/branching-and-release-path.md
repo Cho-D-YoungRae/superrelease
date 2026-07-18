@@ -40,7 +40,7 @@ git flow는 2010년 Vincent Driessen이 제안한 브랜칭 모델로, `develop`
 
 중단 상태 감지도 gitflow 전용 패턴으로 동작한다 — 머지된 최신 release PR의 후처리가 남아 있으면: ① 태그를 쓰는 scope 중 그 라운드 태그가 없으면 태그부터 재개(**tagless scope는 건너뛴다**) ② 기본 브랜치가 develop에서 도달 불가(`git merge-base --is-ancestor origin/<defaultBranch> HEAD` 실패 — back-merge 누락, 복구) ③ develop의 mutable scope 파일 버전이 bare(수식어 없음)면 SNAPSHOT 복귀부터. 파일 버전 기반 감지는 develop에서 미탐이라 쓰지 않는다.
 
-gitflow의 **hotfix 흐름**(main HEAD에서 `hotfix/*` cut → patch bump → main 머지·태그 → develop back-merge + SNAPSHOT 복귀)은 hotfix 스킬이 수행한다 — gitflow 레포면 `maintenanceLines` 없이도 hotfix 스킬이 생성된다(production hotfix는 gitflow에 내재된 흐름이다). 아래 병렬 유지보수 라인은 별개 개념이다(과거 메이저 라인 패치).
+gitflow의 **hotfix 흐름**(main HEAD에서 `hotfix/*` cut → patch bump → main 머지(태그 쓰면 태그) → develop back-merge + SNAPSHOT 복귀)은 hotfix 스킬이 수행한다 — gitflow 레포면 `maintenanceLines` 없이도 hotfix 스킬이 생성된다(production hotfix는 gitflow에 내재된 흐름이다). 아래 병렬 유지보수 라인은 별개 개념이다(과거 메이저 라인 패치).
 
 ## 병렬 유지보수 라인이 필요한 경우
 

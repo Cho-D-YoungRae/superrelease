@@ -131,9 +131,10 @@ A monorepo with a frontend package and a backend whose bootable modules
 - Existing tags but a thin CHANGELOG → init offers **backfill**.
 - Honest limits: gitflow and bundle round notes are both supported for
   independent monorepos now — see the Branching table and the `bundle` row
-  under *Editing config.json* below. The one limit left: under trunk
-  branching, the release-pr path still requires tags (`tag.enabled: false`
-  is rejected); gitflow is the only path where tags are optional.
+  under *Editing config.json* below. The one limit left: the release-pr path
+  requires tags **when branching is trunk** (`tag.enabled: false` is rejected
+  there). Tags are optional under direct-push (always were) and under
+  gitflow (new in M5 — the default branch is the range anchor).
 
 ### Walkthrough 3 — new Claude Code plugin
 

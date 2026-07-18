@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **로드맵 정리** — init·references·README의 "후속 버전 지원 예정" 표기를 "지원하지 않음"으로
-  정리했다(sequential, 모노레포×gitflow, direct-push gitflow, `libs.versions.toml`,
+  정리했다(sequential, direct-push gitflow, `libs.versions.toml`,
   pom 직접 쓰기 등 — 지원 계획 없음). 0.3.0에서 이미 출하된 gitflow production hotfix가
   init 지원 범위 절에 "후속"으로 남아 있던 낡은 문구도 바로잡았다.
 
