@@ -76,6 +76,13 @@
       "when": "repo.monorepoStrategy == \"independent\""
     },
     {
+      "src": "templates/notes-bundle.md",
+      "dest": ".superrelease/templates/notes-bundle.md",
+      "render": true,
+      "preserve": "template",
+      "when": "bundle.enabled"
+    },
+    {
       "src": "templates/changelog-entry.md",
       "dest": ".superrelease/templates/changelog-entry.md",
       "render": true,

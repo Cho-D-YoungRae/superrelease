@@ -587,6 +587,17 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("하이라이트", both)
         self.assertIn("Highlights", both)
 
+    def test_notes_bundle_renders_clean_ko(self):
+        ctx = mono_ctx()
+        ctx["bundle"] = {"enabled": True,
+                         "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"},
+                         "notesPath": "docs/releases/"}
+        out = self.render_asset("templates/notes-bundle.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertIn("포함 버전", out)
+        self.assertIn("demo-mono {round} — {date}", out)  # 단일 중괄호 보존
+        self.assertNotIn("Included Versions", out)        # en 블록은 ko에서 드롭
+
     def test_release_monorepo_release_pr_no_github_has_gh_preflight(self):
         ctx = mono_ctx()
         ctx["repo"]["releasePath"] = "release-pr"
