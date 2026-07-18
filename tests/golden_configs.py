@@ -158,6 +158,58 @@ def gitflow_app():
     return cfg
 
 
+def gitflow_monorepo_bundle():
+    # imstargg 모양: 공유 gradle.properties 키 3개 + frontend json-path,
+    # 전 scope tagless, gitflow(develop), bundle 라운드 노트, GitHub Release 없음
+    def app(name, path, locations):
+        return {"name": name, "path": path,
+                "scheme": {"type": "semver", "pattern": None},
+                "versionLocations": locations,
+                "tag": {"enabled": False, "format": name + "@{version}",
+                        "annotated": False, "signed": False,
+                        "movingMajorTag": False},
+                "bump": {"mode": "auto-confirm",
+                         "sources": ["conventional-commits"],
+                         "fallback": "diff", "compatCheck": None},
+                "preRelease": {"style": "mutable", "qualifier": "SNAPSHOT"},
+                "devChannel": {"enabled": False, "qualifier": None,
+                               "immutableId": []},
+                "postRelease": {"bump": "next-snapshot"},
+                "notes": {"destinations": ["changelog"], "language": "ko",
+                          "audience": "developers", "tone": "neutral",
+                          "template": "notes-package.md",
+                          "perReleasePath": "docs/releases/"},
+                "anchor": {"type": "ref", "value": None},
+                "dependents": []}
+
+    def prop(key):
+        return [{"file": "../../gradle.properties",
+                 "type": "properties-key", "key": key}]
+
+    cfg = scope_config(
+        [{"file": "package.json", "type": "json-path", "path": "version"}])
+    cfg["repo"]["kind"] = "monorepo"
+    cfg["repo"]["monorepoStrategy"] = "independent"
+    cfg["repo"]["branching"] = "gitflow"
+    cfg["repo"]["developBranch"] = "develop"
+    cfg["repo"]["releasePath"] = "release-pr"
+    cfg["repo"]["mergePolicy"] = "merge"
+    cfg["repo"]["releaseCommitFormat"] = "chore(release): {scope}@{version}"
+    cfg["github"] = {"release": False, "generateNotes": False,
+                     "releaseYml": False}
+    cfg["bundle"] = {"enabled": True,
+                     "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"},
+                     "notesPath": "docs/releases/"}
+    cfg["scopes"] = [
+        app("core-api", "backend/apps/api", prop("apiVersion")),
+        app("core-batch", "backend/apps/batch", prop("batchVersion")),
+        app("core-worker", "backend/apps/worker", prop("workerVersion")),
+        app("frontend", "frontend",
+            [{"file": "package.json", "type": "json-path", "path": "version"}]),
+    ]
+    return cfg
+
+
 def release_pr_nogh():
     # release-pr + github.release=false — gh preflight의 release-pr 분기를 핀
     cfg = scope_config(
@@ -202,5 +254,7 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "backfill-release-pr": backfill_release_pr,
           "headver-app": headver_app, "fixed-monorepo": fixed_monorepo,
           "tagless-app": tagless_app, "monorepo-release-pr": monorepo_release_pr,
-          "gitflow-app": gitflow_app, "release-pr-nogh": release_pr_nogh,
+          "gitflow-app": gitflow_app,
+          "gitflow-monorepo-bundle": gitflow_monorepo_bundle,
+          "release-pr-nogh": release_pr_nogh,
           "release-pr-merge": release_pr_merge, "claude-plugin": claude_plugin}
