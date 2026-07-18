@@ -272,15 +272,67 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("release-pr", r.stderr)
 
-    def test_gitflow_rejected_for_monorepo(self):
+    def test_gitflow_monorepo_allowed(self):
         cfg = monorepo_config()
         cfg["repo"]["branching"] = "gitflow"
         cfg["repo"]["developBranch"] = "develop"
         cfg["repo"]["releasePath"] = "release-pr"
         self.write_config(cfg)
         r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_gitflow_tagless_release_pr_allowed(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["developBranch"] = "develop"
+        cfg["repo"]["releasePath"] = "release-pr"
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_bundle_requires_independent(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"},
+                         "notesPath": "docs/releases/"}
+        self.write_config(cfg)
+        r = self.render()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("monorepo", r.stderr)
+        self.assertIn("independent", r.stderr)
+
+    def test_bundle_requires_calver_and_pattern(self):
+        cfg = monorepo_config()
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "semver", "pattern": ""},
+                         "notesPath": "docs/releases/"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("calver", r.stderr)
+        self.assertIn("bundle.scheme.pattern", r.stderr)
+
+    def test_bundle_requires_notes_path(self):
+        cfg = monorepo_config()
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"}}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("bundle.notesPath", r.stderr)
+
+    def test_bundle_ok_for_trunk_monorepo(self):
+        # bundle은 branching 무관 — trunk 모노레포 라운드에도 허용 (회귀 핀)
+        cfg = monorepo_config()
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"},
+                         "notesPath": "docs/releases/"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_gitflow_requires_develop_branch(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])

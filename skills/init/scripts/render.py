@@ -212,11 +212,13 @@ def validate_config(config):
         problems.append("repo.maintenanceLines (hotfix skill) requires semver "
                         "scopes; hotfix patch-bumps do not apply to "
                         "calver/headver schemes")
-    if repo.get("releasePath") == "release-pr" and scopes and any(
-            not (s.get("tag") or {}).get("enabled", True) for s in scopes):
+    if (repo.get("releasePath") == "release-pr"
+            and repo.get("branching") != "gitflow" and scopes and any(
+                not (s.get("tag") or {}).get("enabled", True) for s in scopes)):
         problems.append('repo.releasePath "release-pr" is not supported with '
-                        "tagless scopes (tag.enabled false): merge-then-tag "
-                        "resume relies on tag detection")
+                        "tagless scopes (tag.enabled false) outside gitflow: "
+                        "merge-then-tag resume relies on tag detection "
+                        "(gitflow resumes from branch state instead)")
     if repo.get("backfill") and scopes and all(
             not (s.get("tag") or {}).get("enabled", True) for s in scopes):
         problems.append("repo.backfill requires at least one tagged scope; "
@@ -227,6 +229,20 @@ def validate_config(config):
                         'the top-level "train" object and release packages '
                         "individually (publish a verified combination in notes "
                         "or docs if needed)")
+    bundle = config.get("bundle") or {}
+    if bundle.get("enabled"):
+        if strategy != "independent":
+            problems.append("bundle (round notes) requires the independent "
+                            "monorepo strategy")
+        if (bundle.get("scheme") or {}).get("type") != "calver":
+            problems.append('bundle.scheme.type must be "calver" '
+                            "(round labels are CalVer)")
+        if not (bundle.get("scheme") or {}).get("pattern"):
+            problems.append("bundle.scheme.pattern is required "
+                            "(a CalVer pattern, e.g. YYYY.0M.MICRO)")
+        if not bundle.get("notesPath"):
+            problems.append("bundle.notesPath is required "
+                            '(round notes directory, e.g. "docs/releases/")')
     known_dests = {"changelog", "release-file", "github-release", "fragment"}
     sinks = known_dests - {"fragment"}
     for i, s in enumerate(scopes or []):
@@ -299,9 +315,6 @@ def validate_config(config):
                             '"release-pr": the release cycle is PR-based '
                             "(cut from the develop branch, merge to the "
                             "default branch)")
-        if repo.get("kind") == "monorepo" or strategy:
-            problems.append('repo.branching "gitflow" is not supported for '
-                            "monorepos yet (single-skill repos only)")
         dev = repo.get("developBranch")
         if not dev:
             problems.append('repo.branching "gitflow" requires '
