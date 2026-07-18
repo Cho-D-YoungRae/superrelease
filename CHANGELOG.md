@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **gitflow 모노레포** — independent 모노레포가 gitflow(develop→기본 브랜치 라운드 릴리스)를
+  지원한다. 범위·변경 감지·중단 감지의 앵커는 태그가 아니라 기본 브랜치다
+  (`changed-packages.py --ref origin/<main>`), 단일 레포 gitflow도 같은 앵커로 통일했다.
+- **tagless gitflow** — gitflow에서는 태그가 선택사항이다(브랜치 상태로 재개 감지).
+  trunk×release-pr는 종전대로 태그 필수.
+- **bundle 라운드 노트** — independent 모노레포의 릴리스 라운드마다 CalVer 이름의 묶음
+  노트 파일(`docs/releases/2026.07.1.md` 류)을 만든다. top-level `bundle` 객체,
+  `notes-bundle.md` 템플릿, `next-version.py --current-among`(후보 중 최댓값 기반 다음
+  라운드 계산) 추가. hotfix도 라운드로 취급한다.
+
 ### Removed
 
 - **release-train(이중 체계 모노레포) 제거** — 루트 CalVer train + 패키지 SemVer 이중 체계,

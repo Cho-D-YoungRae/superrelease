@@ -31,14 +31,14 @@ git flow는 2010년 Vincent Driessen이 제안한 브랜칭 모델로, `develop`
 
 참고: [nvie.com의 원문 글](https://nvie.com/posts/a-successful-git-branching-model/)
 
-**superrelease는 gitflow 정식 릴리스 사이클을 지원한다** — config `repo.branching: "gitflow"` + `repo.developBranch`(통합 브랜치명). 단일 스킬 레포 · release-pr 전용이며(render가 다른 조합을 거부), 사이클은 다음과 같다.
+**superrelease는 gitflow 정식 릴리스 사이클을 지원한다** — config `repo.branching: "gitflow"` + `repo.developBranch`(통합 브랜치명). release-pr 전용이며(render가 다른 조합을 거부), **단일 레포와 independent 모노레포 모두 지원한다**(모노레포는 release-monorepo 스킬이 라운드 단위로 수행 — 여러 scope를 한 develop→main 사이클에 묶어 릴리스한다). 범위·변경 감지·중단 감지의 앵커는 태그가 아니라 **기본 브랜치**(`origin/<defaultBranch>`)로 통일되어 있다 — develop이 기본 브랜치보다 앞선 커밋 구간이 곧 "이번 라운드에 나갈 변경"이며, 태그 유무와 무관하게 성립한다. 사이클은 다음과 같다.
 
-1. preflight가 통합 브랜치(develop)를 기준으로 검사하고, 릴리스 브랜치(`release/<버전>`)를 develop에서 cut해 버전 bump·노트를 커밋한다.
+1. preflight가 통합 브랜치(develop)를 기준으로 검사하고, 릴리스 브랜치(`release/<버전>`, 모노레포 라운드는 `release/<라운드>`)를 develop에서 cut해 버전 bump·노트를 커밋한다.
 2. PR base는 기본 브랜치(main)다 — PR이 열려 있는 동안 release 브랜치에 안정화 커밋을 쌓는 gitflow 관례가 그대로 성립한다. 머지는 사람과 레포 정책의 몫이다.
-3. 머지 후 재개 시 기본 브랜치의 머지 커밋에 태그를 만든다.
-4. **back-merge**: 태그 push 후 `main → develop`을 merge해 동기화한다(충돌은 사용자와 해결, develop이 보호돼 있으면 back-merge PR). postRelease가 next-snapshot이면 복귀 커밋은 back-merge 후 develop에서만 수행한다 — main은 릴리스 버전을 유지한다(Maven gitflow 관례).
+3. 머지 후 재개 시 기본 브랜치의 머지 커밋에 태그를 만든다 — **단, gitflow에서는 태그가 선택 사항이다**(`tag.enabled: false`도 허용된다); tagless scope는 이 단계를 건너뛴다.
+4. **back-merge**: (태그를 쓰는 scope는 태그 push 후, tagless면 머지 확인 후) `main → develop`을 merge해 동기화한다(충돌은 사용자와 해결, develop이 보호돼 있으면 back-merge PR). postRelease가 next-snapshot이면 복귀 커밋은 back-merge 후 develop에서만 수행한다 — main은 릴리스 버전을 유지한다(Maven gitflow 관례).
 
-중단 상태 감지도 gitflow 전용 2종으로 동작한다: ① 머지됐는데 미태깅인 release PR(태그 재개) ② 최신 릴리스 태그가 develop에서 도달 불가(back-merge 누락 — 복구). 파일 버전 기반 감지는 develop에서 미탐이라 쓰지 않는다.
+중단 상태 감지도 gitflow 전용 패턴으로 동작한다 — 머지된 최신 release PR의 후처리가 남아 있으면: ① 태그를 쓰는 scope 중 그 라운드 태그가 없으면 태그부터 재개(**tagless scope는 건너뛴다**) ② 기본 브랜치가 develop에서 도달 불가(`git merge-base --is-ancestor origin/<defaultBranch> HEAD` 실패 — back-merge 누락, 복구) ③ develop의 mutable scope 파일 버전이 bare(수식어 없음)면 SNAPSHOT 복귀부터. 파일 버전 기반 감지는 develop에서 미탐이라 쓰지 않는다.
 
 gitflow의 **hotfix 흐름**(main HEAD에서 `hotfix/*` cut → patch bump → main 머지·태그 → develop back-merge + SNAPSHOT 복귀)은 hotfix 스킬이 수행한다 — gitflow 레포면 `maintenanceLines` 없이도 hotfix 스킬이 생성된다(production hotfix는 gitflow에 내재된 흐름이다). 아래 병렬 유지보수 라인은 별개 개념이다(과거 메이저 라인 패치).
 
@@ -48,7 +48,7 @@ gitflow의 **hotfix 흐름**(main HEAD에서 `hotfix/*` cut → patch bump → m
 
 이렇게 병렬 유지보수 라인을 운영하는지 여부(config `repo.maintenanceLines`)가 **trunk 레포에서** hotfix 스킬을 생성할지 말지를 가르는 조건이다(gitflow 레포는 위 production hotfix로 항상 생성된다) — trunk에서 유지보수 라인이 없다면 hotfix 스킬 자체가 필요 없다.
 
-**hotfix 스킬은 `repo.maintenanceLines: true` 또는 `repo.branching: gitflow`면 생성된다** — semver 단일 스킬 레포 한정이며, independent 모노레포·비semver scope와의 조합은 render가 모두 거부한다. gitflow면 production hotfix 흐름(main cut → develop back-merge)으로, trunk+maintenanceLines면 유지보수 라인 흐름(`release/1.2.x` 패치)으로 렌더된다(gitflow+maintenanceLines면 gitflow 흐름).
+**hotfix 스킬은 `repo.maintenanceLines: true` 또는 `repo.branching: gitflow`면 생성된다** — 두 경로 모두 semver scope 한정이다(calver/headver는 patch-bump가 부적합해 render가 거부). independent 모노레포와의 조합은 `maintenanceLines`(trunk 유지보수 라인) 경로에서만 거부되며, **gitflow 경로는 independent 모노레포에서도 지원된다**(scope별 production hotfix, `bundle.enabled`면 그 hotfix도 라운드로 취급되어 라운드 노트를 만든다). gitflow면 production hotfix 흐름(main cut → develop back-merge)으로, trunk+maintenanceLines면 유지보수 라인 흐름(`release/1.2.x` 패치)으로 렌더된다(gitflow+maintenanceLines면 gitflow 흐름).
 
 반대로 과거 메이저 버전에 대한 보안 패치를 계속 내야 하는 라이브러리나 엔터프라이즈 제품이라면, trunk-based만으로는 "이미 릴리스된 옛 버전에 패치를 얹는" 시나리오를 감당하기 어렵다.
 

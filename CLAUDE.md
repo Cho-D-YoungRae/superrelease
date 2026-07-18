@@ -71,6 +71,6 @@ asset을 수정하면 반드시 재렌더하라:
 
 ## 지원 현황 (조건부 기능, 전부 출하됨)
 
-브랜칭(trunk/gitflow) · 단일/모노레포(fixed·independent) · SemVer/CalVer/HeadVer · pre-release(none/mutable/counter) · direct-push/release-pr(보호 브랜치) · 노트 목적지 4종(changelog/release-file/github-release/fragment) · hotfix · CHANGELOG backfill(단일·모노레포).
+브랜칭(trunk/gitflow — gitflow는 단일+independent 모노레포·태그 선택) · 단일/모노레포(fixed·independent) · SemVer/CalVer/HeadVer · pre-release(none/mutable/counter) · direct-push/release-pr(보호 브랜치) · 노트 목적지 4종(changelog/release-file/github-release/fragment) + bundle 라운드 노트(independent 모노레포, CalVer 파일명) · hotfix · CHANGELOG backfill(단일·모노레포).
 
 제거된 기능(지원 계획 없음, `validate_config`가 거부): release-train(이중 체계 모노레포) · tag-message 노트 목적지.

@@ -129,9 +129,11 @@ A monorepo with a frontend package and a backend whose bootable modules
   `apiVersion` / `batchVersion` / `workerVersion`). scan won't auto-detect
   custom key names — add them at the version-locations question.
 - Existing tags but a thin CHANGELOG → init offers **backfill**.
-- Honest limits: monorepo × gitflow and a root CalVer bundle version
-  (release-train style) are **not supported** — monorepos release from the
-  default branch (direct-push or release-pr). See *Not planned* below.
+- Honest limits: gitflow and bundle round notes are both supported for
+  independent monorepos now — see the Branching table and the `bundle` row
+  under *Editing config.json* below. The one limit left: under trunk
+  branching, the release-pr path still requires tags (`tag.enabled: false`
+  is rejected); gitflow is the only path where tags are optional.
 
 ### Walkthrough 3 — new Claude Code plugin
 
@@ -181,10 +183,12 @@ paths, never the plugin.
 | Strategy | Fits | Release path |
 |---|---|---|
 | trunk / GitHub flow | most new projects | release from `main` |
-| gitflow | teams releasing from a `develop` integration branch | single-repo (non-monorepo) projects, release-pr only (cut from develop → merge to main → tag → back-merge) |
+| gitflow | teams releasing from a `develop` integration branch | single-repo and independent-monorepo projects, release-pr only (cut from develop → merge to main → tag (optional) → back-merge) |
 
-gitflow support is limited to single-repo (non-monorepo) projects on the release-pr path;
-monorepo × gitflow and direct-push gitflow are not supported.
+gitflow support is limited to the release-pr path (single-repo and
+independent-monorepo projects); direct-push gitflow is not supported. On
+gitflow, tags are optional — the default branch is the range anchor for
+change detection and stall/resume, tagged or not.
 
 ## What superrelease detects
 
@@ -217,6 +221,7 @@ and re-running init is the official customization path.
 | `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N` |
 | `scopes[].tag.enabled` | explicit boolean | required; `github.release: true` needs it true |
 | `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` | `fragment` needs at least one other destination as a sink |
+| `bundle` | `{enabled, scheme: calver+pattern, notesPath}` | independent monorepos: CalVer-named round note bundling each release round |
 
 Invalid combinations are rejected at render time with a message pointing to
 the fix — run init again after editing.
@@ -280,8 +285,11 @@ On Windows, replace `python3` with `py -3`.
 - **Scope trim (unreleased)** — removed release trains (dual-scheme monorepos)
   and the `tag-message` notes destination; both are rejected at render time
   with a pointer to the supported alternative
+- **M5 (unreleased)** — gitflow monorepos (round release from develop),
+  tag-optional gitflow, CalVer bundle round notes (imstargg-style)
 
 Not planned (out of scope, no support promised): sequential versioning,
-monorepo × gitflow, direct-push gitflow, release trains, `tag-message` notes,
-`pom.xml` project `<version>` direct writes, `libs.versions.toml`, artifact
-publishing, CI workflow generation.
+direct-push gitflow, release trains (root tags — the removed dual-scheme
+train; distinct from the supported bundle round notes label above),
+`tag-message` notes, `pom.xml` project `<version>` direct writes,
+`libs.versions.toml`, artifact publishing, CI workflow generation.
