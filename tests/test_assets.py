@@ -233,6 +233,30 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertIn("Release {version}", en)
         self.assertNotIn("릴리스 {version}", en)
 
+    def test_release_pr_body_gitflow_tagless_gate(self):
+        # imstargg 모양(全 scope tagless gitflow monorepo) — 태그 대신 post-processing 언급.
+        ctx = gitflow_mono_ctx()
+        for s in ctx["scopes"]:
+            s["tag"]["enabled"] = False
+            s["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        ctx["derived"] = {"anyTagEnabled": False}
+        out_ko = self.render_asset("templates/release-pr-body.md", ctx)
+        self.assertNotIn("{{", out_ko)
+        self.assertNotIn("태그", out_ko)
+        self.assertIn("릴리스 후처리(back-merge 등)가 이어진다", out_ko)
+
+        ctx["scope"]["notes"]["language"] = "en"
+        out_en = self.render_asset("templates/release-pr-body.md", ctx)
+        self.assertNotIn("{{", out_en)
+        self.assertIn("unblocks release post-processing", out_en)
+
+        # 양성 핀 — tag-enabled gitflow monorepo는 태그/tag 문구를 그대로 유지한다.
+        tag_ctx = gitflow_mono_ctx()
+        out_tag_ko = self.render_asset("templates/release-pr-body.md", tag_ctx)
+        self.assertNotIn("{{", out_tag_ko)
+        self.assertIn("{version} 태그와 GitHub Release 생성이 이어진다", out_tag_ko)
+
     def test_release_notes_skill_renders_clean(self):
         out = self.render_asset("skills/release-notes/SKILL.md")
         self.assertNotIn("{{", out)
@@ -291,6 +315,16 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("hotfix/<첫 scope>@", out)
         self.assertNotIn("--current-among", out)
         self.assertIn("release 스킬 6단계와 같은 표준 프리뷰", out)  # 단일 레포는 §6 유지
+
+    def test_hotfix_gitflow_tag_enabled_keeps_section_6(self):
+        # 양성 핀 — tag-enabled gitflow는 §6 태그 섹션과 태그 조회 커맨드를 그대로 유지한다.
+        out = self.render_asset("skills/hotfix/SKILL.md", gitflow_ctx())
+        self.assertNotIn("{{", out)
+        self.assertIn("## 6. 태그", out)
+        self.assertIn("git -c versionsort.suffix=- tag --list", out)
+        self.assertIn("최신 릴리스 태그를 확인한다", out)
+        self.assertIn("6단계(태그)부터", out)
+        self.assertIn("머지 후 태그 단계를 **수동으로**", out)
 
     def test_backfill_skill_renders_clean(self):
         out = self.render_asset("skills/backfill/SKILL.md")
@@ -715,6 +749,22 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("확장자 제거", out)  # --current-among은 확장자 포함 파일명을 거부한다
         self.assertIn("release 스킬 7단계와 같은 표준 프리뷰", out)  # 모노레포 프리뷰는 release-monorepo §7
         self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_hotfix_gitflow_monorepo_all_tagless_collapses_section_6(self):
+        # imstargg 모양: gitflow monorepo hotfix인데 全 scope가 tagless면 §6 태그
+        # 섹션과 태그 조회 커맨드가 전부 collapse되고, 버전은 파일에서 읽는다.
+        ctx = gitflow_mono_ctx()
+        for s in ctx["scopes"]:
+            s["tag"]["enabled"] = False
+            s["notes"]["destinations"] = ["changelog"]
+        ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+        ctx["derived"] = {"anyTagEnabled": False}
+        out = self.render_asset("skills/hotfix/SKILL.md", ctx)
+        self.assertNotIn("{{", out)
+        self.assertNotIn("## 6. 태그", out)
+        self.assertNotIn("git -c versionsort.suffix=- tag --list", out)
+        self.assertIn("version.py get", out)
+        self.assertIn("origin/main", out)
 
 
 class FullRenderMonorepoTest(unittest.TestCase):
