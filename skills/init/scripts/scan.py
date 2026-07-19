@@ -42,6 +42,8 @@ TAG_PATTERNS = {
     "short": r"^v?\d+\.\d+$",
 }
 DEVELOP_BRANCH_NAMES = ("develop", "development", "dev")
+BUNDLE_NOTE_RE = re.compile(r"^\d{4}[.\d]+$")
+BUNDLE_NOTE_DIRS = ("docs/releases", "docs/release")
 
 
 def git(repo, *args):
@@ -418,9 +420,20 @@ def scan_monorepo(repo):
 
 
 def scan_changelog(repo):
+    bundle_guess = None
+    for d in BUNDLE_NOTE_DIRS:
+        base = repo / d
+        if not base.is_dir():
+            continue
+        notes = sorted(p.stem for p in base.glob("*.md")
+                       if BUNDLE_NOTE_RE.match(p.stem))
+        if notes:
+            bundle_guess = {"dir": d + "/", "notes": notes}
+            break
     return {"changelogMd": (repo / "CHANGELOG.md").is_file(),
             "releasesDir": (repo / "docs" / "releases").is_dir(),
-            "fragmentsDir": (repo / "changelog.d").is_dir()}
+            "fragmentsDir": (repo / "changelog.d").is_dir(),
+            "bundleNotesGuess": bundle_guess}
 
 
 def scan_ci(repo):

@@ -212,44 +212,54 @@ def validate_config(config):
         problems.append("repo.maintenanceLines (hotfix skill) requires semver "
                         "scopes; hotfix patch-bumps do not apply to "
                         "calver/headver schemes")
-    if repo.get("releasePath") == "release-pr" and scopes and any(
-            not (s.get("tag") or {}).get("enabled", True) for s in scopes):
+    if (repo.get("releasePath") == "release-pr"
+            and repo.get("branching") != "gitflow" and scopes and any(
+                not (s.get("tag") or {}).get("enabled", True) for s in scopes)):
         problems.append('repo.releasePath "release-pr" is not supported with '
-                        "tagless scopes (tag.enabled false): merge-then-tag "
-                        "resume relies on tag detection")
+                        "tagless scopes (tag.enabled false) outside gitflow: "
+                        "merge-then-tag resume relies on tag detection "
+                        "(gitflow resumes from branch state instead)")
     if repo.get("backfill") and scopes and all(
             not (s.get("tag") or {}).get("enabled", True) for s in scopes):
         problems.append("repo.backfill requires at least one tagged scope; "
                         "backfill walks tag intervals and cannot run when "
                         "every scope is tagless (tag.enabled false)")
-    train = config.get("train") or {}
-    if train.get("enabled"):
+    if (config.get("train") or {}).get("enabled"):
+        problems.append("train (release-train) is no longer supported — delete "
+                        'the top-level "train" object and release packages '
+                        "individually (publish a verified combination in notes "
+                        "or docs if needed)")
+    bundle = config.get("bundle") or {}
+    if bundle.get("enabled"):
         if strategy != "independent":
-            problems.append("train (release-train) requires the independent "
-                            "monorepo strategy (dual-scheme = independent "
-                            "packages + a CalVer train)")
-        if (train.get("scheme") or {}).get("type") != "calver":
-            problems.append('train.scheme.type must be "calver" '
-                            "(the release train root uses CalVer)")
-        if not (train.get("scheme") or {}).get("pattern"):
-            problems.append("train.scheme.pattern is required "
-                            "(a CalVer pattern, e.g. YYYY.MICRO)")
-        tag_format = (train.get("tag") or {}).get("format")
-        if not (tag_format and "{version}" in tag_format):
-            problems.append('train.tag.format is required and must contain '
-                            '"{version}" (e.g. train-{version})')
-    sinks = {"changelog", "release-file", "github-release", "tag-message"}
+            problems.append("bundle (round notes) requires the independent "
+                            "monorepo strategy")
+        if (bundle.get("scheme") or {}).get("type") != "calver":
+            problems.append('bundle.scheme.type must be "calver" '
+                            "(round labels are CalVer)")
+        if not (bundle.get("scheme") or {}).get("pattern"):
+            problems.append("bundle.scheme.pattern is required "
+                            "(a CalVer pattern, e.g. YYYY.0M.MICRO)")
+        if not bundle.get("notesPath"):
+            problems.append("bundle.notesPath is required "
+                            '(round notes directory, e.g. "docs/releases/")')
+    known_dests = {"changelog", "release-file", "github-release", "fragment"}
+    sinks = known_dests - {"fragment"}
     for i, s in enumerate(scopes or []):
         dests = (s.get("notes") or {}).get("destinations") or []
-        tag = s.get("tag") or {}
-        if "tag-message" in dests and not (
-                tag.get("enabled", True) and (tag.get("annotated") or tag.get("signed"))):
-            problems.append('scopes[{}]: notes destination "tag-message" requires '
-                            "an annotated or signed tag".format(i))
+        for d in dests:
+            if d == "tag-message":
+                problems.append('scopes[{}]: notes destination "tag-message" is '
+                                "no longer supported — move notes to changelog/"
+                                "release-file/github-release".format(i))
+            elif d not in known_dests:
+                problems.append('scopes[{}]: unknown notes destination "{}" '
+                                "(supported: changelog, release-file, "
+                                "github-release, fragment)".format(i, d))
         if "fragment" in dests and not (sinks & set(dests)):
             problems.append('scopes[{}]: notes destination "fragment" needs at '
                             "least one sink (changelog/release-file/"
-                            "github-release/tag-message)".format(i))
+                            "github-release)".format(i))
     for i, s in enumerate(scopes or []):
         scheme_type = (s.get("scheme") or {}).get("type")
         if scheme_type and scheme_type not in ("semver", "calver", "headver"):
@@ -305,9 +315,6 @@ def validate_config(config):
                             '"release-pr": the release cycle is PR-based '
                             "(cut from the develop branch, merge to the "
                             "default branch)")
-        if repo.get("kind") == "monorepo" or strategy:
-            problems.append('repo.branching "gitflow" is not supported for '
-                            "monorepos yet (single-skill repos only)")
         dev = repo.get("developBranch")
         if not dev:
             problems.append('repo.branching "gitflow" requires '
@@ -356,6 +363,11 @@ def build_context(config, repo_dir, plugin_version, now):
     ctx["plugin"] = {"version": plugin_version}
     ctx["generated"] = {"at": now}
     ctx["scope"] = (config.get("scopes") or [{}])[0]
+    # Array predicates are inexpressible in the frozen dialect; precompute
+    # the few the templates need.
+    ctx["derived"] = {"anyTagEnabled": any(
+        (s.get("tag") or {}).get("enabled")
+        for s in config.get("scopes") or [])}
     return ctx
 
 

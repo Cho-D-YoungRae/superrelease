@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **gitflow 모노레포** — independent 모노레포가 gitflow(develop→기본 브랜치 라운드 릴리스)를
+  지원한다. 범위·변경 감지·중단 감지의 앵커는 태그가 아니라 기본 브랜치다
+  (`changed-packages.py --ref origin/<main>`), 단일 레포 gitflow도 같은 앵커로 통일했다.
+- **tagless gitflow** — gitflow에서는 태그가 선택사항이다(브랜치 상태로 재개 감지).
+  trunk×release-pr는 종전대로 태그 필수.
+- **bundle 라운드 노트** — independent 모노레포의 릴리스 라운드마다 CalVer 이름의 묶음
+  노트 파일(`docs/releases/2026.07.1.md` 류)을 만든다. top-level `bundle` 객체,
+  `notes-bundle.md` 템플릿, `next-version.py --current-among`(후보 중 최댓값 기반 다음
+  라운드 계산) 추가. hotfix도 라운드로 취급한다.
+
+### Removed
+
+- **release-train(이중 체계 모노레포) 제거** — 루트 CalVer train + 패키지 SemVer 이중 체계,
+  `release-train` 스킬, `notes-train` 템플릿을 정리했다(니치 운용 대비 유지비 — 범위 축소).
+  config에 `train` 객체가 있으면 render가 대안 안내와 함께 거부한다: independent로 패키지를
+  개별 릴리스하고, 검증된 조합 공표가 필요하면 릴리스 노트·문서에 조합 표를 남긴다.
+- **`tag-message` 노트 목적지 제거** — annotated 태그 메시지에 노트 전문을 넣는 목적지를
+  정리했다. annotated/signed 태그 메시지에는 한 줄 요약만 남고, 노트 전문은 나머지 목적지
+  (changelog/release-file/github-release/fragment)로 보낸다. `notes.destinations`의
+  `tag-message`는 render가 거부하며, 목적지 값 자체가 닫힌 집합으로 검증된다(오타도 거부).
+
+### Changed
+
+- **로드맵 정리** — init·references·README의 "후속 버전 지원 예정" 표기를 "지원하지 않음"으로
+  정리했다(sequential, direct-push gitflow, `libs.versions.toml`,
+  pom 직접 쓰기 등 — 지원 계획 없음). 0.3.0에서 이미 출하된 gitflow production hotfix가
+  init 지원 범위 절에 "후속"으로 남아 있던 낡은 문구도 바로잡았다.
+
 ## [0.3.0] - 2026-07-17
 
 ### Added

@@ -53,7 +53,7 @@ collapse되지 않은 경우다. 개행을 `{{#if}}` **안**에 두어라.
 ## 커밋·브랜치
 
 - **Conventional Commits** — `feat:` / `fix:` / `docs:` / `test:` / `refactor:` / `chore:`.
-  예: `feat: render 검증 — train은 independent 필수`.
+  예: `feat: render 검증 — gitflow는 release-pr 필수`.
 - **트렁크 기반(GitHub Flow)** — `main`에서 기능 브랜치를 따서 작업 → PR → 리뷰 → `main` 머지.
   장수 브랜치(gitflow의 `develop`/`release/*`)는 쓰지 않는다.
 - PR 전 **전체 테스트 + `claude plugin validate . --strict`** 통과를 확인한다.

@@ -56,7 +56,6 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 - `release-file`: `<notes.perReleasePath><scope>@<version>.md` 파일 생성 (notes.template 사용)
 - `github-release`: 8단계 Release 본문으로 사용
 - `fragment`가 그 scope의 목적지면: 그 scope 경로의 `changelog.d/*.md` 조각을 category별(`breaking`→Breaking Changes, `feature`→하이라이트·변경, `fix`·`misc`(및 미인식)→변경)로 취합해 노트 소스로 쓰고, 소비한 조각을 릴리스 커밋에서 `git rm`으로 삭제하라(7단계 프리뷰에 명시). fragment는 최소 1개 sink 목적지와 함께 쓰며, bump 결정에는 쓰지 않는다(bump는 커밋·PR 소스 그대로).
-- `tag-message`가 그 scope의 목적지면: 8단계 태그 메시지에 5단계 노트 전문을 넣는다(아래 참조).
 
 ## 6. 의존성 전파
 
@@ -80,7 +79,6 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 - 태그명: 그 scope의 config `tag.format`에서 {version}에 릴리스 버전 대입.
 - push 직전 충돌 재확인: `git ls-remote --tags origin <태그>` 가 비어 있어야 함 — 결과가 있으면 **즉시 중단** (동시 릴리스 락, 버전 재사용 금지).
 - 태그 생성: 그 scope의 `tag.signed`가 true면 `git tag -s <태그> -m "<한 줄 요약>"`, 아니고 `tag.annotated`가 true면 `git tag -a <태그> -m "<한 줄 요약>"`, 둘 다 아니면 `git tag <태그>` → `git push origin <태그>`
-- 그 scope의 목적지에 `tag-message`가 있으면 위 `-m "<한 줄 요약>"`를 `-F <노트 파일>`로 바꿔 노트 전문을 태그 메시지에 넣어라(그 scope가 annotated/signed 태그일 때만 — render가 그 조합을 강제한다).
 - 그 scope의 `tag.movingMajorTag`가 true면(semver 정식 릴리스에 한해) `git tag -f v<major>` → `git push -f origin v<major>` — force-push 경고를 프리뷰에 명시하고 개별 확인을 받아라. `preRelease.style`이 counter인 scope의 pre-release 버전이면 GitHub Release에 `--prerelease` 플래그를 붙인다.
 - gh 경로: `gh api repos/{owner}/{repo}/releases/generate-notes -f tag_name=<태그>` 뼈대를 참고하되 본문은 5단계 노트로 게시 — `gh release create <태그> --title "<scope>@<version>" --notes-file <노트 파일>`
 - MCP 폴백 경로: generate-notes 뼈대 없이 5단계 노트로 Release를 생성하라.

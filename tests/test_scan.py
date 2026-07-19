@@ -539,6 +539,24 @@ class ScanTest(unittest.TestCase):
             self.assertFalse(data["branches"]["hasDevelop"])
             self.assertIsNone(data["branches"]["developBranchGuess"])
 
+    def test_bundle_notes_guess(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo / "docs" / "release" / "2026.05.0.md", "x\n")
+            write(repo / "docs" / "release" / "2026.05.1.md", "x\n")
+            write(repo / "docs" / "release" / "README.md", "x\n")
+            r = run_script(SCAN, "--repo", repo)
+            data = json.loads(r.stdout)
+            guess = data["changelog"]["bundleNotesGuess"]
+            self.assertEqual(guess["dir"], "docs/release/")
+            self.assertEqual(guess["notes"], ["2026.05.0", "2026.05.1"])
+
+    def test_bundle_notes_guess_absent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r = run_script(SCAN, "--repo", tmp)
+            data = json.loads(r.stdout)
+            self.assertIsNone(data["changelog"]["bundleNotesGuess"])
+
 
 if __name__ == "__main__":
     unittest.main()

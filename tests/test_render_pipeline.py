@@ -23,7 +23,9 @@ MANIFEST = {
 }
 ASSET_FILES = {
     "skills/release/SKILL.md":
-        "---\nname: release\ndescription: {{project.name}} 릴리스\n---\n\n# {{project.name}} release\n",
+        "---\nname: release\ndescription: {{project.name}} 릴리스\n---\n\n"
+        "# {{project.name}} release\n"
+        "{{#if derived.anyTagEnabled}}TAGGED\n{{/if}}",
     "scripts/tool.py": "#!/usr/bin/env python3\nprint('hi')\n",
     "templates/notes.md": "# Notes {{scope.name}}\n",
     "github/release.yml": "changelog:\n  categories: []\n",
@@ -61,6 +63,24 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(lines[4], MARKER_MD)
         self.assertIn("target-repo 릴리스", skill)  # project.name = 디렉터리명 폴백
         self.assertNotIn("{{", skill)
+
+    def test_derived_any_tag_enabled_true(self):
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("TAGGED", skill)
+
+    def test_derived_any_tag_enabled_false_when_all_tagless(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("TAGGED", skill)
 
     def test_verbatim_executable_and_marker_after_shebang(self):
         self.render()
@@ -182,10 +202,9 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("tagged scope", r.stderr)
 
-    def test_train_rejected_for_non_independent(self):
-        cfg = scope_config(
-            [{"file": "gradle.properties", "type": "properties-key",
-              "key": "version"}])
+    def test_train_rejected_as_removed(self):
+        # release-train은 제거됨 — train 객체가 있으면 유효한 옛 조합이라도 거부
+        cfg = monorepo_config()
         cfg["train"] = {"enabled": True,
                         "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
                         "tag": {"format": "train-{version}", "annotated": True,
@@ -194,68 +213,26 @@ class PipelineTest(unittest.TestCase):
         r = self.render()
         self.assertEqual(r.returncode, 1)
         self.assertIn("train", r.stderr)
+        self.assertIn("no longer supported", r.stderr)
 
-    def test_train_rejected_for_non_calver_scheme(self):
-        cfg = monorepo_config()
-        cfg["train"] = {"enabled": True,
-                        "scheme": {"type": "semver", "pattern": None},
-                        "tag": {"format": "train-{version}", "annotated": True,
-                                "signed": False}}
-        self.write_config(cfg)
-        r = self.render()
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("calver", r.stderr)
-
-    def test_train_requires_pattern(self):
-        cfg = monorepo_config()
-        cfg["train"] = {"enabled": True,
-                        "scheme": {"type": "calver", "pattern": ""},
-                        "tag": {"format": "train-{version}", "annotated": True,
-                                "signed": False}}
-        self.write_config(cfg)
-        r = self.render()
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("train.scheme.pattern", r.stderr)
-
-    def test_train_requires_version_in_tag_format(self):
-        cfg = monorepo_config()
-        cfg["train"] = {"enabled": True,
-                        "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
-                        "tag": {"format": "train-release", "annotated": True,
-                                "signed": False}}
-        self.write_config(cfg)
-        r = self.render()
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("train.tag.format", r.stderr)
-
-    def test_train_ok_for_independent_calver(self):
-        cfg = monorepo_config()
-        cfg["train"] = {"enabled": True,
-                        "scheme": {"type": "calver", "pattern": "YYYY.MICRO"},
-                        "tag": {"format": "train-{version}", "annotated": True,
-                                "signed": False}}
-        self.write_config(cfg)
-        r = self.render()
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-    def test_tag_message_rejected_without_annotated_or_signed(self):
+    def test_tag_message_rejected_as_removed(self):
+        # tag-message 목적지는 제거됨 — annotated 태그(옛 유효 조합)여도 거부
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
         cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
-        cfg["scopes"][0]["tag"] = {"enabled": True, "format": "v{version}",
-                                   "annotated": False, "signed": False,
-                                   "movingMajorTag": False}
         self.write_config(cfg)
         r = self.render()
         self.assertEqual(r.returncode, 1)
         self.assertIn("tag-message", r.stderr)
+        self.assertIn("no longer supported", r.stderr)
 
-    def test_tag_message_ok_with_annotated(self):
+    def test_unknown_destination_rejected(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
-        cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
-        # default scope_config tag is annotated=True → valid
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog", "release-notes"]
         self.write_config(cfg)
         r = self.render()
-        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unknown notes destination", r.stderr)
+        self.assertIn("release-notes", r.stderr)
 
     def test_fragment_rejected_without_sink(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
@@ -283,23 +260,11 @@ class PipelineTest(unittest.TestCase):
         # key to be an explicit boolean so the engine/validate gap can't be
         # exploited.
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
-        cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
         cfg["scopes"][0]["tag"] = {"format": "v{version}", "annotated": True}
         self.write_config(cfg)
         r = self.render()
         self.assertEqual(r.returncode, 1)
         self.assertIn("tag.enabled must be an explicit boolean", r.stderr)
-
-    def test_tag_message_rejected_when_tag_disabled(self):
-        # explicit enabled=false → no tag → tag-message cannot apply → reject.
-        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
-        cfg["scopes"][0]["notes"]["destinations"] = ["tag-message"]
-        cfg["scopes"][0]["tag"] = {"enabled": False, "format": "v{version}",
-                                   "annotated": True}
-        self.write_config(cfg)
-        r = self.render()
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("tag-message", r.stderr)
 
     def test_missing_manifest_exits_2(self):
         assets = make_plugin_tree(Path(self.tmp.name) / "plugin-no-manifest",
@@ -327,15 +292,67 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("release-pr", r.stderr)
 
-    def test_gitflow_rejected_for_monorepo(self):
+    def test_gitflow_monorepo_allowed(self):
         cfg = monorepo_config()
         cfg["repo"]["branching"] = "gitflow"
         cfg["repo"]["developBranch"] = "develop"
         cfg["repo"]["releasePath"] = "release-pr"
         self.write_config(cfg)
         r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_gitflow_tagless_release_pr_allowed(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["developBranch"] = "develop"
+        cfg["repo"]["releasePath"] = "release-pr"
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_bundle_requires_independent(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"},
+                         "notesPath": "docs/releases/"}
+        self.write_config(cfg)
+        r = self.render()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("monorepo", r.stderr)
+        self.assertIn("independent", r.stderr)
+
+    def test_bundle_requires_calver_and_pattern(self):
+        cfg = monorepo_config()
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "semver", "pattern": ""},
+                         "notesPath": "docs/releases/"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("calver", r.stderr)
+        self.assertIn("bundle.scheme.pattern", r.stderr)
+
+    def test_bundle_requires_notes_path(self):
+        cfg = monorepo_config()
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"}}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("bundle.notesPath", r.stderr)
+
+    def test_bundle_ok_for_trunk_monorepo(self):
+        # bundle은 branching 무관 — trunk 모노레포 라운드에도 허용 (회귀 핀)
+        cfg = monorepo_config()
+        cfg["bundle"] = {"enabled": True,
+                         "scheme": {"type": "calver", "pattern": "YYYY.0M.MICRO"},
+                         "notesPath": "docs/releases/"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_gitflow_requires_develop_branch(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])

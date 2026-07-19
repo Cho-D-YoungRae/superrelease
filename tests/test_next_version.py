@@ -305,5 +305,44 @@ class SchemeFromConfigTest(unittest.TestCase):
             self.assertEqual(r.stdout.strip(), "3.2628.8")
 
 
+class CurrentAmongTest(unittest.TestCase):
+    def test_picks_numeric_max_not_lexicographic(self):
+        # 사전순 최대는 2026.05.2지만 수치 최대는 2026.05.10 — 다음은 .11
+        r = out("--scheme", "calver", "--pattern", "YYYY.0M.MICRO",
+                "--today", "2026-05-20",
+                "--current-among", "2026.05.2", "2026.05.10", "2026.04.3")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "2026.05.11")
+
+    def test_ignores_non_matching_candidates(self):
+        r = out("--scheme", "calver", "--pattern", "YYYY.0M.MICRO",
+                "--today", "2026-06-01",
+                "--current-among", "README", "2026.05.1", "notes")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "2026.06.0")  # 기간 변경 → MICRO 0
+
+    def test_all_non_matching_exits_1(self):
+        r = out("--scheme", "calver", "--pattern", "YYYY.0M.MICRO",
+                "--today", "2026-06-01", "--current-among", "README", "notes")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("no candidate matches", r.stderr)
+
+    def test_semver_rejects_current_among(self):
+        r = out("--scheme", "semver", "--current-among", "1.2.3")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("calver only", r.stderr)
+
+    def test_headver_rejects_current_among(self):
+        r = out("--scheme", "headver", "--head", "1", "--today", "2026-06-01",
+                "--current-among", "1.2624.0")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("calver only", r.stderr)
+
+    def test_mutually_exclusive_with_current(self):
+        r = out("--scheme", "calver", "--pattern", "YYYY.0M.MICRO",
+                "--current", "2026.05.0", "--current-among", "2026.05.1")
+        self.assertEqual(r.returncode, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
