@@ -207,6 +207,30 @@ def validate_config(config):
         problems.append("independent strategy requires at least two scopes")
     if strategy in ("fixed", "independent") and repo.get("kind") != "monorepo":
         problems.append('repo.monorepoStrategy is only valid when repo.kind is "monorepo"')
+    if strategy != "independent" and scopes and len(scopes) > 1:
+        problems.append("multiple scopes require the independent monorepo "
+                        "strategy — other configs use exactly one scope "
+                        "(the rendered single-repo skills only see scopes[0])")
+    names = [s.get("name") for s in scopes or [] if s.get("name")]
+    if len(names) != len(set(names)):
+        problems.append("scope names must be unique")
+    tag_formats = [(s.get("tag") or {}).get("format") for s in scopes or []
+                   if (s.get("tag") or {}).get("enabled")
+                   and (s.get("tag") or {}).get("format")]
+    if len(tag_formats) != len(set(tag_formats)):
+        problems.append("tag.format must be unique across tag-enabled scopes "
+                        "(a shared format cross-contaminates anchor "
+                        "detection)")
+    fmt = repo.get("releaseCommitFormat") or ""
+    if fmt and "{version}" not in fmt:
+        problems.append('repo.releaseCommitFormat must contain "{version}"')
+    if "{scope}" in fmt and strategy != "independent":
+        problems.append('repo.releaseCommitFormat: "{scope}" is only valid '
+                        "with the independent monorepo strategy")
+    merge_policy = repo.get("mergePolicy")
+    if merge_policy not in ("merge", "squash", "rebase", "unknown"):
+        problems.append('repo.mergePolicy must be "merge", "squash", "rebase" '
+                        'or "unknown" (got "{}")'.format(merge_policy))
     if repo.get("maintenanceLines") and strategy == "independent":
         problems.append("repo.maintenanceLines (hotfix skill) is not supported "
                         "with the independent monorepo strategy")
@@ -270,6 +294,17 @@ def validate_config(config):
             problems.append('scopes[{}]: notes destination "fragment" needs at '
                             "least one sink (changelog/release-file/"
                             "github-release)".format(i))
+        if not dests:
+            problems.append("scopes[{}]: notes.destinations must not be empty"
+                            .format(i))
+        if "release-file" in dests and not (s.get("notes") or {}).get("perReleasePath"):
+            problems.append('scopes[{}]: notes destination "release-file" '
+                            "requires notes.perReleasePath (an explicit null "
+                            "drops release files into the repo root)".format(i))
+        lang = (s.get("notes") or {}).get("language")
+        if lang not in ("ko", "en", "both"):
+            problems.append('scopes[{}]: notes.language must be "ko", "en" or '
+                            '"both" (got "{}")'.format(i, lang))
     for i, s in enumerate(scopes or []):
         scheme_type = (s.get("scheme") or {}).get("type")
         if scheme_type and scheme_type not in ("semver", "calver", "headver"):

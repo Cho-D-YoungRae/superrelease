@@ -552,6 +552,72 @@ class PipelineTest(unittest.TestCase):
             self.assertEqual(r.returncode, 1, scheme)
             self.assertIn("scheme.pattern", r.stderr)
 
+    def test_multiple_scopes_require_independent(self):
+        cfg = monorepo_config(strategy="fixed")  # 2 scopes + fixed
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("independent", r.stderr)
+
+    def test_duplicate_scope_names_rejected(self):
+        cfg = monorepo_config()
+        cfg["scopes"][1]["name"] = cfg["scopes"][0]["name"]
+        cfg["scopes"][1]["tag"]["format"] = "dup2@{version}"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unique", r.stderr)
+
+    def test_duplicate_tag_formats_rejected(self):
+        cfg = monorepo_config()
+        cfg["scopes"][1]["tag"]["format"] = cfg["scopes"][0]["tag"]["format"]
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("tag.format", r.stderr)
+
+    def test_release_file_requires_per_release_path(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["release-file"]
+        cfg["scopes"][0]["notes"]["perReleasePath"] = None
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("perReleasePath", r.stderr)
+
+    def test_release_commit_format_placeholders(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["releaseCommitFormat"] = "chore(release): {scope}@{version}"
+        self.write_config(cfg)  # 단일 레포에 {scope}
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("{scope}", r.stderr, "single repo with {scope}")
+        cfg["repo"]["releaseCommitFormat"] = "release commit"  # {version} 없음
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("{version}", r.stderr, "missing {version}")
+
+    def test_closed_sets_language_destinations_merge_policy(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["language"] = "jp"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("notes.language", r.stderr, "invalid language jp")
+        cfg["scopes"][0]["notes"]["language"] = "ko"
+        cfg["scopes"][0]["notes"]["destinations"] = []
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("destinations", r.stderr, "empty destinations")
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["repo"]["mergePolicy"] = "ff-only"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("mergePolicy", r.stderr, "invalid mergePolicy ff-only")
+
 
 SWITCH_MANIFEST = {
     "entries": [
@@ -664,6 +730,10 @@ class ChangedPackagesGateTest(unittest.TestCase):
         cfg["scopes"][0]["path"] = "."
         cfg["scopes"][0]["versionLocations"] = [
             {"file": "gradle.properties", "type": "properties-key", "key": "version"}]
+        # monorepo_config()의 releaseCommitFormat은 independent 전용 {scope}
+        # placeholder를 쓴다 — fixed는 단일 scope 모델이라 B-17 닫힌 집합 규칙이
+        # 거부한다(2026-08-06 Task 3에서 발견); 단일 scope에 맞는 포맷으로 오버라이드.
+        cfg["repo"]["releaseCommitFormat"] = "chore(release): {version}"
         repo = self._render(cfg, {"gradle.properties": "version=0.1.0\n"})
         self.assertFalse((repo / ".superrelease/scripts/changed-packages.py").exists())
         # fixed는 단일 변형 스킬을 받는다 (모노레포 변형이 아님)
