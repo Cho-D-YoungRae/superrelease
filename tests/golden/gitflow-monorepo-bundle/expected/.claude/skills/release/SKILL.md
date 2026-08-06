@@ -69,7 +69,7 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 scope별 표준 프리뷰를 보여주고 확인받아라:
 
 - 바뀔 파일과 버전 diff (위치별 old → new)
-- 생성될 커밋 메시지(`chore(release): {scope}@{version}` 의 {scope}·{version} 치환)와 태그명(그 scope의 config `tag.format` — 네임스페이스는 포맷에 포함, 예: `my-pkg@1.2.0`)
+- 생성될 커밋 메시지(`chore(release): {scope}@{version}` 의 {scope}·{version} 치환)
 - 실행될 명령 목록 (push, Release 생성 등)
 - 릴리스 노트 미리보기 + 의존성 전파 체인
 
@@ -84,4 +84,4 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 
 ## 실패 시
 
-scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push / 태그 / Release)와 되돌리는 방법을 명시하라. **push된 태그는 되돌리지 않는다** — 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.
+scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push / Release)와 되돌리는 방법을 명시하라. 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.

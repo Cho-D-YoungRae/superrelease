@@ -183,6 +183,10 @@ def validate_config(config):
     for key in ("kind", "defaultBranch", "releasePath"):
         if not repo.get(key):
             problems.append("repo." + key + " is required")
+    release_path = repo.get("releasePath")
+    if release_path and release_path not in ("direct-push", "release-pr"):
+        problems.append('repo.releasePath must be "direct-push" or "release-pr" '
+                        '(got "{}")'.format(release_path))
     scopes = config.get("scopes")
     if not scopes:
         problems.append("scopes must be a non-empty list")
@@ -203,6 +207,30 @@ def validate_config(config):
         problems.append("independent strategy requires at least two scopes")
     if strategy in ("fixed", "independent") and repo.get("kind") != "monorepo":
         problems.append('repo.monorepoStrategy is only valid when repo.kind is "monorepo"')
+    if strategy != "independent" and scopes and len(scopes) > 1:
+        problems.append("multiple scopes require the independent monorepo "
+                        "strategy — other configs use exactly one scope "
+                        "(the rendered single-repo skills only see scopes[0])")
+    names = [s.get("name") for s in scopes or [] if s.get("name")]
+    if len(names) != len(set(names)):
+        problems.append("scope names must be unique")
+    tag_formats = [(s.get("tag") or {}).get("format") for s in scopes or []
+                   if (s.get("tag") or {}).get("enabled")
+                   and (s.get("tag") or {}).get("format")]
+    if len(tag_formats) != len(set(tag_formats)):
+        problems.append("tag.format must be unique across tag-enabled scopes "
+                        "(a shared format cross-contaminates anchor "
+                        "detection)")
+    fmt = repo.get("releaseCommitFormat") or ""
+    if fmt and "{version}" not in fmt:
+        problems.append('repo.releaseCommitFormat must contain "{version}"')
+    if "{scope}" in fmt and strategy != "independent":
+        problems.append('repo.releaseCommitFormat: "{scope}" is only valid '
+                        "with the independent monorepo strategy")
+    merge_policy = repo.get("mergePolicy")
+    if merge_policy not in ("merge", "squash", "rebase", "unknown"):
+        problems.append('repo.mergePolicy must be "merge", "squash", "rebase" '
+                        'or "unknown" (got "{}")'.format(merge_policy))
     if repo.get("maintenanceLines") and strategy == "independent":
         problems.append("repo.maintenanceLines (hotfix skill) is not supported "
                         "with the independent monorepo strategy")
@@ -212,6 +240,12 @@ def validate_config(config):
         problems.append("repo.maintenanceLines (hotfix skill) requires semver "
                         "scopes; hotfix patch-bumps do not apply to "
                         "calver/headver schemes")
+    if repo.get("maintenanceLines") and repo.get("branching") == "gitflow":
+        problems.append("repo.maintenanceLines is not supported with gitflow "
+                        "branching — the gitflow production-hotfix flavor "
+                        "replaces it (both would render to the same hotfix "
+                        "skill path); use trunk branching for maintenance "
+                        "lines")
     if (repo.get("releasePath") == "release-pr"
             and repo.get("branching") != "gitflow" and scopes and any(
                 not (s.get("tag") or {}).get("enabled", True) for s in scopes)):
@@ -260,6 +294,17 @@ def validate_config(config):
             problems.append('scopes[{}]: notes destination "fragment" needs at '
                             "least one sink (changelog/release-file/"
                             "github-release)".format(i))
+        if not dests:
+            problems.append("scopes[{}]: notes.destinations must not be empty"
+                            .format(i))
+        if "release-file" in dests and not (s.get("notes") or {}).get("perReleasePath"):
+            problems.append('scopes[{}]: notes destination "release-file" '
+                            "requires notes.perReleasePath (an explicit null "
+                            "drops release files into the repo root)".format(i))
+        lang = (s.get("notes") or {}).get("language")
+        if lang not in ("ko", "en", "both"):
+            problems.append('scopes[{}]: notes.language must be "ko", "en" or '
+                            '"both" (got "{}")'.format(i, lang))
     for i, s in enumerate(scopes or []):
         scheme_type = (s.get("scheme") or {}).get("type")
         if scheme_type and scheme_type not in ("semver", "calver", "headver"):
@@ -275,6 +320,32 @@ def validate_config(config):
                 problems.append('scopes[{}]: postRelease.bump must be "none" for '
                                 "calver/headver schemes (next-snapshot is "
                                 "semver-only)".format(i))
+        if scheme_type in ("calver", "headver") and not (s.get("scheme") or {}).get("pattern"):
+            problems.append("scopes[{}]: scheme.pattern is required for {} "
+                            "(calver pattern / headver head number) — "
+                            "next-version.py fails at release time without it"
+                            .format(i, scheme_type))
+        if (s.get("tag") or {}).get("movingMajorTag"):
+            if (scheme_type or "semver") != "semver":
+                problems.append("scopes[{}]: tag.movingMajorTag requires the "
+                                "semver scheme (a moving v<major> tag is "
+                                "meaningless for calver/headver)".format(i))
+            if strategy == "independent":
+                problems.append("scopes[{}]: tag.movingMajorTag is not "
+                                "supported with the independent monorepo "
+                                "strategy — the moving v<major> tag is not "
+                                "scope-namespaced and would collide across "
+                                "scopes".format(i))
+        post_bump = (s.get("postRelease") or {}).get("bump") or "none"
+        if post_bump == "next-snapshot":
+            pre = s.get("preRelease") or {}
+            if pre.get("style") != "mutable" or not pre.get("qualifier"):
+                problems.append(
+                    'scopes[{}]: postRelease.bump "next-snapshot" requires '
+                    'preRelease.style "mutable" with a non-empty qualifier — '
+                    "the rendered release skill runs next-version.py "
+                    "--qualifier <preRelease.qualifier> for the post-release "
+                    "bump".format(i))
         tag_obj = s.get("tag")
         if not isinstance(tag_obj, dict) or not isinstance(tag_obj.get("enabled"), bool):
             problems.append('scopes[{}].tag.enabled must be an explicit boolean '
@@ -365,9 +436,12 @@ def build_context(config, repo_dir, plugin_version, now):
     ctx["scope"] = (config.get("scopes") or [{}])[0]
     # Array predicates are inexpressible in the frozen dialect; precompute
     # the few the templates need.
-    ctx["derived"] = {"anyTagEnabled": any(
-        (s.get("tag") or {}).get("enabled")
-        for s in config.get("scopes") or [])}
+    scopes_list = config.get("scopes") or []
+    ctx["derived"] = {
+        "anyTagEnabled": any((s.get("tag") or {}).get("enabled") for s in scopes_list),
+        "allTagEnabled": bool(scopes_list) and all(
+            (s.get("tag") or {}).get("enabled") for s in scopes_list),
+    }
     return ctx
 
 

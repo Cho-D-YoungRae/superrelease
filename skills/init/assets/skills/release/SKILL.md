@@ -65,7 +65,7 @@ status 모드: "릴리스 준비됐는지", "다음 버전 뭐가 될까" 류 �
 표준 프리뷰를 보여주고 확인받아라:
 
 - 바뀔 파일과 버전 diff (위치별 old → new)
-- 생성될 커밋 메시지(`{{repo.releaseCommitFormat}}` 의 {version} 치환)와 태그명
+- 생성될 커밋 메시지(`{{repo.releaseCommitFormat}}` 의 {version} 치환){{#if scope.tag.enabled}}와 태그명{{/if}}
 - 실행될 명령 목록 (push, Release 생성 등)
 {{#if repo.tagTriggersDeployment}}- ⚠️ **이 태그는 CI 배포를 트리거합니다** — 프리뷰에 반드시 명시
 {{/if}}- 릴리스 노트 미리보기
@@ -101,4 +101,4 @@ status 모드: "릴리스 준비됐는지", "다음 버전 뭐가 될까" 류 �
 
 ## 실패 시
 
-어디까지 진행됐는지(파일 수정 / 커밋 / push / 태그 / Release)와 각 단계를 되돌리는 방법을 명시하라. **push된 태그는 되돌리지 않는다** — 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.
+어디까지 진행됐는지(파일 수정 / 커밋 / push{{#if scope.tag.enabled}} / 태그{{/if}} / Release)와 각 단계를 되돌리는 방법을 명시하라. {{#if scope.tag.enabled}}**push된 태그는 되돌리지 않는다** — {{/if}}잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.

@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **잘못된 releasePath·post-release 조합을 render가 거부** — `repo.releasePath`에
+  `direct-push`/`release-pr` 외의 값(오타 포함)을 적으면 이제 render가 즉시
+  거부한다(종전엔 조용히 통과해 미렌더 `release-pr-body.md`를 참조하는 스킬이
+  만들어졌다). `postRelease.bump: next-snapshot`은 `preRelease.style: mutable`과
+  qualifier를 요구한다 — 종전엔 생성된 release 스킬이 릴리스 시점에 `--qualifier`
+  인자 없이 실행되다 실패했다.
+- **gitflow·movingMajorTag·calver/headver 조합 오류를 render가 거부** —
+  `repo.maintenanceLines`를 gitflow 브랜칭과 함께 켜면 hotfix 스킬이 같은 목적지에
+  이중으로 렌더돼 유지보수 라인 기대가 조용히 사라졌다 — 이제 이 조합을 거부한다.
+  `tag.movingMajorTag`는 semver 스킴에 한정하고(calver/headver엔 무의미)
+  independent 모노레포에서도 거부한다(scope 네임스페이스가 없어 major 태그가
+  충돌한다). calver/headver scope에 `scheme.pattern`이 없으면 종전엔 render를
+  통과하고 릴리스 시점에 `next-version.py`가 실패했다.
+- **scope·notes·릴리스 커밋 포맷의 구조적 오류를 render가 거부** — 복수 scope인데
+  `monorepoStrategy: independent`가 아니거나(단일 레포용 스킬은 `scopes[0]`만
+  본다), scope 이름·`tag.format`이 중복되거나, `notes.destinations`가 비었거나
+  `release-file`인데 `notes.perReleasePath`가 없으면 이제 거부한다.
+  `releaseCommitFormat`은 `{version}`을 반드시 포함해야 하고 `{scope}`는
+  independent 전용이며, `notes.language`·`notes.destinations`·`repo.mergePolicy`도
+  닫힌 집합으로 검증한다. 종전엔 이런 config도 render는 통과했지만 생성된 스킬이
+  릴리스 실행 중에야 깨졌다.
+- **스크립트가 모호하거나 손실되는 입력을 조용히 넘기지 않는다** — `version.py`의
+  regex 위치가 파일에서 2회 이상 매치하면 `get`/`set`/`verify` 모두 이제
+  거부한다(종전엔 `set`이 전 매치를 치환하고 `get`/`verify`는 첫 매치만 읽는
+  비대칭이 있어, 의존성 핀 등의 의도치 않은 두 번째 매치가 조용히 오염되거나
+  검증을 통과했다). `next-version.py`도 `1.2.3+45`처럼 build metadata가 섞인
+  semver 입력을 이제 명시적으로 거부한다 — 종전엔 `+45`가 경고 없이 드롭돼 모바일
+  빌드 번호 같은 값이 릴리스마다 소실될 수 있었다.
+- **`bundleNotesGuess`가 순수 8자리 날짜를 라운드 노트로 오탐하지 않는다** —
+  스캔이 기존 bundle 라운드 노트 파일명을 추정할 때 `20260101`처럼 점 구분이
+  없는 8자리 숫자도 매치해, 실제로는 없는 라운드 노트 관행을 있다고 잘못 인식할
+  수 있었다. 이제 점으로 구분된 그룹(`2026.07.1` 류)만 매치한다.
+
+### Changed
+
+- **존재하지 않는 태그 안내 제거 — 태그 섹션은 skip 문구가 아니라 통째로
+  사라진다** — independent 모노레포에서 일부 scope만 태그를 쓰거나
+  (release-monorepo·hotfix), 단일 scope 자체가 tagless면(release —
+  `monorepoStrategy != independent` 전용 단일-scope 스킬이라 "혼합"이 아니라
+  그 하나의 scope로만 갈린다) 프리뷰·"실패 시" 절의 태그 언급이 이제 태그를
+  쓰는 대상에만 렌더된다. 일부만 tagless인 혼합 모노레포는 태그 섹션 헤딩이
+  남아 그 안에 "이 단계 전체를 건너뛴다"는 안내가 붙지만, 전부(또는 단일
+  scope) tagless면 태그 섹션 헤딩 자체가 렌더되지 않아 번호가 모노레포는
+  7→9로, 단일 레포는 6→8로 건너뛴다 — 안내 문구조차 남지 않는다.
+- **init의 gitflow 사이클 안내가 "태그는 선택"임을 반영** — gitflow에서는 태그가
+  선택사항인데, init이 릴리스 사이클을 설명하는 문구는 마치 항상 태그를 찍는
+  것처럼 읽혔다. gitflow 사이클 설명에서 태그가 선택사항임을 반영해 관련
+  문구 두 곳(번들 6 안내·지원 범위 절)을 정리했다.
+
 ## [0.4.0] - 2026-08-06
 
 ### Added

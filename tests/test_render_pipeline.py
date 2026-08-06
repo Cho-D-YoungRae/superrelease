@@ -25,7 +25,8 @@ ASSET_FILES = {
     "skills/release/SKILL.md":
         "---\nname: release\ndescription: {{project.name}} 릴리스\n---\n\n"
         "# {{project.name}} release\n"
-        "{{#if derived.anyTagEnabled}}TAGGED\n{{/if}}",
+        "{{#if derived.anyTagEnabled}}TAGGED\n{{/if}}"
+        "{{#unless derived.allTagEnabled}}MIXED\n{{/unless}}",
     "scripts/tool.py": "#!/usr/bin/env python3\nprint('hi')\n",
     "templates/notes.md": "# Notes {{scope.name}}\n",
     "github/release.yml": "changelog:\n  categories: []\n",
@@ -81,6 +82,28 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("TAGGED", skill)
+
+    def test_derived_all_tag_enabled(self):
+        r = self.render()  # 단일 tagged scope → all=true → MIXED 미출력
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("MIXED", skill)
+
+    def test_derived_all_tag_enabled_false_when_tagless(self):
+        # collapse 방향(위 test_derived_all_tag_enabled)의 대칭 — expand 방향도
+        # 유닛 레벨에서 커버한다(리뷰 라운드 1). 단일 scope라 "혼합"은 아니지만
+        # allTagEnabled=false(tag.enabled가 전부 false)에서 {{#unless}} 본문이
+        # 실제로 렌더되는지 확인한다.
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("MIXED", skill)
 
     def test_verbatim_executable_and_marker_after_shebang(self):
         self.render()
@@ -248,6 +271,29 @@ class PipelineTest(unittest.TestCase):
         self.write_config(cfg)
         r = self.render()
         self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_release_path_typo_rejected(self):
+        # 커버리지 검토 P0 재현: "release_pr" 오타가 침묵 통과해
+        # release-pr flavor 스킬 + 미렌더 release-pr-body.md 참조를 만들었다
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["releasePath"] = "release_pr"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("releasePath", r.stderr)
+        self.assertIn("release_pr", r.stderr)
+
+    def test_next_snapshot_requires_mutable_qualifier(self):
+        # 커버리지 검토 P0 재현: qualifier null이면 생성 스킬의
+        # `--qualifier ` 명령이 릴리스 시점 argparse 오류로 죽는다
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+        cfg["scopes"][0]["postRelease"] = {"bump": "next-snapshot"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("next-snapshot", r.stderr)
+        self.assertIn("mutable", r.stderr)
 
     def test_tag_enabled_key_must_be_explicit(self):
         # The frozen template engine resolves a missing scope.tag.enabled
@@ -481,6 +527,124 @@ class PipelineTest(unittest.TestCase):
                 self.assertEqual(r.returncode, 1)
                 self.assertIn(expect, r.stderr)
 
+    def test_gitflow_maintenance_lines_rejected(self):
+        # manifest의 hotfix 이중 entry가 같은 목적지에 렌더 — gitflow flavor만
+        # 남고 유지보수 라인 기대가 소리 없이 증발하는 조합
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["developBranch"] = "develop"
+        cfg["repo"]["releasePath"] = "release-pr"
+        cfg["repo"]["maintenanceLines"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("maintenanceLines", r.stderr)
+        self.assertIn("gitflow", r.stderr)
+
+    def test_moving_major_tag_requires_semver(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+        cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+        cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+        cfg["scopes"][0]["tag"]["movingMajorTag"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("movingMajorTag", r.stderr)
+        self.assertIn("semver", r.stderr)
+
+    def test_moving_major_tag_rejected_for_independent(self):
+        # release-monorepo의 `git tag -f v<major>`는 scope 네임스페이스가 없어
+        # 같은 major의 scope끼리 충돌한다
+        cfg = monorepo_config()
+        cfg["scopes"][0]["tag"]["movingMajorTag"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("movingMajorTag", r.stderr)
+        self.assertIn("independent", r.stderr)
+
+    def test_calver_headver_require_pattern(self):
+        for scheme in ("calver", "headver"):
+            cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+            cfg["scopes"][0]["scheme"] = {"type": scheme, "pattern": None}
+            cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+            cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+            self.write_config(cfg)
+            r = self.render()
+            self.assertEqual(r.returncode, 1, scheme)
+            self.assertIn("scheme.pattern", r.stderr)
+
+    def test_multiple_scopes_require_independent(self):
+        cfg = monorepo_config(strategy="fixed")  # 2 scopes + fixed
+        # releaseCommitFormat의 "{scope}"는 independent 전용이라 별도 규칙을
+        # 발화시킨다 — 그 규칙과 격리해 이 테스트가 multiple-scopes 규칙만
+        # 핀하도록 고정한다.
+        cfg["repo"]["releaseCommitFormat"] = "chore(release): {version}"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("multiple scopes", r.stderr)
+
+    def test_duplicate_scope_names_rejected(self):
+        cfg = monorepo_config()
+        cfg["scopes"][1]["name"] = cfg["scopes"][0]["name"]
+        cfg["scopes"][1]["tag"]["format"] = "dup2@{version}"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("unique", r.stderr)
+
+    def test_duplicate_tag_formats_rejected(self):
+        cfg = monorepo_config()
+        cfg["scopes"][1]["tag"]["format"] = cfg["scopes"][0]["tag"]["format"]
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("tag.format", r.stderr)
+
+    def test_release_file_requires_per_release_path(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["release-file"]
+        cfg["scopes"][0]["notes"]["perReleasePath"] = None
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("perReleasePath", r.stderr)
+
+    def test_release_commit_format_placeholders(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["releaseCommitFormat"] = "chore(release): {scope}@{version}"
+        self.write_config(cfg)  # 단일 레포에 {scope}
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("{scope}", r.stderr, "single repo with {scope}")
+        cfg["repo"]["releaseCommitFormat"] = "release commit"  # {version} 없음
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("{version}", r.stderr, "missing {version}")
+
+    def test_closed_sets_language_destinations_merge_policy(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["language"] = "jp"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("notes.language", r.stderr, "invalid language jp")
+        cfg["scopes"][0]["notes"]["language"] = "ko"
+        cfg["scopes"][0]["notes"]["destinations"] = []
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("destinations", r.stderr, "empty destinations")
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["repo"]["mergePolicy"] = "ff-only"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("mergePolicy", r.stderr, "invalid mergePolicy ff-only")
+
 
 SWITCH_MANIFEST = {
     "entries": [
@@ -593,6 +757,10 @@ class ChangedPackagesGateTest(unittest.TestCase):
         cfg["scopes"][0]["path"] = "."
         cfg["scopes"][0]["versionLocations"] = [
             {"file": "gradle.properties", "type": "properties-key", "key": "version"}]
+        # monorepo_config()의 releaseCommitFormat은 independent 전용 {scope}
+        # placeholder를 쓴다 — fixed는 단일 scope 모델이라 B-17 닫힌 집합 규칙이
+        # 거부한다(2026-08-06 Task 3에서 발견); 단일 scope에 맞는 포맷으로 오버라이드.
+        cfg["repo"]["releaseCommitFormat"] = "chore(release): {version}"
         repo = self._render(cfg, {"gradle.properties": "version=0.1.0\n"})
         self.assertFalse((repo / ".superrelease/scripts/changed-packages.py").exists())
         # fixed는 단일 변형 스킬을 받는다 (모노레포 변형이 아님)

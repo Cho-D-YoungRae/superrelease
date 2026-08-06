@@ -137,6 +137,11 @@ def read_location(scope, loc):
         matches = [m for m in pat.finditer(text) if m.start(1) != -1]
         if not matches:
             fail(str(path) + ": pattern '" + loc["pattern"] + "' not found (needs one capture group)", 1)
+        if len(matches) > 1:
+            fail(str(path) + ": pattern '" + loc["pattern"] + "' matched "
+                 + str(len(matches)) + " times — ambiguous location; narrow "
+                 "the pattern (anchor it or add surrounding context) so it "
+                 "matches exactly once", 1)
         return matches[0].group(1)
     fail("unknown location type: " + str(t), 2)
 
@@ -213,6 +218,11 @@ def set_location(scope, loc, new_version):
         matches = [m for m in pat.finditer(text) if m.start(1) != -1]
         if not matches:
             fail(str(path) + ": pattern '" + loc["pattern"] + "' not found (needs one capture group)", 1)
+        if len(matches) > 1:
+            fail(str(path) + ": pattern '" + loc["pattern"] + "' matched "
+                 + str(len(matches)) + " times — ambiguous location; narrow "
+                 "the pattern (anchor it or add surrounding context) so it "
+                 "matches exactly once", 1)
         old = matches[0].group(1)
         for m in reversed(matches):
             text = text[:m.start(1)] + new_version + text[m.end(1):]

@@ -214,11 +214,16 @@ node·Gradle 모노레포 패키지도 포함됩니다. 감지하지 않는 것:
 | 필드 | 값 | 비고 |
 |---|---|---|
 | `repo.branching` | `trunk` \| `gitflow` | gitflow는 `releasePath: release-pr` + `developBranch` 필요 |
-| `repo.releasePath` | `direct-push` \| `release-pr` | release-pr은 2단계(PR → 머지 → 태그) |
-| `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver는 `preRelease.style: none` + `postRelease.bump: none` 필요 |
-| `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N` |
-| `scopes[].tag.enabled` | 명시적 boolean | 필수; `github.release: true`면 true여야 함 |
-| `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` | `fragment`는 다른 목적지 1개 이상을 sink로 필요 |
+| `repo.releasePath` | `direct-push` \| `release-pr` | release-pr은 2단계(PR → 머지 → 태그); 그 외 값은 거부 |
+| `repo.monorepoStrategy` | `fixed` \| `independent` | 모노레포 전용; non-independent(`fixed` 포함)는 scope 정확히 1개, `independent`는 2개 이상 + `name`·`tag.format` 유일 필요 |
+| `repo.maintenanceLines` | boolean | trunk 전용(hotfix 스킬); gitflow 브랜칭·independent 모노레포·non-semver scope와는 병행 불가 |
+| `repo.releaseCommitFormat` | 문자열 템플릿 | `{version}` 필수; `{scope}`는 independent 모노레포 전용 |
+| `repo.mergePolicy` | `merge` \| `squash` \| `rebase` \| `unknown` | 닫힌 집합(오타 거부) |
+| `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver는 `preRelease.style: none` + `postRelease.bump: none` + `scheme.pattern` 필요 |
+| `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N`; `postRelease.bump: next-snapshot`은 `mutable` + qualifier 필요 |
+| `scopes[].tag.enabled` | 명시적 boolean | 필수; `github.release: true`면 true여야 함; `movingMajorTag`는 semver 전용이며 independent 전략에서 거부 |
+| `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` | `fragment`는 다른 목적지 1개 이상을 sink로 필요; `release-file`은 `notes.perReleasePath` 필수 |
+| `scopes[].notes.language` | `ko` \| `en` \| `both` | 닫힌 집합(오타 거부) |
 | `bundle` | `{enabled, scheme: calver+pattern, notesPath}` | independent 모노레포: 릴리스 라운드마다 CalVer 이름의 묶음 노트 |
 
 잘못된 조합은 렌더 시점에 수정 방법을 알려주는 메시지와 함께 거부됩니다 —

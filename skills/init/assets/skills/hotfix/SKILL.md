@@ -43,7 +43,7 @@ description: {{project.name}} 프로젝트의 이미 릴리스된 버전에 핫�
 {{/if}}
 ## 5. dry-run 프리뷰 → 커밋
 
-release 스킬 {{#if repo.monorepoStrategy == "independent"}}7{{else}}6{{/if}}단계와 같은 표준 프리뷰(파일 diff·커밋 메시지·태그명·명령 목록{{#if repo.tagTriggersDeployment}}·⚠️ 태그의 CI 배포 트리거 경고{{/if}}·노트 미리보기)를 보여주고 확인받아라.
+release 스킬 {{#if repo.monorepoStrategy == "independent"}}7{{else}}6{{/if}}단계와 같은 표준 프리뷰(파일 diff·커밋 메시지{{#if derived.anyTagEnabled}}·태그명{{/if}}·명령 목록{{#if repo.tagTriggersDeployment}}·⚠️ 태그의 CI 배포 트리거 경고{{/if}}·노트 미리보기)를 보여주고 확인받아라.
 
 {{#if repo.releasePath == "direct-push"}}확인 후: 버전 파일 + 노트 파일을 커밋하고 `git push origin release/<라인>`.{{else}}확인 후(릴리스 PR 경로): `git checkout -b {{#if repo.monorepoStrategy == "independent"}}hotfix/<첫 scope>@<패치 버전>{{else}}hotfix/<패치 버전>{{/if}}` → 커밋 → push → `gh pr create --base {{#if repo.branching == "gitflow"}}{{repo.defaultBranch}}{{else}}release/<라인>{{/if}} --head {{#if repo.monorepoStrategy == "independent"}}hotfix/<첫 scope>@<패치 버전>{{else}}hotfix/<패치 버전>{{/if}}` — **base는 {{#if repo.branching == "gitflow"}}`{{repo.defaultBranch}}`다{{else}}유지보수 라인이다{{/if}}**. PR 머지 후 재개해 {{#if derived.anyTagEnabled}}6단계(태그){{else}}7단계(post-release){{/if}}부터 이어가라. hotfix는 release 스킬과 달리 중단 상태를 자동 감지하지 않으니 — 머지 후 {{#if derived.anyTagEnabled}}태그 단계{{else}}post-release{{/if}}를 **수동으로** 진행하고 체리픽·버전 반영을 반복하지 마라.{{/if}}
 
@@ -63,4 +63,4 @@ release 스킬 {{#if repo.monorepoStrategy == "independent"}}8단계와 동일�
 
 ## 실패 시
 
-어디까지 진행됐는지(체리픽 / 파일 수정 / 커밋 / push / 태그 / Release)와 되돌리는 방법을 명시하라. **push된 태그는 되돌리지 않는다** — 잘못 나간 버전은 다음 패치로 덮는다.
+어디까지 진행됐는지(체리픽 / 파일 수정 / 커밋 / push{{#if derived.anyTagEnabled}} / 태그{{/if}} / Release)와 되돌리는 방법을 명시하라. {{#if derived.anyTagEnabled}}**push된 태그는 되돌리지 않는다** — {{/if}}잘못 나간 버전은 다음 패치로 덮는다.

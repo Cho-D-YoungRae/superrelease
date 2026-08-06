@@ -236,6 +236,30 @@ class RegexGuardTest(VersionTestBase):
         self.assertIn("version_badge\n", text)
         self.assertEqual(run_script(vp(repo), "get").stdout.strip(), "1.2.4")
 
+    def test_multi_match_get_exits_1(self):
+        # set은 전 매치 치환·get/verify는 첫 매치만 읽던 비대칭 — 다중 매치는
+        # Cargo [dependencies]·pyproject [tool.*] 라인을 조용히 오염시킨다
+        toml = 'version = "1.2.3"\n\n[dependencies.demo]\nversion = "0.9.0"\n'
+        repo = self.repo_with(
+            [{"file": "Cargo.toml", "type": "regex",
+              "pattern": '^version\\s*=\\s*"([^"]+)"'}],
+            {"Cargo.toml": toml})
+        r = run_script(vp(repo), "get")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("matched 2", r.stderr)
+
+    def test_multi_match_set_exits_1_without_writing(self):
+        toml = 'version = "1.2.3"\n\n[dependencies.demo]\nversion = "0.9.0"\n'
+        repo = self.repo_with(
+            [{"file": "Cargo.toml", "type": "regex",
+              "pattern": '^version\\s*=\\s*"([^"]+)"'}],
+            {"Cargo.toml": toml})
+        r = run_script(vp(repo), "set", "1.2.4")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("matched 2", r.stderr)
+        self.assertEqual((Path(repo) / "Cargo.toml").read_text(encoding="utf-8"),
+                         toml)
+
 
 class JsonPathSurgicalTest(VersionTestBase):
     def test_inline_structures_preserved(self):

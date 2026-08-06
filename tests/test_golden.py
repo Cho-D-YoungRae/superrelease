@@ -62,5 +62,41 @@ class GoldenRenderTest(unittest.TestCase):
             self.assertNotIn("enclosing-name", skill)
 
 
+class GoldenContentTest(unittest.TestCase):
+    """스냅샷 동일성 위에, 신규 골든의 의도(핵심 분기)를 명시적으로 고정한다."""
+
+    def read(self, name, rel):
+        return (GOLDEN_ROOT / name / "expected" / rel).read_text(encoding="utf-8")
+
+    def test_gitflow_tagless_hotfix_collapses_tag_section(self):
+        skill = self.read("gitflow-tagless-hotfix", ".claude/skills/hotfix/SKILL.md")
+        self.assertNotIn("## 6. 태그", skill)
+
+    def test_trunk_monorepo_bundle_renders_round_notes(self):
+        skill = self.read("trunk-monorepo-bundle", ".claude/skills/release/SKILL.md")
+        self.assertIn("bundle 라운드 노트", skill)
+        self.assertIn("--current-among", skill)
+
+    def test_hotfix_release_pr_uses_maintenance_base(self):
+        # "release/<라인>" 자체는 branching과 무관하게(direct-push든 release-pr든)
+        # 항상 등장해 release-pr 분기를 판별하지 못한다(hotfix-library에도 동일
+        # 문자열이 있음). release-pr 분기에서만, 그리고 gitflow 플레이버(base가
+        # {{repo.defaultBranch}})와 달리 maintenanceLines 플레이버에서만 등장하는
+        # PR 생성 커맨드 전체를 검사한다.
+        skill = self.read("hotfix-release-pr", ".claude/skills/hotfix/SKILL.md")
+        self.assertIn("gh pr create --base release/<라인>", skill)
+
+    def test_gitflow_fixed_monorepo_renders_single_flavor(self):
+        skill = self.read("gitflow-fixed-monorepo", ".claude/skills/release/SKILL.md")
+        self.assertIn("## 7. 태그", skill)  # 단일 flavor 섹션 번호 (모노레포는 ## 8)
+
+    def test_mixed_tags_monorepo_notes_per_scope_skip(self):
+        # "태그를 쓰지 않는 scope"만으로는 §1 중단 상태 감지·§9 post-release의
+        # 무관한 기존 문장과도 매칭돼 §8 신규 안내가 삭제돼도 통과한다 — §8
+        # 신규 문장에서만 등장하는 어구로 고정한다(리뷰 라운드 1).
+        skill = self.read("mixed-tags-monorepo", ".claude/skills/release/SKILL.md")
+        self.assertIn("이 단계 전체를 건너뛴다", skill)
+
+
 if __name__ == "__main__":
     unittest.main()

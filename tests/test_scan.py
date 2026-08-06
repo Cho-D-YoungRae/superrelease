@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import PLUGIN_SCRIPTS, make_git_repo, run_script, write
+from helpers import PLUGIN_SCRIPTS, load_module, make_git_repo, run_script, write
 
 SCAN = PLUGIN_SCRIPTS / "scan.py"
 
@@ -556,6 +556,14 @@ class ScanTest(unittest.TestCase):
             r = run_script(SCAN, "--repo", tmp)
             data = json.loads(r.stdout)
             self.assertIsNone(data["changelog"]["bundleNotesGuess"])
+
+    def test_bundle_note_re_requires_dot_separated_groups(self):
+        # ^\d{4}[.\d]+$ 는 순수 8자리(20260101)도 매치했다 — 점 구분 필수로 조인다
+        scan = load_module(PLUGIN_SCRIPTS / "scan.py", "scan_module")
+        self.assertIsNotNone(scan.BUNDLE_NOTE_RE.match("2026.07.1"))
+        self.assertIsNotNone(scan.BUNDLE_NOTE_RE.match("2026.07"))
+        self.assertIsNone(scan.BUNDLE_NOTE_RE.match("20260101"))
+        self.assertIsNone(scan.BUNDLE_NOTE_RE.match("2026"))
 
 
 if __name__ == "__main__":
