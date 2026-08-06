@@ -139,7 +139,7 @@ description: 프로젝트의 버전·릴리스 관리를 초기화하거나 재�
 지원: 단일 레포(app/library) + 모노레포 fixed/independent — scope별 태그 네임스페이스, changed-packages 변경 감지, dependents 전파 포함.
 
 - 스캔 감지: gradle.properties / build.gradle(.kts) / package.json / pyproject.toml / Cargo.toml / Dockerfile LABEL / Chart.yaml / README 배지 / VERSION / openapi·swagger(json·yaml) / pom.xml(`<revision>` property는 후보, project `<version>`은 감지·안내 전용) / .claude-plugin/plugin.json(Claude Code 플러그인 매니페스트 — json-path `version`) + node·gradle 모노레포 패키지 — libs.versions.toml(의존성 카탈로그)·gradle 내부 의존성·pom 직접 쓰기(xml-path)는 지원하지 않는다
-- 브랜칭: trunk / gitflow(release-pr 전용 — develop cut → 기본 브랜치 태그 → back-merge 정식 사이클, production hotfix 포함; 단일 레포·independent 모노레포 지원, gitflow에서는 태그가 선택사항) 지원 — direct-push gitflow는 지원하지 않는다
+- 브랜칭: trunk / gitflow(release-pr 전용 — develop cut → 기본 브랜치 태그 → back-merge 정식 사이클, production hotfix 포함; 단일 레포·independent 모노레포 지원(fixed 모노레포는 단일 root scope라 단일 레포와 동일 사이클로 동작), gitflow에서는 태그가 선택사항) 지원 — direct-push gitflow는 지원하지 않는다
 - 버전 체계: SemVer/CalVer/HeadVer 지원 — sequential 등 그 외 체계는 지원하지 않는다
 - pre-release: none/mutable/counter(-rc.N) 지원 / moving major tag 지원(force-push 경고 수반)
 - 모노레포 이중 체계(루트 CalVer train + 패키지 SemVer)·release-train: 지원하지 않는다 — config에 `train` 객체가 있으면 render가 거부한다. independent로 패키지를 개별 릴리스하고, 검증된 조합 공표가 필요하면 릴리스 노트·문서에 조합 표를 남기는 운용을 안내하라
