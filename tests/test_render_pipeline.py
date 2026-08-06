@@ -577,10 +577,14 @@ class PipelineTest(unittest.TestCase):
 
     def test_multiple_scopes_require_independent(self):
         cfg = monorepo_config(strategy="fixed")  # 2 scopes + fixed
+        # releaseCommitFormat의 "{scope}"는 independent 전용이라 별도 규칙을
+        # 발화시킨다 — 그 규칙과 격리해 이 테스트가 multiple-scopes 규칙만
+        # 핀하도록 고정한다.
+        cfg["repo"]["releaseCommitFormat"] = "chore(release): {version}"
         self.write_config(cfg)
         r = self.render()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("independent", r.stderr)
+        self.assertIn("multiple scopes", r.stderr)
 
     def test_duplicate_scope_names_rejected(self):
         cfg = monorepo_config()

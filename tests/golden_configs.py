@@ -343,7 +343,11 @@ def python_library():
 
 
 def maven_revision():
-    # pom <revision> property regex — Maven CI-friendly 관행 핀 (scan 패턴 그대로)
+    # pom <revision> property regex (scan 패턴 그대로) — 렌더 분기 핀이 아니다:
+    # repo.kind·versionLocations 세부값(type/pattern)은 어떤 템플릿에도 반영되지
+    # 않으므로 렌더 트리는 gradle-app 골든과 (프로젝트명 제외) 바이트 동일하다.
+    # 이 골든이 실제로 핀하는 것은 validate_config의 regex 검증 — 이 pattern이
+    # 컴파일에 성공하고 캡처그룹이 정확히 1개라는 것 — 뿐이다.
     cfg = scope_config(
         [{"file": "pom.xml", "type": "regex",
           "pattern": "<revision>([^<]+)</revision>"}])
