@@ -216,6 +216,12 @@ def validate_config(config):
         problems.append("repo.maintenanceLines (hotfix skill) requires semver "
                         "scopes; hotfix patch-bumps do not apply to "
                         "calver/headver schemes")
+    if repo.get("maintenanceLines") and repo.get("branching") == "gitflow":
+        problems.append("repo.maintenanceLines is not supported with gitflow "
+                        "branching — the gitflow production-hotfix flavor "
+                        "replaces it (both would render to the same hotfix "
+                        "skill path); use trunk branching for maintenance "
+                        "lines")
     if (repo.get("releasePath") == "release-pr"
             and repo.get("branching") != "gitflow" and scopes and any(
                 not (s.get("tag") or {}).get("enabled", True) for s in scopes)):
@@ -279,6 +285,22 @@ def validate_config(config):
                 problems.append('scopes[{}]: postRelease.bump must be "none" for '
                                 "calver/headver schemes (next-snapshot is "
                                 "semver-only)".format(i))
+        if scheme_type in ("calver", "headver") and not (s.get("scheme") or {}).get("pattern"):
+            problems.append("scopes[{}]: scheme.pattern is required for {} "
+                            "(calver pattern / headver head number) — "
+                            "next-version.py fails at release time without it"
+                            .format(i, scheme_type))
+        if (s.get("tag") or {}).get("movingMajorTag"):
+            if (scheme_type or "semver") != "semver":
+                problems.append("scopes[{}]: tag.movingMajorTag requires the "
+                                "semver scheme (a moving v<major> tag is "
+                                "meaningless for calver/headver)".format(i))
+            if strategy == "independent":
+                problems.append("scopes[{}]: tag.movingMajorTag is not "
+                                "supported with the independent monorepo "
+                                "strategy — the moving v<major> tag is not "
+                                "scope-namespaced and would collide across "
+                                "scopes".format(i))
         post_bump = (s.get("postRelease") or {}).get("bump") or "none"
         if post_bump == "next-snapshot":
             pre = s.get("preRelease") or {}

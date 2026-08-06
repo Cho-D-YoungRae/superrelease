@@ -504,6 +504,54 @@ class PipelineTest(unittest.TestCase):
                 self.assertEqual(r.returncode, 1)
                 self.assertIn(expect, r.stderr)
 
+    def test_gitflow_maintenance_lines_rejected(self):
+        # manifest의 hotfix 이중 entry가 같은 목적지에 렌더 — gitflow flavor만
+        # 남고 유지보수 라인 기대가 소리 없이 증발하는 조합
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["branching"] = "gitflow"
+        cfg["repo"]["developBranch"] = "develop"
+        cfg["repo"]["releasePath"] = "release-pr"
+        cfg["repo"]["maintenanceLines"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("maintenanceLines", r.stderr)
+        self.assertIn("gitflow", r.stderr)
+
+    def test_moving_major_tag_requires_semver(self):
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+        cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+        cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+        cfg["scopes"][0]["tag"]["movingMajorTag"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("movingMajorTag", r.stderr)
+        self.assertIn("semver", r.stderr)
+
+    def test_moving_major_tag_rejected_for_independent(self):
+        # release-monorepo의 `git tag -f v<major>`는 scope 네임스페이스가 없어
+        # 같은 major의 scope끼리 충돌한다
+        cfg = monorepo_config()
+        cfg["scopes"][0]["tag"]["movingMajorTag"] = True
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("movingMajorTag", r.stderr)
+        self.assertIn("independent", r.stderr)
+
+    def test_calver_headver_require_pattern(self):
+        for scheme in ("calver", "headver"):
+            cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+            cfg["scopes"][0]["scheme"] = {"type": scheme, "pattern": None}
+            cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+            cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+            self.write_config(cfg)
+            r = self.render()
+            self.assertEqual(r.returncode, 1, scheme)
+            self.assertIn("scheme.pattern", r.stderr)
+
 
 SWITCH_MANIFEST = {
     "entries": [
