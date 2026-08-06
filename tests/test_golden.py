@@ -90,6 +90,10 @@ class GoldenContentTest(unittest.TestCase):
         skill = self.read("gitflow-fixed-monorepo", ".claude/skills/release/SKILL.md")
         self.assertIn("## 7. 태그", skill)  # 단일 flavor 섹션 번호 (모노레포는 ## 8)
 
+    def test_mixed_tags_monorepo_notes_per_scope_skip(self):
+        skill = self.read("mixed-tags-monorepo", ".claude/skills/release/SKILL.md")
+        self.assertIn("태그를 쓰지 않는 scope", skill)
+
 
 if __name__ == "__main__":
     unittest.main()

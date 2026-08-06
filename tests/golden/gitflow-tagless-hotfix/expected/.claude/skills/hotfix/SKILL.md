@@ -40,7 +40,7 @@ description: gitflow-tagless-hotfix 프로젝트의 이미 릴리스된 버전�
 
 ## 5. dry-run 프리뷰 → 커밋
 
-release 스킬 6단계와 같은 표준 프리뷰(파일 diff·커밋 메시지·태그명·명령 목록·노트 미리보기)를 보여주고 확인받아라.
+release 스킬 6단계와 같은 표준 프리뷰(파일 diff·커밋 메시지·명령 목록·노트 미리보기)를 보여주고 확인받아라.
 
 확인 후(릴리스 PR 경로): `git checkout -b hotfix/<패치 버전>` → 커밋 → push → `gh pr create --base main --head hotfix/<패치 버전>` — **base는 `main`다**. PR 머지 후 재개해 7단계(post-release)부터 이어가라. hotfix는 release 스킬과 달리 중단 상태를 자동 감지하지 않으니 — 머지 후 post-release를 **수동으로** 진행하고 체리픽·버전 반영을 반복하지 마라.
 
@@ -53,4 +53,4 @@ release 스킬 6단계와 같은 표준 프리뷰(파일 diff·커밋 메시지�
 
 ## 실패 시
 
-어디까지 진행됐는지(체리픽 / 파일 수정 / 커밋 / push / 태그 / Release)와 되돌리는 방법을 명시하라. **push된 태그는 되돌리지 않는다** — 잘못 나간 버전은 다음 패치로 덮는다.
+어디까지 진행됐는지(체리픽 / 파일 수정 / 커밋 / push / Release)와 되돌리는 방법을 명시하라. 잘못 나간 버전은 다음 패치로 덮는다.

@@ -350,6 +350,19 @@ def maven_revision():
     return cfg
 
 
+def mixed_tags_monorepo():
+    # independent 혼합 태그(a=tagged, b=tagless) — §8 per-scope skip 안내 핀
+    cfg = monorepo_config()
+    cfg["scopes"][1]["tag"] = {"enabled": False, "format": "b@{version}",
+                               "annotated": False, "signed": False,
+                               "movingMajorTag": False}
+    cfg["scopes"][1]["anchor"] = {"type": "ref", "value": None}
+    for s in cfg["scopes"]:
+        s["notes"]["destinations"] = ["changelog"]
+    cfg["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
@@ -372,4 +385,5 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "gitflow-tagless-hotfix": gitflow_tagless_hotfix,
           "gitflow-fixed-monorepo": gitflow_fixed_monorepo,
           "python-library": python_library,
-          "maven-revision": maven_revision}
+          "maven-revision": maven_revision,
+          "mixed-tags-monorepo": mixed_tags_monorepo}

@@ -25,7 +25,8 @@ ASSET_FILES = {
     "skills/release/SKILL.md":
         "---\nname: release\ndescription: {{project.name}} 릴리스\n---\n\n"
         "# {{project.name}} release\n"
-        "{{#if derived.anyTagEnabled}}TAGGED\n{{/if}}",
+        "{{#if derived.anyTagEnabled}}TAGGED\n{{/if}}"
+        "{{#unless derived.allTagEnabled}}MIXED\n{{/unless}}",
     "scripts/tool.py": "#!/usr/bin/env python3\nprint('hi')\n",
     "templates/notes.md": "# Notes {{scope.name}}\n",
     "github/release.yml": "changelog:\n  categories: []\n",
@@ -81,6 +82,12 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("TAGGED", skill)
+
+    def test_derived_all_tag_enabled(self):
+        r = self.render()  # 단일 tagged scope → all=true → MIXED 미출력
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("MIXED", skill)
 
     def test_verbatim_executable_and_marker_after_shebang(self):
         self.render()

@@ -70,7 +70,7 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 scope별 표준 프리뷰를 보여주고 확인받아라:
 
 - 바뀔 파일과 버전 diff (위치별 old → new)
-- 생성될 커밋 메시지(`{{repo.releaseCommitFormat}}` 의 {scope}·{version} 치환)와 태그명(그 scope의 config `tag.format` — 네임스페이스는 포맷에 포함, 예: `my-pkg@1.2.0`)
+- 생성될 커밋 메시지(`{{repo.releaseCommitFormat}}` 의 {scope}·{version} 치환){{#if derived.anyTagEnabled}}와 태그명(그 scope의 config `tag.format` — 네임스페이스는 포맷에 포함, 예: `my-pkg@1.2.0`){{/if}}
 - 실행될 명령 목록 (push, Release 생성 등)
 {{#if repo.tagTriggersDeployment}}- ⚠️ **이 태그는 CI 배포를 트리거합니다** — 프리뷰에 반드시 명시
 {{/if}}- 릴리스 노트 미리보기 + 의존성 전파 체인
@@ -79,7 +79,8 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 
 {{#if derived.anyTagEnabled}}## 8. 태그{{#if github.release}} + GitHub Release{{/if}} (scope별)
 
-- 태그명: 그 scope의 config `tag.format`에서 {version}에 릴리스 버전 대입.
+{{#unless derived.allTagEnabled}}- 태그를 쓰지 않는 scope(config `tag.enabled` false)는 이 단계 전체를 건너뛴다 — 아래 항목은 tag.enabled scope에만 적용된다.
+{{/unless}}- 태그명: 그 scope의 config `tag.format`에서 {version}에 릴리스 버전 대입.
 - push 직전 충돌 재확인: `git ls-remote --tags origin <태그>` 가 비어 있어야 함 — 결과가 있으면 **즉시 중단** (동시 릴리스 락, 버전 재사용 금지).
 - 태그 생성: 그 scope의 `tag.signed`가 true면 `git tag -s <태그> -m "<한 줄 요약>"`, 아니고 `tag.annotated`가 true면 `git tag -a <태그> -m "<한 줄 요약>"`, 둘 다 아니면 `git tag <태그>` → `git push origin <태그>`
 - 그 scope의 `tag.movingMajorTag`가 true면(semver 정식 릴리스에 한해) `git tag -f v<major>` → `git push -f origin v<major>` — force-push 경고를 프리뷰에 명시하고 개별 확인을 받아라. `preRelease.style`이 counter인 scope의 pre-release 버전이면 GitHub Release에 `--prerelease` 플래그를 붙인다.
@@ -97,4 +98,4 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 {{/unless}}
 ## 실패 시
 
-scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push / 태그 / Release)와 되돌리는 방법을 명시하라. **push된 태그는 되돌리지 않는다** — 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.
+scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push{{#if derived.anyTagEnabled}} / 태그{{/if}} / Release)와 되돌리는 방법을 명시하라. {{#if derived.anyTagEnabled}}**push된 태그는 되돌리지 않는다** — {{/if}}잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.
