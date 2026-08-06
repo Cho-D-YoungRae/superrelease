@@ -34,8 +34,15 @@ class PureModeTest(unittest.TestCase):
                    "1.4.0-SNAPSHOT")
         self.check(["--current", "1.3.0", "--qualifier", "SNAPSHOT"], "1.3.0-SNAPSHOT")
 
-    def test_build_metadata_dropped(self):
-        self.check(["--current", "1.2.3+build.5", "--bump", "patch"], "1.2.4")
+    def test_build_metadata_rejected(self):
+        # 커버리지 검토 G3 실측: 1.2.3+45 --bump patch가 stderr 0바이트로
+        # 1.2.4를 내며 스토어 빌드번호를 조용히 소실시켰다 — 이제 거부한다
+        for args in (["--current", "1.2.3+build.5", "--bump", "patch"],
+                     ["--current", "1.2.3+45", "--release"],
+                     ["--current", "1.2.3+45", "--qualifier", "SNAPSHOT"]):
+            r = out(*args)
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("build metadata", r.stderr)
 
     def test_invalid_version_exits_1(self):
         r = out("--current", "abc", "--release")

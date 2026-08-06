@@ -10,7 +10,8 @@ Schemes:
            yearweek = 2-digit ISO year + 2-digit ISO week (from --today),
            build = current version's third field + 1 (never resets).
 
-Two input modes: --current VER (pure, config-free) or config mode, which reads
+Three input modes: --current VER (pure, config-free), --current-among VER...
+(calver: highest pattern-matching candidate), or config mode, which reads
 the scheme from ../config.json and the current version via the sibling
 version.py. All semver operations act on the qualifier-stripped base version.
 Exit codes: 0 success / 1 validation failure / 2 usage or config error.
@@ -293,6 +294,11 @@ def main(argv=None):
         fail("invalid prerelease qualifier: " + args.prerelease, 2)
 
     current = args.current if args.current else current_from_config(args.scope)
+    m_meta = SEMVER_RE.match(current)
+    if m_meta and m_meta.group(5):
+        fail("build metadata is not preserved by semver arithmetic: " + current
+             + " — capture the marketing version only (narrow the version "
+             "location pattern so '+...' stays out of the captured value)", 1)
     major, minor, patch, pre = parse_semver(current)
     if args.bump == "major":
         major, minor, patch = major + 1, 0, 0
