@@ -183,6 +183,10 @@ def validate_config(config):
     for key in ("kind", "defaultBranch", "releasePath"):
         if not repo.get(key):
             problems.append("repo." + key + " is required")
+    release_path = repo.get("releasePath")
+    if release_path and release_path not in ("direct-push", "release-pr"):
+        problems.append('repo.releasePath must be "direct-push" or "release-pr" '
+                        '(got "{}")'.format(release_path))
     scopes = config.get("scopes")
     if not scopes:
         problems.append("scopes must be a non-empty list")
@@ -275,6 +279,16 @@ def validate_config(config):
                 problems.append('scopes[{}]: postRelease.bump must be "none" for '
                                 "calver/headver schemes (next-snapshot is "
                                 "semver-only)".format(i))
+        post_bump = (s.get("postRelease") or {}).get("bump") or "none"
+        if post_bump == "next-snapshot":
+            pre = s.get("preRelease") or {}
+            if pre.get("style") != "mutable" or not pre.get("qualifier"):
+                problems.append(
+                    'scopes[{}]: postRelease.bump "next-snapshot" requires '
+                    'preRelease.style "mutable" with a non-empty qualifier — '
+                    "the rendered release skill runs next-version.py "
+                    "--qualifier <preRelease.qualifier> for the post-release "
+                    "bump".format(i))
         tag_obj = s.get("tag")
         if not isinstance(tag_obj, dict) or not isinstance(tag_obj.get("enabled"), bool):
             problems.append('scopes[{}].tag.enabled must be an explicit boolean '

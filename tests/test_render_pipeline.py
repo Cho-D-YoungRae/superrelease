@@ -249,6 +249,29 @@ class PipelineTest(unittest.TestCase):
         r = self.render()
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_release_path_typo_rejected(self):
+        # 커버리지 검토 P0 재현: "release_pr" 오타가 침묵 통과해
+        # release-pr flavor 스킬 + 미렌더 release-pr-body.md 참조를 만들었다
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["releasePath"] = "release_pr"
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("releasePath", r.stderr)
+        self.assertIn("release_pr", r.stderr)
+
+    def test_next_snapshot_requires_mutable_qualifier(self):
+        # 커버리지 검토 P0 재현: qualifier null이면 생성 스킬의
+        # `--qualifier ` 명령이 릴리스 시점 argparse 오류로 죽는다
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+        cfg["scopes"][0]["postRelease"] = {"bump": "next-snapshot"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("next-snapshot", r.stderr)
+        self.assertIn("mutable", r.stderr)
+
     def test_tag_enabled_key_must_be_explicit(self):
         # The frozen template engine resolves a missing scope.tag.enabled
         # dot-path as falsy (truthy → lookup → _MISSING → False), while
