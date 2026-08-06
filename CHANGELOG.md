@@ -46,16 +46,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **혼합 태그 모노레포에서 존재하지 않는 태그 안내 제거** — independent
-  모노레포에서 일부 scope만 태그를 쓰면, 종전엔 release/release-monorepo/hotfix
-  스킬의 프리뷰와 "실패 시" 절이 모든 scope에 태그명·태그 되돌리기 안내를
-  무조건 적어 tagless scope에도 존재하지 않는 태그를 언급했다. 이제 태그 관련
-  문구는 태그를 쓰는 scope에만 렌더되고, 전 scope가 tagless면 release-monorepo
-  8단계가 그 사실을 안내하는 skip 문구로 대체된다.
+- **존재하지 않는 태그 안내 제거 — 태그 섹션은 skip 문구가 아니라 통째로
+  사라진다** — independent 모노레포에서 일부 scope만 태그를 쓰거나
+  (release-monorepo·hotfix), 단일 scope 자체가 tagless면(release —
+  `monorepoStrategy != independent` 전용 단일-scope 스킬이라 "혼합"이 아니라
+  그 하나의 scope로만 갈린다) 프리뷰·"실패 시" 절의 태그 언급이 이제 태그를
+  쓰는 대상에만 렌더된다. 일부만 tagless인 혼합 모노레포는 태그 섹션 헤딩이
+  남아 그 안에 "이 단계 전체를 건너뛴다"는 안내가 붙지만, 전부(또는 단일
+  scope) tagless면 태그 섹션 헤딩 자체가 렌더되지 않아 번호가 모노레포는
+  7→9로, 단일 레포는 6→8로 건너뛴다 — 안내 문구조차 남지 않는다.
 - **init의 gitflow 사이클 안내가 "태그는 선택"임을 반영** — gitflow에서는 태그가
   선택사항인데, init이 릴리스 사이클을 설명하는 문구는 마치 항상 태그를 찍는
-  것처럼 읽혔다. "머지 후 태그"를 "머지·태그(사용 시)"로 한정해 tagless gitflow
-  레포에서도 정확한 설명이 되도록 정리했다.
+  것처럼 읽혔다. gitflow 사이클 설명에서 태그가 선택사항임을 반영해 관련
+  문구 두 곳(번들 6 안내·지원 범위 절)을 정리했다.
 
 ## [0.4.0] - 2026-08-06
 
