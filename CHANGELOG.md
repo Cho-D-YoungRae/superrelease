@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-06
+
 ### Added
 
 - **gitflow 모노레포** — independent 모노레포가 gitflow(develop→기본 브랜치 라운드 릴리스)를
@@ -98,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   versionsort·rename·tag.enabled 기본값 · CalVer 동일 기간 exit 1 · validate_config
   강화(scheme enum·non-semver 조합·location·github↔태그·branching gitflow 전제).
 
-[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.1.0
