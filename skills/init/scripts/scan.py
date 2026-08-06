@@ -42,7 +42,7 @@ TAG_PATTERNS = {
     "short": r"^v?\d+\.\d+$",
 }
 DEVELOP_BRANCH_NAMES = ("develop", "development", "dev")
-BUNDLE_NOTE_RE = re.compile(r"^\d{4}[.\d]+$")
+BUNDLE_NOTE_RE = re.compile(r"^\d{4}(?:\.\d+)+$")
 BUNDLE_NOTE_DIRS = ("docs/releases", "docs/release")
 
 
