@@ -78,8 +78,13 @@ class GoldenContentTest(unittest.TestCase):
         self.assertIn("--current-among", skill)
 
     def test_hotfix_release_pr_uses_maintenance_base(self):
+        # "release/<라인>" 자체는 branching과 무관하게(direct-push든 release-pr든)
+        # 항상 등장해 release-pr 분기를 판별하지 못한다(hotfix-library에도 동일
+        # 문자열이 있음). release-pr 분기에서만, 그리고 gitflow 플레이버(base가
+        # {{repo.defaultBranch}})와 달리 maintenanceLines 플레이버에서만 등장하는
+        # PR 생성 커맨드 전체를 검사한다.
         skill = self.read("hotfix-release-pr", ".claude/skills/hotfix/SKILL.md")
-        self.assertIn("release/<라인>", skill)
+        self.assertIn("gh pr create --base release/<라인>", skill)
 
     def test_gitflow_fixed_monorepo_renders_single_flavor(self):
         skill = self.read("gitflow-fixed-monorepo", ".claude/skills/release/SKILL.md")

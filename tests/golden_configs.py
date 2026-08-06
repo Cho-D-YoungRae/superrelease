@@ -254,7 +254,13 @@ def trunk_monorepo_bundle():
 
 
 def fragment_monorepo():
-    # independent × fragment(+changelog sink) — scope 경로 조각 취합 분기 핀
+    # independent × fragment(+changelog sink) — 렌더 분기 핀이 아니다: 모노레포
+    # release 스킬(release-monorepo/SKILL.md #5)은 notes.destinations를
+    # {{#each}}{{#if}}로 나누지 않고 4개 목적지를 항상 프로즈로 나열하므로,
+    # 렌더 트리는 pnpm-monorepo 골든과 (프로젝트명 제외) 바이트 동일하다.
+    # 이 골든이 실제로 핀하는 것은 validate_config의 per-scope 목적지 규칙
+    # (fragment는 sink 동반 필수)이 2-scope independent 설정에서도 통과한다는
+    # 것뿐이다.
     cfg = monorepo_config()
     for s in cfg["scopes"]:
         s["notes"]["destinations"] = ["fragment", "changelog"]
@@ -262,7 +268,12 @@ def fragment_monorepo():
 
 
 def release_file_monorepo():
-    # independent × release-file — scope별 릴리스 파일 경로 분기 핀
+    # independent × release-file — 위 fragment_monorepo와 같은 이유로 렌더
+    # 분기 핀이 아니다(모노레포 release 스킬은 목적지별 조건부 분기가 없어
+    # 렌더 트리가 pnpm-monorepo 골든과 프로젝트명 제외 바이트 동일). 이 골든이
+    # 실제로 핀하는 것은 validate_config의 per-scope 목적지 규칙(release-file은
+    # notes.perReleasePath 필수)이 2-scope independent 설정에서도 통과한다는
+    # 것뿐이다.
     cfg = monorepo_config()
     for s in cfg["scopes"]:
         s["notes"]["destinations"] = ["release-file", "github-release"]
