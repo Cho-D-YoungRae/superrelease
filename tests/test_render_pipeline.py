@@ -89,6 +89,22 @@ class PipelineTest(unittest.TestCase):
         skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("MIXED", skill)
 
+    def test_derived_all_tag_enabled_false_when_tagless(self):
+        # collapse 방향(위 test_derived_all_tag_enabled)의 대칭 — expand 방향도
+        # 유닛 레벨에서 커버한다(리뷰 라운드 1). 단일 scope라 "혼합"은 아니지만
+        # allTagEnabled=false(tag.enabled가 전부 false)에서 {{#unless}} 본문이
+        # 실제로 렌더되는지 확인한다.
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["tag"]["enabled"] = False
+        cfg["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        cfg["github"] = {"release": False, "generateNotes": False,
+                        "releaseYml": False}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        skill = (self.repo / ".claude/skills/release/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("MIXED", skill)
+
     def test_verbatim_executable_and_marker_after_shebang(self):
         self.render()
         tool = self.repo / ".superrelease/scripts/tool.py"

@@ -91,8 +91,11 @@ class GoldenContentTest(unittest.TestCase):
         self.assertIn("## 7. 태그", skill)  # 단일 flavor 섹션 번호 (모노레포는 ## 8)
 
     def test_mixed_tags_monorepo_notes_per_scope_skip(self):
+        # "태그를 쓰지 않는 scope"만으로는 §1 중단 상태 감지·§9 post-release의
+        # 무관한 기존 문장과도 매칭돼 §8 신규 안내가 삭제돼도 통과한다 — §8
+        # 신규 문장에서만 등장하는 어구로 고정한다(리뷰 라운드 1).
         skill = self.read("mixed-tags-monorepo", ".claude/skills/release/SKILL.md")
-        self.assertIn("태그를 쓰지 않는 scope", skill)
+        self.assertIn("이 단계 전체를 건너뛴다", skill)
 
 
 if __name__ == "__main__":
