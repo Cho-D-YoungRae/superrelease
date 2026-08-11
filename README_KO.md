@@ -150,12 +150,12 @@ squash 흔적), 브랜치(develop 브랜치 추정 포함), 모노레포 신호�
 superrelease가 지금 대응하는 케이스를, 가장 많이 묻는 축 — 모노레포·
 멀티모듈·오픈소스 — 중심으로 요약한 지도입니다. "지원" 칸의 모든 항목은
 렌더 시점에 `validate_config`가 강제하고 골든 렌더 스냅샷(`tests/golden/`의
-대표 config 32종)이 핀합니다.
+대표 config 31종)이 핀합니다.
 
 | 축 | 지원 |
 |---|---|
 | 레포 형태 | 단일 레포 · 배포물 하나의 멀티모듈 빌드(root scope 하나 — Gradle/Maven 멀티모듈) · 모노레포 **fixed**(전 패키지 단일 버전) · 모노레포 **independent**(scope 2개 이상: scope별 `pkg@{version}` 태그 네임스페이스, 변경 패키지 감지, `dependents`를 통한 patch 전파, 공유 버전 파일의 scope별 키) |
-| 프로젝트 유형(골든 핀) | JVM 라이브러리/백엔드(`gradle.properties` + `-SNAPSHOT`) · npm 앱/라이브러리(`package.json` + `package-lock.json` 동기화) · Python 라이브러리(`pyproject.toml`) · Maven `<revision>` 단일 버전 · pnpm/npm workspaces 모노레포 · Claude Code 플러그인(`plugin.json` + `marketplace.json` 동기화) |
+| 프로젝트 유형(골든 핀) | JVM 라이브러리/백엔드(`gradle.properties` + `-SNAPSHOT`) · npm 앱/라이브러리(`package.json` + `package-lock.json` 동기화) · Python 라이브러리(`pyproject.toml`) · pnpm/npm workspaces 모노레포 · Claude Code 플러그인(`plugin.json` + `marketplace.json` 동기화). Maven `<revision>` 단일 버전도 지원합니다 — scan이 감지하고 패턴은 유닛 테스트가 핀하지만, Gradle 단일 버전과 렌더 결과가 같아 전용 골든은 두지 않습니다 |
 | 오픈소스 필수 요소 | SemVer · `-rc.N` 카운터 pre-release · moving `v<major>` 태그 · Keep-a-Changelog CHANGELOG · `release.yml` 카테고리를 갖춘 GitHub Releases · ko/en/both 노트 · 기존 태그에서 CHANGELOG backfill |
 | 브랜칭 × 경로 | trunk × direct-push · trunk × release-pr(보호 브랜치) · gitflow × release-pr(단일 레포·fixed/independent 모노레포, 태그 선택) |
 | 버전 체계 | SemVer · CalVer · HeadVer(`next-version.py`가 결정론적으로 산술) |
@@ -337,10 +337,13 @@ Windows에서는 `python3` 대신 `py -3`을 사용하세요.
   거부됩니다
 - **M5 (완료)** — gitflow 모노레포(develop발 라운드 릴리스), 태그 선택
   gitflow, CalVer bundle 라운드 노트(imstargg 스타일)
-- **M6 (미릴리스)** — 하드닝: 잘못된 config 조합의 렌더 시점 거부(releasePath
+- **M6 (v0.4.1)** — 하드닝: 잘못된 config 조합의 렌더 시점 거부(releasePath
   오타, qualifier 없는 next-snapshot, movingMajorTag·스킴 불일치, scope·노트
   구조 오류), `version.py`의 regex 다중 매치 가드, `next-version.py`의
   build metadata 명시 거부
+- **M7 (미릴리스)** — 검증 메시지가 문제의 scope를 지목하고 서로 모순되지
+  않게, 누락된 필수 필드는 누락으로 보고하게, 모노레포 release 스킬은 어느
+  scope도 쓰지 않는 노트 목적지를 나열하지 않게
 
 지원 계획 없음(범위 밖): sequential 버저닝, direct-push gitflow, 릴리스
 트레인(루트 태그 — 제거된 이중 체계 트레인이며, 위 bundle 라운드 노트

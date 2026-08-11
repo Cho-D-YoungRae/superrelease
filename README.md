@@ -153,12 +153,12 @@ A monorepo with a frontend package and a backend whose bootable modules
 A condensed map of what superrelease handles today, on the axes people ask
 about most — monorepos, multi-module builds, open-source libraries. Every
 "supported" cell is enforced by `validate_config` at render time and pinned
-by golden-render snapshots (32 representative configs under `tests/golden/`).
+by golden-render snapshots (31 representative configs under `tests/golden/`).
 
 | Axis | Supported |
 |---|---|
 | Repo shape | single repo · multi-module build shipping one deployable (one root scope — Gradle/Maven multi-module) · monorepo **fixed** (all packages share one version) · monorepo **independent** (≥2 scopes: per-scope `pkg@{version}` tag namespaces, changed-package detection, patch propagation through `dependents`, shared version files with per-scope keys) |
-| Project types (golden-pinned) | JVM library/backend (`gradle.properties` + `-SNAPSHOT`) · npm app/library (`package.json` + `package-lock.json` sync) · Python library (`pyproject.toml`) · Maven single version via `<revision>` · pnpm/npm-workspaces monorepo · Claude Code plugin (`plugin.json` + `marketplace.json` sync) |
+| Project types (golden-pinned) | JVM library/backend (`gradle.properties` + `-SNAPSHOT`) · npm app/library (`package.json` + `package-lock.json` sync) · Python library (`pyproject.toml`) · pnpm/npm-workspaces monorepo · Claude Code plugin (`plugin.json` + `marketplace.json` sync). Maven single-version via `<revision>` is supported too — scan detects it and a unit test pins its pattern, but it renders identically to the Gradle single-version case, so it has no golden of its own |
 | Open-source staples | SemVer · `-rc.N` counter pre-releases · moving `v<major>` tag · Keep-a-Changelog CHANGELOG · GitHub Releases with `release.yml` categories · notes in ko/en/both · CHANGELOG backfill from existing tags |
 | Branching × path | trunk × direct-push · trunk × release-pr (protected branches) · gitflow × release-pr (single repo and fixed/independent monorepos; tags optional) |
 | Version schemes | SemVer · CalVer · HeadVer (deterministic arithmetic in `next-version.py`) |
@@ -339,11 +339,15 @@ On Windows, replace `python3` with `py -3`.
   with a pointer to the supported alternative
 - **M5 (shipped)** — gitflow monorepos (round release from develop),
   tag-optional gitflow, CalVer bundle round notes (imstargg-style)
-- **M6 (unreleased)** — hardening: render-time rejection of broken config
+- **M6 (v0.4.1)** — hardening: render-time rejection of broken config
   combinations (releasePath typos, next-snapshot without a qualifier,
   movingMajorTag/scheme mismatches, structural scope & notes errors), a
   regex multi-match guard in `version.py`, explicit build-metadata rejection
   in `next-version.py`
+- **M7 (unreleased)** — validation messages that name the offending scope and
+  never contradict each other, missing required fields reported as missing,
+  and the monorepo release skill no longer listing notes destinations that no
+  scope uses
 
 Not planned (out of scope, no support promised): sequential versioning,
 direct-push gitflow, release trains (root tags — the removed dual-scheme
