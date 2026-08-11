@@ -221,12 +221,12 @@ and re-running init is the official customization path.
 | `repo.monorepoStrategy` | `fixed` \| `independent` | monorepo only; non-independent (incl. `fixed`) uses exactly one scope entry, `independent` requires ≥2 with unique `name`/`tag.format` |
 | `repo.maintenanceLines` | boolean | trunk-only (hotfix skill); rejected with `gitflow` branching, independent monorepos, or non-semver scopes |
 | `repo.releaseCommitFormat` | string template | must contain `{version}`; `{scope}` is independent-monorepo-only |
-| `repo.mergePolicy` | `merge` \| `squash` \| `rebase` \| `unknown` | closed set (typos rejected) |
+| `repo.mergePolicy` | `merge` \| `squash` \| `rebase` \| `unknown` | required; closed set (typos rejected). Use `unknown` when the team has no fixed policy |
 | `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver require `preRelease.style: none` + `postRelease.bump: none` + a `scheme.pattern` |
 | `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N`; `postRelease.bump: next-snapshot` needs `mutable` + a qualifier |
 | `scopes[].tag.enabled` | explicit boolean | required; `github.release: true` needs it true; `movingMajorTag` is semver-only and rejected under the independent strategy |
 | `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` | `fragment` needs at least one other destination as a sink; `release-file` requires `notes.perReleasePath` |
-| `scopes[].notes.language` | `ko` \| `en` \| `both` | closed set (typos rejected) |
+| `scopes[].notes.language` | `ko` \| `en` \| `both` | required; closed set (typos rejected) |
 | `bundle` | `{enabled, scheme: calver+pattern, notesPath}` | independent monorepos: CalVer-named round note bundling each release round |
 
 Invalid combinations are rejected at render time with a message pointing to

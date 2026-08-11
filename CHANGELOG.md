@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **모노레포 릴리스 스킬이 쓰지 않는 노트 목적지를 더 이상 나열하지 않는다** —
+  independent 모노레포용 release 스킬은 노트 목적지 4종(changelog·release-file·
+  github-release·fragment)을 설정과 무관하게 항상 프로즈로 나열해, 자기 설정에
+  없는 목적지 지시까지 읽어야 했다(단일 레포 flavor는 원래 조건 분기가 있었다).
+  이제 **어느 scope도 쓰지 않는 목적지 줄은 렌더되지 않는다**. scope마다 목적지가
+  다를 수 있으므로 게이트는 합집합 기준이며, 어느 scope가 어느 목적지를 쓰는지는
+  종전대로 릴리스 시점에 config를 읽어 판단한다.
+
+### Fixed
+
+- **모순되는 검증 메시지 제거 — calver/headver × next-snapshot** — calver·headver
+  scope에 `postRelease.bump: next-snapshot`을 적으면 두 규칙이 동시에 발화해
+  서로를 무효화했다: 하나는 "bump를 none으로", 다른 하나는 "preRelease를
+  mutable로"라고 안내하는데, 후자를 따르면 "calver는 preRelease.style이 none이어야
+  한다"가 새로 발화해 빠져나갈 수 없는 수정 루프가 됐다. 이제 non-semver 스킴에는
+  스킴 규칙 하나만 발화한다.
+- **검증 메시지가 어느 scope인지 지목한다** — scope 이름·`tag.format` 중복 거부
+  메시지가 다른 규칙과 달리 `scopes[i]:` 인덱스를 붙이지 않아, scope가 3개
+  이상인 모노레포에서 어느 쪽을 고쳐야 하는지 알 수 없었다. 이제 충돌한 scope와
+  먼저 그 값을 쓴 scope를 함께 지목한다.
+- **누락된 필수 필드를 오타로 보고하지 않는다** — `repo.mergePolicy`와
+  `scopes[].notes.language`는 사실상 필수인데, 필드를 아예 빼거나 null로 두면
+  `got "None"`이라는 오타 문구로 거부돼 사용자가 잘못 적은 값을 찾아 헤맸다.
+  이제 부재·null은 `is required`로 구분해 보고한다.
+
 ## [0.4.1] - 2026-08-11
 
 ### Fixed

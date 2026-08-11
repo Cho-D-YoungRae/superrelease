@@ -254,13 +254,10 @@ def trunk_monorepo_bundle():
 
 
 def fragment_monorepo():
-    # independent × fragment(+changelog sink) — 렌더 분기 핀이 아니다: 모노레포
-    # release 스킬(release-monorepo/SKILL.md #5)은 notes.destinations를
-    # {{#each}}{{#if}}로 나누지 않고 4개 목적지를 항상 프로즈로 나열하므로,
-    # 렌더 트리는 pnpm-monorepo 골든과 (프로젝트명 제외) 바이트 동일하다.
-    # 이 골든이 실제로 핀하는 것은 validate_config의 per-scope 목적지 규칙
-    # (fragment는 sink 동반 필수)이 2-scope independent 설정에서도 통과한다는
-    # 것뿐이다.
+    # independent × fragment(+changelog sink) — §5가 fragment 취합 프로즈와
+    # changelog 줄만 렌더하고 release-file·github-release 줄은 collapse함을
+    # 핀한다(목적지 합집합 게이트). validate_config의 per-scope 규칙
+    # (fragment는 sink 동반 필수)이 2-scope independent에서 통과함도 함께.
     cfg = monorepo_config()
     for s in cfg["scopes"]:
         s["notes"]["destinations"] = ["fragment", "changelog"]
@@ -268,12 +265,11 @@ def fragment_monorepo():
 
 
 def release_file_monorepo():
-    # independent × release-file — 위 fragment_monorepo와 같은 이유로 렌더
-    # 분기 핀이 아니다(모노레포 release 스킬은 목적지별 조건부 분기가 없어
-    # 렌더 트리가 pnpm-monorepo 골든과 프로젝트명 제외 바이트 동일). 이 골든이
-    # 실제로 핀하는 것은 validate_config의 per-scope 목적지 규칙(release-file은
-    # notes.perReleasePath 필수)이 2-scope independent 설정에서도 통과한다는
-    # 것뿐이다.
+    # independent × release-file+github-release — §5가 그 둘만 렌더하고
+    # changelog·fragment 줄은 collapse함을 핀한다(fragment_monorepo와 정반대
+    # 조합이라 둘이 서로의 대조군이다). validate_config의 per-scope 규칙
+    # (release-file은 notes.perReleasePath 필수)이 2-scope independent에서
+    # 통과함도 함께.
     cfg = monorepo_config()
     for s in cfg["scopes"]:
         s["notes"]["destinations"] = ["release-file", "github-release"]
@@ -342,18 +338,6 @@ def python_library():
     return cfg
 
 
-def maven_revision():
-    # pom <revision> property regex (scan 패턴 그대로) — 렌더 분기 핀이 아니다:
-    # repo.kind·versionLocations 세부값(type/pattern)은 어떤 템플릿에도 반영되지
-    # 않으므로 렌더 트리는 gradle-app 골든과 (프로젝트명 제외) 바이트 동일하다.
-    # 이 골든이 실제로 핀하는 것은 validate_config의 regex 검증 — 이 pattern이
-    # 컴파일에 성공하고 캡처그룹이 정확히 1개라는 것 — 뿐이다.
-    cfg = scope_config(
-        [{"file": "pom.xml", "type": "regex",
-          "pattern": "<revision>([^<]+)</revision>"}])
-    return cfg
-
-
 def mixed_tags_monorepo():
     # independent 혼합 태그(a=tagged, b=tagless) — §8 per-scope skip 안내 핀
     cfg = monorepo_config()
@@ -389,5 +373,4 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "gitflow-tagless-hotfix": gitflow_tagless_hotfix,
           "gitflow-fixed-monorepo": gitflow_fixed_monorepo,
           "python-library": python_library,
-          "maven-revision": maven_revision,
           "mixed-tags-monorepo": mixed_tags_monorepo}

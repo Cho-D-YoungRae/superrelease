@@ -18,8 +18,7 @@ def base_ctx(**overrides):
     ctx["plugin"] = {"version": "0.1.0"}
     ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
     ctx["scope"] = cfg["scopes"][0]
-    ctx["derived"] = {"anyTagEnabled": any(
-        s["tag"]["enabled"] for s in cfg["scopes"])}
+    ctx["derived"] = render.derived_flags(cfg["scopes"])
     return ctx
 
 
@@ -31,8 +30,7 @@ def mono_ctx(**overrides):
     ctx["plugin"] = {"version": "0.1.0"}
     ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
     ctx["scope"] = cfg["scopes"][0]
-    ctx["derived"] = {"anyTagEnabled": any(
-        s["tag"]["enabled"] for s in cfg["scopes"])}
+    ctx["derived"] = render.derived_flags(cfg["scopes"])
     return ctx
 
 
@@ -48,8 +46,7 @@ def gitflow_ctx(**overrides):
     ctx["plugin"] = {"version": "0.1.0"}
     ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
     ctx["scope"] = cfg["scopes"][0]
-    ctx["derived"] = {"anyTagEnabled": any(
-        s["tag"]["enabled"] for s in cfg["scopes"])}
+    ctx["derived"] = render.derived_flags(cfg["scopes"])
     return ctx
 
 
@@ -67,8 +64,7 @@ def gitflow_mono_ctx(**overrides):
     ctx["plugin"] = {"version": "0.1.0"}
     ctx["generated"] = {"at": "2026-01-01T00:00:00+00:00"}
     ctx["scope"] = cfg["scopes"][0]
-    ctx["derived"] = {"anyTagEnabled": any(
-        s["tag"]["enabled"] for s in cfg["scopes"])}
+    ctx["derived"] = render.derived_flags(cfg["scopes"])
     return ctx
 
 
@@ -240,7 +236,7 @@ class SkillAssetsTest(unittest.TestCase):
             s["tag"]["enabled"] = False
             s["notes"]["destinations"] = ["changelog"]
         ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
-        ctx["derived"] = {"anyTagEnabled": False}
+        ctx["derived"] = render.derived_flags(ctx["scopes"])
         out_ko = self.render_asset("templates/release-pr-body.md", ctx)
         self.assertNotIn("{{", out_ko)
         self.assertNotIn("태그", out_ko)
@@ -397,7 +393,7 @@ class SkillAssetsTest(unittest.TestCase):
         ctx["scope"]["notes"]["destinations"] = ["changelog"]
         ctx["github"] = {"release": False, "generateNotes": False,
                         "releaseYml": False}
-        ctx["derived"] = {"anyTagEnabled": False}
+        ctx["derived"] = render.derived_flags(ctx["scopes"])
         out = self.render_asset("skills/release/SKILL.md", ctx)
         self.assertNotIn("{{", out)
         self.assertIn("중단 상태 감지", out)              # tagless여도 감지 존재
@@ -609,13 +605,43 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertLessEqual(len(out.splitlines()), 149)
 
     def test_release_monorepo_fragment_prose(self):
-        out = self.render_asset("skills/release-monorepo/SKILL.md")
+        # fragment 프로즈는 fragment를 실제로 쓰는 scope가 있을 때만 렌더된다.
+        ctx = mono_ctx()
+        for s in ctx["scopes"]:
+            s["notes"]["destinations"] = ["fragment", "changelog"]
+        ctx["derived"] = render.derived_flags(ctx["scopes"])
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
         self.assertIn("changelog.d", out)     # fragment 취합 프로즈
         self.assertNotIn("tag-message", out)  # 제거된 목적지 프로즈 부재
         # scope 무인라인 유지 — asset에 {{scope. 리터럴 없음
         self.assertNotIn("{{scope.", (ASSETS / "skills/release-monorepo/SKILL.md")
                          .read_text(encoding="utf-8"))
         self.assertLessEqual(len(out.splitlines()), 149)
+
+    def test_release_monorepo_gates_unused_notes_destinations(self):
+        # 어느 scope도 쓰지 않는 목적지 줄은 렌더되지 않는다 — 종전엔 4개가
+        # 무조건 나열돼 사용자가 자기 설정에 없는 지시까지 읽었다.
+        ctx = mono_ctx()
+        for s in ctx["scopes"]:
+            s["notes"]["destinations"] = ["release-file"]
+        ctx["derived"] = render.derived_flags(ctx["scopes"])
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertIn("- `release-file`:", out)
+        self.assertNotIn("- `changelog`:", out)
+        self.assertNotIn("- `github-release`:", out)
+        self.assertNotIn("changelog.d", out)
+
+    def test_release_monorepo_per_scope_destinations_all_render(self):
+        # scope마다 목적지가 달라도 런타임 판단이 가능하도록, 어느 scope든
+        # 쓰는 목적지는 전부 남아야 한다(합집합 게이트).
+        ctx = mono_ctx()
+        ctx["scopes"][0]["notes"]["destinations"] = ["changelog"]
+        ctx["scopes"][1]["notes"]["destinations"] = ["release-file"]
+        ctx["derived"] = render.derived_flags(ctx["scopes"])
+        out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
+        self.assertIn("- `changelog`:", out)
+        self.assertIn("- `release-file`:", out)
+        self.assertNotIn("- `github-release`:", out)
 
     def test_release_monorepo_omits_github_when_disabled(self):
         ctx = mono_ctx(github={"release": False, "generateNotes": False,
@@ -681,7 +707,7 @@ class MonorepoAssetsTest(unittest.TestCase):
             s["notes"]["destinations"] = ["changelog"]
         ctx["github"] = {"release": False, "generateNotes": False,
                         "releaseYml": False}
-        ctx["derived"] = {"anyTagEnabled": False}
+        ctx["derived"] = render.derived_flags(ctx["scopes"])
         out = self.render_asset("skills/release-monorepo/SKILL.md", ctx)
         self.assertNotIn("{{", out)
         self.assertNotIn("## 8. 태그", out)
@@ -758,7 +784,7 @@ class MonorepoAssetsTest(unittest.TestCase):
             s["tag"]["enabled"] = False
             s["notes"]["destinations"] = ["changelog"]
         ctx["github"] = {"release": False, "generateNotes": False, "releaseYml": False}
-        ctx["derived"] = {"anyTagEnabled": False}
+        ctx["derived"] = render.derived_flags(ctx["scopes"])
         out = self.render_asset("skills/hotfix/SKILL.md", ctx)
         self.assertNotIn("{{", out)
         self.assertNotIn("## 6. 태그", out)

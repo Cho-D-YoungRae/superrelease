@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import (ASSETS, PLUGIN_SCRIPTS, make_plugin_tree, monorepo_config, run_script,
-                     scope_config, write)
+from helpers import (ASSETS, PLUGIN_SCRIPTS, load_module, make_plugin_tree,
+                     monorepo_config, run_script, scope_config, write)
 
 RENDER = PLUGIN_SCRIPTS / "render.py"
 
@@ -490,6 +490,21 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("not a valid regex", r.stderr)
 
+    def test_scan_version_patterns_pass_validation(self):
+        # scan이 버전 위치로 제안하는 regex는 전부 validate를 통과해야 한다 —
+        # 하나라도 걸리면 init이 만든 config가 렌더 시점에 거부된다.
+        # 새 패턴 상수가 늘면 이 테스트가 자동으로 함께 검사한다.
+        scan = load_module(PLUGIN_SCRIPTS / "scan.py", "scan_for_patterns")
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_for_patterns")
+        patterns = {n: v for n, v in vars(scan).items()
+                    if n.endswith("_PATTERN") and isinstance(v, str)}
+        self.assertGreaterEqual(len(patterns), 9, "패턴 상수 수집 실패")
+        for name, pattern in sorted(patterns.items()):
+            with self.subTest(pattern=name):
+                cfg = scope_config([{"file": "x", "type": "regex",
+                                     "pattern": pattern}])
+                self.assertEqual(render_mod.validate_config(cfg), [])
+
     def test_github_release_with_tagless_scope_exits_1(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
         cfg["scopes"][0]["tag"]["enabled"] = False
@@ -566,21 +581,20 @@ class PipelineTest(unittest.TestCase):
 
     def test_calver_headver_require_pattern(self):
         for scheme in ("calver", "headver"):
-            cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
-            cfg["scopes"][0]["scheme"] = {"type": scheme, "pattern": None}
-            cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
-            cfg["scopes"][0]["postRelease"] = {"bump": "none"}
-            self.write_config(cfg)
-            r = self.render()
-            self.assertEqual(r.returncode, 1, scheme)
-            self.assertIn("scheme.pattern", r.stderr)
+            with self.subTest(scheme=scheme):
+                cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+                cfg["scopes"][0]["scheme"] = {"type": scheme, "pattern": None}
+                cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+                cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+                self.write_config(cfg)
+                r = self.render()
+                self.assertEqual(r.returncode, 1)
+                self.assertIn("scheme.pattern", r.stderr)
 
     def test_multiple_scopes_require_independent(self):
+        # 헬퍼가 strategy에 맞는 releaseCommitFormat을 주므로 위반은 scope 수
+        # 하나뿐이다 — 다른 규칙에 걸려 통과하는 위양성이 없다.
         cfg = monorepo_config(strategy="fixed")  # 2 scopes + fixed
-        # releaseCommitFormat의 "{scope}"는 independent 전용이라 별도 규칙을
-        # 발화시킨다 — 그 규칙과 격리해 이 테스트가 multiple-scopes 규칙만
-        # 핀하도록 고정한다.
-        cfg["repo"]["releaseCommitFormat"] = "chore(release): {version}"
         self.write_config(cfg)
         r = self.render()
         self.assertEqual(r.returncode, 1)
@@ -593,7 +607,10 @@ class PipelineTest(unittest.TestCase):
         self.write_config(cfg)
         r = self.render()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("unique", r.stderr)
+        # 어느 scope가 충돌인지 지목해야 한다 — scope가 3개 이상이면
+        # "unique"만으로는 고칠 대상을 찾을 수 없다.
+        self.assertIn("scopes[1]: scope names must be unique", r.stderr)
+        self.assertIn("already used by scopes[0]", r.stderr)
 
     def test_duplicate_tag_formats_rejected(self):
         cfg = monorepo_config()
@@ -601,7 +618,8 @@ class PipelineTest(unittest.TestCase):
         self.write_config(cfg)
         r = self.render()
         self.assertEqual(r.returncode, 1)
-        self.assertIn("tag.format", r.stderr)
+        self.assertIn("scopes[1]: tag.format must be unique", r.stderr)
+        self.assertIn("already used by scopes[0]", r.stderr)
 
     def test_release_file_requires_per_release_path(self):
         cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
@@ -644,6 +662,38 @@ class PipelineTest(unittest.TestCase):
         r = self.render()
         self.assertEqual(r.returncode, 1)
         self.assertIn("mergePolicy", r.stderr, "invalid mergePolicy ff-only")
+
+    def test_missing_required_fields_say_required_not_got_none(self):
+        # 부재·null은 오타가 아니라 누락이다 — 'got "None"'으로 보고하면
+        # 사용자가 자기가 뭘 잘못 적었는지 찾느라 헤맨다.
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        del cfg["repo"]["mergePolicy"]
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("repo.mergePolicy is required", r.stderr)
+        self.assertNotIn('got "None"', r.stderr)
+        cfg["repo"]["mergePolicy"] = "squash"
+        cfg["scopes"][0]["notes"]["language"] = None
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("notes.language is required", r.stderr)
+        self.assertNotIn('got "None"', r.stderr)
+
+    def test_calver_next_snapshot_gives_one_exit(self):
+        # calver 규칙("bump는 none")과 next-snapshot 규칙("preRelease를
+        # mutable로")이 함께 발화하면 서로를 무효화하는 수정 루프가 된다.
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["scheme"] = {"type": "calver", "pattern": "YYYY.MM.MICRO"}
+        cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+        cfg["scopes"][0]["postRelease"] = {"bump": "next-snapshot"}
+        self.write_config(cfg)
+        r = self.render()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn('postRelease.bump must be "none" for calver/headver',
+                      r.stderr)
+        self.assertNotIn('requires preRelease.style "mutable"', r.stderr)
 
 
 SWITCH_MANIFEST = {
