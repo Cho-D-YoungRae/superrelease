@@ -145,6 +145,51 @@ squash 흔적), 브랜치(develop 브랜치 추정 포함), 모노레포 신호�
 - 보호된 `main` → release-pr 경로. superrelease 자신이 정확히 이 툴킷으로
   릴리스합니다(dogfooding).
 
+## 케이스 커버리지
+
+superrelease가 지금 대응하는 케이스를, 가장 많이 묻는 축 — 모노레포·
+멀티모듈·오픈소스 — 중심으로 요약한 지도입니다. "지원" 칸의 모든 항목은
+렌더 시점에 `validate_config`가 강제하고 골든 렌더 스냅샷(`tests/golden/`의
+대표 config 32종)이 핀합니다.
+
+| 축 | 지원 |
+|---|---|
+| 레포 형태 | 단일 레포 · 배포물 하나의 멀티모듈 빌드(root scope 하나 — Gradle/Maven 멀티모듈) · 모노레포 **fixed**(전 패키지 단일 버전) · 모노레포 **independent**(scope 2개 이상: scope별 `pkg@{version}` 태그 네임스페이스, 변경 패키지 감지, `dependents`를 통한 patch 전파, 공유 버전 파일의 scope별 키) |
+| 프로젝트 유형(골든 핀) | JVM 라이브러리/백엔드(`gradle.properties` + `-SNAPSHOT`) · npm 앱/라이브러리(`package.json` + `package-lock.json` 동기화) · Python 라이브러리(`pyproject.toml`) · Maven `<revision>` 단일 버전 · pnpm/npm workspaces 모노레포 · Claude Code 플러그인(`plugin.json` + `marketplace.json` 동기화) |
+| 오픈소스 필수 요소 | SemVer · `-rc.N` 카운터 pre-release · moving `v<major>` 태그 · Keep-a-Changelog CHANGELOG · `release.yml` 카테고리를 갖춘 GitHub Releases · ko/en/both 노트 · 기존 태그에서 CHANGELOG backfill |
+| 브랜칭 × 경로 | trunk × direct-push · trunk × release-pr(보호 브랜치) · gitflow × release-pr(단일 레포·fixed/independent 모노레포, 태그 선택) |
+| 버전 체계 | SemVer · CalVer · HeadVer(`next-version.py`가 결정론적으로 산술) |
+| pre/post-release | `none` · `mutable`(`-SNAPSHOT`, 릴리스 후 다음 snapshot 복귀) · `counter`(`-rc.N`) |
+| 노트 | changelog · 릴리스별 파일 · GitHub Release 본문 · `changelog.d/` fragment · CalVer bundle 라운드 노트(independent 모노레포) |
+| 특수 플로우 | 유지보수 라인 hotfix(trunk × semver) · gitflow production hotfix · tagless 운용(ref 앵커, GitHub Releases 비활성) · 한 모노레포 안의 tagged/tagless 혼합 scope |
+
+버전 위치는 포맷에 매이지 않습니다 — `properties-key`, `json-path`,
+단일 캡처 `regex`를 임의의 텍스트 파일에 걸 수 있고 여러 파일을
+동기화합니다. 그래서 scan이 자동 감지하지 못하는 포맷(`pubspec.yaml`,
+`.xcconfig`, `tauri.conf.json` 등)도 버전 위치 질문에서 직접 등록하면
+동작합니다.
+
+알려진 한계 (2026-08 커버리지 리뷰,
+[docs/superpowers/specs/2026-08-06-coverage-review.md](docs/superpowers/specs/2026-08-06-coverage-review.md)):
+
+- **모바일(Flutter/iOS/Android/React Native)** — 마케팅 버전은 regex 위치로
+  동작하지만 scan이 해당 파일을 감지하지 못하고, 빌드 번호 축(`versionCode`,
+  `CFBundleVersion`, pubspec `+N`)은 모델 자체가 없습니다.
+  `next-version.py`는 build metadata가 섞인 버전(`1.2.3+45`)을 조용히
+  드롭하는 대신 명시적으로 거부합니다.
+- **Rust** — `Cargo.toml` regex 위치는 동작하지만 `version.py set`이
+  `Cargo.lock`을 갱신하지 않습니다(lockfile 동기화는 `package-lock.json`만).
+- **Python pre-release** — PEP 440 형식(`rc1`, `.dev0`, `.post1`)은
+  지원하지 않습니다. `none`(권장) 또는 SemVer `-rc.N` 카운터를 쓰세요.
+- **기존 릴리스 자동화** — changesets / semantic-release / release-please를
+  감지하지 않습니다. 전환 전에 기존 파이프라인을 직접 내리세요 — 그러지
+  않으면 두 시스템이 같은 태그를 두고 경합합니다.
+- **태그 전용 레포**(버전 파일 없음 — Go CLI, Terraform 모듈)와
+  **GitOps/manifest 레포**(버전 소스가 아니라 전파 대상)는 범위 밖입니다:
+  scope마다 `versionLocations`가 필수입니다.
+
+명시적 '지원 계획 없음' 목록은 [로드맵](#로드맵) 끝에 있습니다.
+
 ## 생성물 안내 (전부 커밋하세요)
 
 | 경로 | 역할 |
@@ -181,12 +226,13 @@ squash 흔적), 브랜치(develop 브랜치 추정 포함), 모노레포 신호�
 | 전략 | 적합 | 릴리스 경로 |
 |---|---|---|
 | trunk / GitHub flow | 대부분의 신규 프로젝트 | `main`에서 릴리스 |
-| gitflow | `develop` 통합 브랜치에서 릴리스하는 팀 | 단일 레포·independent 모노레포 모두, release-pr 전용 (develop에서 cut → main에 머지 → 태그(선택) → back-merge) |
+| gitflow | `develop` 통합 브랜치에서 릴리스하는 팀 | 단일 레포·모노레포 모두, release-pr 전용 (develop에서 cut → main에 머지 → 태그(선택) → back-merge) |
 
-gitflow 지원은 release-pr 경로로 한정됩니다(단일 레포·independent 모노레포
-모두); direct-push gitflow는 지원하지 않습니다. gitflow에서는 태그가 선택
-사항입니다 — 태그 유무와 무관하게 기본 브랜치가 변경 감지·중단/재개의 범위
-앵커입니다.
+gitflow 지원은 release-pr 경로로 한정됩니다; direct-push gitflow는 지원하지
+않습니다. independent 모노레포는 사이클마다 라운드 단위로 릴리스하고, fixed
+모노레포는 root scope 하나이므로 단일 레포와 같은 사이클로 동작합니다.
+gitflow에서는 태그가 선택 사항입니다 — 태그 유무와 무관하게 기본 브랜치가
+변경 감지·중단/재개의 범위 앵커입니다.
 
 ## 감지 항목
 
@@ -286,11 +332,15 @@ Windows에서는 `python3` 대신 `py -3`을 사용하세요.
   `changelog.d/` fragment, tag-message 노트
 - **M4 (완료)** — 하드닝: gitflow 브랜칭(단일 스킬 레포·release-pr 전용),
   스캔 커버리지(Maven/Gradle 모노레포/openapi/VERSION), 정확성 수정
-- **범위 정리 (미릴리스)** — 릴리스 트레인(이중 체계 모노레포)과 `tag-message`
+- **범위 정리 (완료)** — 릴리스 트레인(이중 체계 모노레포)과 `tag-message`
   노트 목적지를 제거했습니다; 둘 다 렌더 시점에 지원되는 대안을 안내하며
   거부됩니다
-- **M5 (미릴리스)** — gitflow 모노레포(develop발 라운드 릴리스), 태그 선택
+- **M5 (완료)** — gitflow 모노레포(develop발 라운드 릴리스), 태그 선택
   gitflow, CalVer bundle 라운드 노트(imstargg 스타일)
+- **M6 (미릴리스)** — 하드닝: 잘못된 config 조합의 렌더 시점 거부(releasePath
+  오타, qualifier 없는 next-snapshot, movingMajorTag·스킴 불일치, scope·노트
+  구조 오류), `version.py`의 regex 다중 매치 가드, `next-version.py`의
+  build metadata 명시 거부
 
 지원 계획 없음(범위 밖): sequential 버저닝, direct-push gitflow, 릴리스
 트레인(루트 태그 — 제거된 이중 체계 트레인이며, 위 bundle 라운드 노트
