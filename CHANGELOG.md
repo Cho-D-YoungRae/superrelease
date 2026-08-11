@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-11
+
 ### Fixed
 
 - **잘못된 releasePath·post-release 조합을 render가 거부** — `repo.releasePath`에
@@ -151,7 +153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   versionsort·rename·tag.enabled 기본값 · CalVer 동일 기간 exit 1 · validate_config
   강화(scheme enum·non-semver 조합·location·github↔태그·branching gitflow 전제).
 
-[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Cho-D-YoungRae/superrelease/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.4.1
 [0.4.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Cho-D-YoungRae/superrelease/releases/tag/v0.2.0
