@@ -148,6 +148,51 @@ A monorepo with a frontend package and a backend whose bootable modules
 - Protected `main` → release-pr path. superrelease itself runs on exactly
   this toolkit (dogfooding).
 
+## Case coverage
+
+A condensed map of what superrelease handles today, on the axes people ask
+about most — monorepos, multi-module builds, open-source libraries. Every
+"supported" cell is enforced by `validate_config` at render time and pinned
+by golden-render snapshots (31 representative configs under `tests/golden/`).
+
+| Axis | Supported |
+|---|---|
+| Repo shape | single repo · multi-module build shipping one deployable (one root scope — Gradle/Maven multi-module) · monorepo **fixed** (all packages share one version) · monorepo **independent** (≥2 scopes: per-scope `pkg@{version}` tag namespaces, changed-package detection, patch propagation through `dependents`, shared version files with per-scope keys) |
+| Project types (golden-pinned) | JVM library/backend (`gradle.properties` + `-SNAPSHOT`) · npm app/library (`package.json` + `package-lock.json` sync) · Python library (`pyproject.toml`) · pnpm/npm-workspaces monorepo · Claude Code plugin (`plugin.json` + `marketplace.json` sync). Maven single-version via `<revision>` is supported too — scan detects it and a unit test pins its pattern, but it renders identically to the Gradle single-version case, so it has no golden of its own |
+| Open-source staples | SemVer · `-rc.N` counter pre-releases · moving `v<major>` tag · Keep-a-Changelog CHANGELOG · GitHub Releases with `release.yml` categories · notes in ko/en/both · CHANGELOG backfill from existing tags |
+| Branching × path | trunk × direct-push · trunk × release-pr (protected branches) · gitflow × release-pr (single repo and fixed/independent monorepos; tags optional) |
+| Version schemes | SemVer · CalVer · HeadVer (deterministic arithmetic in `next-version.py`) |
+| Pre/post-release | `none` · `mutable` (`-SNAPSHOT`, returns to the next snapshot after release) · `counter` (`-rc.N`) |
+| Notes | changelog · per-release files · GitHub Release body · `changelog.d/` fragments · CalVer bundle round notes (independent monorepos) |
+| Special flows | maintenance-line hotfix (trunk × semver) · gitflow production hotfix · tagless operation (ref anchor; GitHub Releases off) · mixed tagged/tagless scopes in one monorepo |
+
+Version locations are format-agnostic — `properties-key`, `json-path` and
+single-capture `regex` over any text file, with multiple files kept in
+sync — so formats scan doesn't auto-detect (`pubspec.yaml`, `.xcconfig`,
+`tauri.conf.json`, …) can still be registered by hand at the
+version-locations question.
+
+Known limits (from the 2026-08 coverage review,
+[docs/superpowers/specs/2026-08-06-coverage-review.md](docs/superpowers/specs/2026-08-06-coverage-review.md)):
+
+- **Mobile (Flutter/iOS/Android/React Native)** — the marketing version works
+  through regex locations, but scan does not detect these files, and the
+  build-number axis (`versionCode`, `CFBundleVersion`, pubspec `+N`) has no
+  model; `next-version.py` rejects versions carrying build metadata
+  (`1.2.3+45`) instead of silently dropping it.
+- **Rust** — `Cargo.toml` regex locations work, but `version.py set` does not
+  refresh `Cargo.lock` (lockfile sync covers `package-lock.json` only).
+- **Python pre-releases** — PEP 440 forms (`rc1`, `.dev0`, `.post1`) are not
+  supported; use `none` (recommended) or the SemVer `-rc.N` counter.
+- **Existing release automation** — changesets / semantic-release /
+  release-please are not detected; retire the old pipeline before switching,
+  or both systems will compete over the same tags.
+- **Tag-only repos** (no version file — Go CLIs, Terraform modules) and
+  **GitOps/manifest repos** (propagation targets, not version sources) are
+  out of scope: `versionLocations` is required per scope.
+
+The explicit not-planned list is at the end of [Roadmap](#roadmap).
+
 ## What gets generated (commit all of it)
 
 | Path | Role |
@@ -184,10 +229,11 @@ paths, never the plugin.
 | Strategy | Fits | Release path |
 |---|---|---|
 | trunk / GitHub flow | most new projects | release from `main` |
-| gitflow | teams releasing from a `develop` integration branch | single-repo and independent-monorepo projects, release-pr only (cut from develop → merge to main → tag (optional) → back-merge) |
+| gitflow | teams releasing from a `develop` integration branch | single-repo and monorepo projects, release-pr only (cut from develop → merge to main → tag (optional) → back-merge) |
 
-gitflow support is limited to the release-pr path (single-repo and
-independent-monorepo projects); direct-push gitflow is not supported. On
+gitflow support is limited to the release-pr path; direct-push gitflow is not
+supported. Independent monorepos release a whole round per cycle; a fixed
+monorepo is one root scope, so it runs the same cycle as a single repo. On
 gitflow, tags are optional — the default branch is the range anchor for
 change detection and stall/resume, tagged or not.
 
@@ -288,11 +334,20 @@ On Windows, replace `python3` with `py -3`.
 - **M4 (shipped)** — hardening: gitflow branching (single-skill repos,
   release-pr only), scan coverage (Maven/Gradle monorepo/openapi/VERSION),
   correctness fixes
-- **Scope trim (unreleased)** — removed release trains (dual-scheme monorepos)
+- **Scope trim (shipped)** — removed release trains (dual-scheme monorepos)
   and the `tag-message` notes destination; both are rejected at render time
   with a pointer to the supported alternative
-- **M5 (unreleased)** — gitflow monorepos (round release from develop),
+- **M5 (shipped)** — gitflow monorepos (round release from develop),
   tag-optional gitflow, CalVer bundle round notes (imstargg-style)
+- **M6 (v0.4.1)** — hardening: render-time rejection of broken config
+  combinations (releasePath typos, next-snapshot without a qualifier,
+  movingMajorTag/scheme mismatches, structural scope & notes errors), a
+  regex multi-match guard in `version.py`, explicit build-metadata rejection
+  in `next-version.py`
+- **M7 (unreleased)** — validation messages that name the offending scope and
+  never contradict each other, missing required fields reported as missing,
+  and the monorepo release skill no longer listing notes destinations that no
+  scope uses
 
 Not planned (out of scope, no support promised): sequential versioning,
 direct-push gitflow, release trains (root tags — the removed dual-scheme
