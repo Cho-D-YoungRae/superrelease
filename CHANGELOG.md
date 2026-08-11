@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **모노레포 릴리스 스킬이 쓰지 않는 노트 목적지를 더 이상 나열하지 않는다** —
+  independent 모노레포용 release 스킬은 노트 목적지 4종(changelog·release-file·
+  github-release·fragment)을 설정과 무관하게 항상 프로즈로 나열해, 자기 설정에
+  없는 목적지 지시까지 읽어야 했다(단일 레포 flavor는 원래 조건 분기가 있었다).
+  이제 **어느 scope도 쓰지 않는 목적지 줄은 렌더되지 않는다**. scope마다 목적지가
+  다를 수 있으므로 게이트는 합집합 기준이며, 어느 scope가 어느 목적지를 쓰는지는
+  종전대로 릴리스 시점에 config를 읽어 판단한다.
+
 ### Fixed
 
 - **모순되는 검증 메시지 제거 — calver/headver × next-snapshot** — calver·headver

@@ -453,20 +453,38 @@ def project_name(repo_dir):
     return Path(repo_dir).resolve().name
 
 
+def derived_flags(scopes):
+    """Array predicates the frozen template dialect cannot express.
+
+    Templates and tests must both read these from here — a fixture that
+    recomputes them by hand silently drifts when a new flag is added.
+    """
+    scopes = scopes or []
+
+    def any_dest(name):
+        return any(name in ((s.get("notes") or {}).get("destinations") or [])
+                   for s in scopes)
+
+    return {
+        "anyTagEnabled": any((s.get("tag") or {}).get("enabled") for s in scopes),
+        "allTagEnabled": bool(scopes) and all(
+            (s.get("tag") or {}).get("enabled") for s in scopes),
+        # Per-scope destinations stay a runtime decision (scopes may differ),
+        # but a destination no scope uses is dead prose — gate it out.
+        "anyNotesChangelog": any_dest("changelog"),
+        "anyNotesReleaseFile": any_dest("release-file"),
+        "anyNotesGithubRelease": any_dest("github-release"),
+        "anyNotesFragment": any_dest("fragment"),
+    }
+
+
 def build_context(config, repo_dir, plugin_version, now):
     ctx = dict(config)
     ctx["project"] = {"name": project_name(repo_dir)}
     ctx["plugin"] = {"version": plugin_version}
     ctx["generated"] = {"at": now}
     ctx["scope"] = (config.get("scopes") or [{}])[0]
-    # Array predicates are inexpressible in the frozen dialect; precompute
-    # the few the templates need.
-    scopes_list = config.get("scopes") or []
-    ctx["derived"] = {
-        "anyTagEnabled": any((s.get("tag") or {}).get("enabled") for s in scopes_list),
-        "allTagEnabled": bool(scopes_list) and all(
-            (s.get("tag") or {}).get("enabled") for s in scopes_list),
-    }
+    ctx["derived"] = derived_flags(config.get("scopes"))
     return ctx
 
 
