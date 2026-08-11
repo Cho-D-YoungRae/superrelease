@@ -342,18 +342,6 @@ def python_library():
     return cfg
 
 
-def maven_revision():
-    # pom <revision> property regex (scan 패턴 그대로) — 렌더 분기 핀이 아니다:
-    # repo.kind·versionLocations 세부값(type/pattern)은 어떤 템플릿에도 반영되지
-    # 않으므로 렌더 트리는 gradle-app 골든과 (프로젝트명 제외) 바이트 동일하다.
-    # 이 골든이 실제로 핀하는 것은 validate_config의 regex 검증 — 이 pattern이
-    # 컴파일에 성공하고 캡처그룹이 정확히 1개라는 것 — 뿐이다.
-    cfg = scope_config(
-        [{"file": "pom.xml", "type": "regex",
-          "pattern": "<revision>([^<]+)</revision>"}])
-    return cfg
-
-
 def mixed_tags_monorepo():
     # independent 혼합 태그(a=tagged, b=tagless) — §8 per-scope skip 안내 핀
     cfg = monorepo_config()
@@ -389,5 +377,4 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "gitflow-tagless-hotfix": gitflow_tagless_hotfix,
           "gitflow-fixed-monorepo": gitflow_fixed_monorepo,
           "python-library": python_library,
-          "maven-revision": maven_revision,
           "mixed-tags-monorepo": mixed_tags_monorepo}

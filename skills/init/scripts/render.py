@@ -211,16 +211,31 @@ def validate_config(config):
         problems.append("multiple scopes require the independent monorepo "
                         "strategy — other configs use exactly one scope "
                         "(the rendered single-repo skills only see scopes[0])")
-    names = [s.get("name") for s in scopes or [] if s.get("name")]
-    if len(names) != len(set(names)):
-        problems.append("scope names must be unique")
-    tag_formats = [(s.get("tag") or {}).get("format") for s in scopes or []
-                   if (s.get("tag") or {}).get("enabled")
-                   and (s.get("tag") or {}).get("format")]
-    if len(tag_formats) != len(set(tag_formats)):
-        problems.append("tag.format must be unique across tag-enabled scopes "
-                        "(a shared format cross-contaminates anchor "
-                        "detection)")
+    seen_names = {}
+    for i, s in enumerate(scopes or []):
+        name = s.get("name")
+        if not name:
+            continue
+        if name in seen_names:
+            problems.append('scopes[{}]: scope names must be unique — "{}" is '
+                            "already used by scopes[{}]"
+                            .format(i, name, seen_names[name]))
+        else:
+            seen_names[name] = i
+    seen_tag_formats = {}
+    for i, s in enumerate(scopes or []):
+        tag = s.get("tag") or {}
+        tag_format = tag.get("format")
+        if not tag.get("enabled") or not tag_format:
+            continue
+        if tag_format in seen_tag_formats:
+            problems.append("scopes[{}]: tag.format must be unique across "
+                            'tag-enabled scopes — "{}" is already used by '
+                            "scopes[{}] (a shared format cross-contaminates "
+                            "anchor detection)"
+                            .format(i, tag_format, seen_tag_formats[tag_format]))
+        else:
+            seen_tag_formats[tag_format] = i
     fmt = repo.get("releaseCommitFormat") or ""
     if fmt and "{version}" not in fmt:
         problems.append('repo.releaseCommitFormat must contain "{version}"')
@@ -228,7 +243,11 @@ def validate_config(config):
         problems.append('repo.releaseCommitFormat: "{scope}" is only valid '
                         "with the independent monorepo strategy")
     merge_policy = repo.get("mergePolicy")
-    if merge_policy not in ("merge", "squash", "rebase", "unknown"):
+    if merge_policy is None:
+        problems.append('repo.mergePolicy is required ("merge", "squash", '
+                        '"rebase" or "unknown" — use "unknown" when the team '
+                        "has no fixed policy)")
+    elif merge_policy not in ("merge", "squash", "rebase", "unknown"):
         problems.append('repo.mergePolicy must be "merge", "squash", "rebase" '
                         'or "unknown" (got "{}")'.format(merge_policy))
     if repo.get("maintenanceLines") and strategy == "independent":
@@ -302,7 +321,10 @@ def validate_config(config):
                             "requires notes.perReleasePath (an explicit null "
                             "drops release files into the repo root)".format(i))
         lang = (s.get("notes") or {}).get("language")
-        if lang not in ("ko", "en", "both"):
+        if lang is None:
+            problems.append('scopes[{}]: notes.language is required ("ko", '
+                            '"en" or "both")'.format(i))
+        elif lang not in ("ko", "en", "both"):
             problems.append('scopes[{}]: notes.language must be "ko", "en" or '
                             '"both" (got "{}")'.format(i, lang))
     for i, s in enumerate(scopes or []):
@@ -337,7 +359,10 @@ def validate_config(config):
                                 "scope-namespaced and would collide across "
                                 "scopes".format(i))
         post_bump = (s.get("postRelease") or {}).get("bump") or "none"
-        if post_bump == "next-snapshot":
+        # calver/headver already demand postRelease.bump "none" above; firing
+        # this rule too would tell the user to set preRelease.style "mutable",
+        # which that scheme rejects — a fix loop with no exit.
+        if post_bump == "next-snapshot" and scheme_type not in ("calver", "headver"):
             pre = s.get("preRelease") or {}
             if pre.get("style") != "mutable" or not pre.get("qualifier"):
                 problems.append(

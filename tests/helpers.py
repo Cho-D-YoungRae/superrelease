@@ -138,7 +138,14 @@ def make_git_repo(tmp, files, commits, tags=()):
 
 def monorepo_config(strategy="independent"):
     """pnpm-style two-scope monorepo config: a (depended on by nothing,
-    but declared upstream of b via dependents=["b"]) and b."""
+    but declared upstream of b via dependents=["b"]) and b.
+
+    Contract: every argument combination returns a config that is valid
+    except for what the strategy itself implies. A rejection test must
+    inject exactly one violation of its own; if this helper also carried a
+    second one, the test could pass on the wrong rule. That is why
+    releaseCommitFormat follows the strategy — "{scope}" is independent-only.
+    """
 
     def pkg_scope(name, dependents):
         return {
@@ -166,6 +173,8 @@ def monorepo_config(strategy="independent"):
         [{"file": "package.json", "type": "json-path", "path": "version"}])
     cfg["repo"]["kind"] = "monorepo"
     cfg["repo"]["monorepoStrategy"] = strategy
-    cfg["repo"]["releaseCommitFormat"] = "chore(release): {scope}@{version}"
+    cfg["repo"]["releaseCommitFormat"] = (
+        "chore(release): {scope}@{version}" if strategy == "independent"
+        else "chore(release): {version}")
     cfg["scopes"] = [pkg_scope("a", ["b"]), pkg_scope("b", [])]
     return cfg
