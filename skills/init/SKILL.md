@@ -32,6 +32,8 @@ description: 프로젝트의 버전·릴리스 관리를 초기화하거나 재�
 
 ## Phase 2 — 질문
 
+**기존 자동화 먼저.** 스캔 `releaseAutomation.tools` 또는 `releaseAutomation.ciWorkflows`가 비어 있지 않으면 번들 질문 전에 안내하라: ① 감지된 도구와 `ciWorkflows` 목록을 보여주고, 그 워크플로가 살아 있는 동안 superrelease가 태그·Release를 만들면 **같은 태그·버전을 두 시스템이 경합**함을 경고한다(워크플로 비활성화는 사용자 몫 — init은 실행하지 않는다) ② changesets `pendingFragments` > 0이면 펜딩 조각을 기존 도구로 소진(마지막 릴리스)하거나 수동 반영한 뒤 전환할 것을 안내 ③ 기존 도구가 쓰던 per-package CHANGELOG는 전환 후 갱신되지 않음을 고지 ④ 기존 도구가 publish까지 맡고 있었다면 superrelease는 태그·GitHub Release까지만 하므로, publish는 태그 트리거 워크플로로 옮기는 방향을 한 단락으로 안내(실행 없음). 마친 뒤 `decisions`에 `{"topic":"existing-automation","answer":"migrating"|"coexist-warned","rationale":"<감지 도구·조각 수>","source":"scan","decidedAt":"<date>"}`를 기록한다.
+
 **패스트트랙 먼저.** 스캔 결과로 아래 모든 결정의 추천값 표(항목 / 추천 / 근거)를 만들어 제시하고, 첫 질문으로 "모두 수락 / 항목별 조정"을 묻는다. 수락이면 바로 config 작성으로. 조정이면 해당 번들만(또는 전부) 순서대로 진행한다 — 상류 결정이 하류 기본값을 정하므로 순서를 지켜라.
 
 깊은 배경이 필요할 때만 해당 reference를 읽어라:
@@ -138,7 +140,7 @@ description: 프로젝트의 버전·릴리스 관리를 초기화하거나 재�
 
 지원: 단일 레포(app/library) + 모노레포 fixed/independent — scope별 태그 네임스페이스, changed-packages 변경 감지, dependents 전파 포함.
 
-- 스캔 감지: gradle.properties / build.gradle(.kts) / package.json / pyproject.toml / Cargo.toml / Dockerfile LABEL / Chart.yaml / README 배지 / VERSION / openapi·swagger(json·yaml) / pom.xml(`<revision>` property는 후보, project `<version>`은 감지·안내 전용) / .claude-plugin/plugin.json(Claude Code 플러그인 매니페스트 — json-path `version`) + node·gradle 모노레포 패키지 — libs.versions.toml(의존성 카탈로그)·gradle 내부 의존성·pom 직접 쓰기(xml-path)는 지원하지 않는다
+- 스캔 감지: gradle.properties / build.gradle(.kts) / package.json / pyproject.toml / Cargo.toml / Dockerfile LABEL / Chart.yaml(version은 후보, appVersion은 감지·안내 전용) / README 배지 / VERSION / openapi·swagger(json·yaml) / pom.xml(`<revision>` property는 후보, project `<version>`은 감지·안내 전용) / .claude-plugin/plugin.json(Claude Code 플러그인 매니페스트 — json-path `version`) / pubspec.yaml(`+빌드번호` 포함 값은 감지·안내 전용 — advice `pubspec-build-number`) / *.xcconfig MARKETING_VERSION(루트·ios/) / app/·android/app/의 build.gradle(.kts) versionName / src-tauri/tauri.conf.json + node·gradle 모노레포 패키지·uv workspace 멤버·charts/* 헬름 차트·pom `<modules>` 힌트·scoped 태그(`pkg@1.2.3` — `tags.scopedPrefixes`가 scope 이름 후보)·기존 릴리스 자동화(changesets·semantic-release·release-please·towncrier → `releaseAutomation`) / go.mod·*.tf는 빌드 시스템 인식만(버전 후보 아님) — libs.versions.toml(의존성 카탈로그)·gradle 내부 의존성·pom 직접 쓰기(xml-path)·빌드 번호 축(versionCode·CFBundleVersion·pubspec `+N`)은 지원하지 않는다
 - 브랜칭: trunk / gitflow(release-pr 전용 — develop cut → 기본 브랜치 머지·태그(사용 시) → back-merge 정식 사이클, production hotfix 포함; 단일 레포·independent 모노레포 지원(fixed 모노레포는 단일 root scope라 단일 레포와 동일 사이클로 동작), gitflow에서는 태그가 선택사항) 지원 — direct-push gitflow는 지원하지 않는다
 - 버전 체계: SemVer/CalVer/HeadVer 지원 — sequential 등 그 외 체계는 지원하지 않는다
 - pre-release: none/mutable/counter(-rc.N) 지원 / moving major tag 지원(force-push 경고 수반)

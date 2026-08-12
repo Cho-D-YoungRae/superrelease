@@ -86,3 +86,12 @@ init이 생성하려는 목적지 경로에 generated 마커 없는 파일이 �
 마커가 없다는 것은 그 파일이 superrelease가 만든 게 아니라 누군가 손으로 작성했다는 뜻으로 간주하기 때문이다. 예를 들어 이 레포에 원래부터 손으로 작성한 `.claude/skills/release/SKILL.md`가 있었다면(superrelease 도입 이전부터 있던 파일), 그 파일에는 generated 마커가 없으므로 init은 이를 곧바로 덮어쓰지 않고 경고와 함께 확인을 받는다.
 
 다만 템플릿으로 지정된 파일은 예외적으로 손편집이 허용되는 유일한 영역이다. 마커가 제거되어 있으면 이를 충돌이 아니라 "의도된 손편집"으로 보고 경고 없이 그대로 보존하고 건너뛴다는 점이 다르다.
+
+## 스캔 밖 수동 등록 레시피
+
+스캔이 감지하지 못하는 파일은 번들 2의 후보 0건 분기(또는 후보 추가)에서 수동 versionLocation으로 등록한다. 자주 나오는 케이스:
+
+- **iOS Info.plist** — `CFBundleShortVersionString`은 키와 값이 별도 줄(`<key>…</key>` 다음 줄 `<string>1.2.3</string>`)이라 단일행 regex 위치로 안전하게 잡을 수 없다. Xcode 프로젝트라면 xcconfig로 버전을 옮기고(`MARKETING_VERSION = 1.2.3`, Info.plist는 `$(MARKETING_VERSION)` 참조) 그 xcconfig를 위치로 등록하는 것이 표준 경로다 — 스캔도 xcconfig는 감지한다.
+- **Tauri v1** — 버전이 `src-tauri/tauri.conf.json`의 `package.version`에 있다(v2는 최상위 `version`). 스캔이 둘 다 감지하지만, 수동 등록 시 json-path를 버전 위치에 맞게 구분하라.
+- **Android** — `versionName`은 관례상 `app/build.gradle(.kts)` 또는 `android/app/build.gradle(.kts)`의 `defaultConfig`에 있다. `versionCode`(빌드 번호)는 버전 위치로 등록하지 마라 — 산술 모델이 다르다(단조 증가 정수).
+- **빌드 번호 축 공통** — `versionCode`·`CFBundleVersion`·pubspec `+N`은 superrelease의 버전 모델 밖이다. 마케팅 버전만 superrelease로 관리하고 빌드 번호는 CI가 올리는 구성을 권장한다.
