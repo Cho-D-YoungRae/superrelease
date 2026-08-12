@@ -165,25 +165,27 @@ superrelease가 지금 대응하는 케이스를, 가장 많이 묻는 축 — �
 
 버전 위치는 포맷에 매이지 않습니다 — `properties-key`, `json-path`,
 단일 캡처 `regex`를 임의의 텍스트 파일에 걸 수 있고 여러 파일을
-동기화합니다. 그래서 scan이 자동 감지하지 못하는 포맷(`pubspec.yaml`,
-`.xcconfig`, `tauri.conf.json` 등)도 버전 위치 질문에서 직접 등록하면
+동기화합니다. 그래서 scan이 자동 감지하지 못하는 포맷(사내 매니페스트,
+커스텀 배포 스크립트 등)도 버전 위치 질문에서 직접 등록하면
 동작합니다.
 
 알려진 한계 (2026-08 커버리지 리뷰,
 [docs/superpowers/specs/2026-08-06-coverage-review.md](docs/superpowers/specs/2026-08-06-coverage-review.md)):
 
-- **모바일(Flutter/iOS/Android/React Native)** — 마케팅 버전은 regex 위치로
-  동작하지만 scan이 해당 파일을 감지하지 못하고, 빌드 번호 축(`versionCode`,
-  `CFBundleVersion`, pubspec `+N`)은 모델 자체가 없습니다.
+- **모바일(Flutter/iOS/Android/React Native)** — 마케팅 버전 축은 scan이
+  감지합니다(pubspec.yaml, `*.xcconfig`의 `MARKETING_VERSION`,
+  `app/`·`android/app/`의 `versionName`). 빌드 번호 축(`versionCode`,
+  `CFBundleVersion`, pubspec `+N`)은 여전히 모델이 없습니다 —
   `next-version.py`는 build metadata가 섞인 버전(`1.2.3+45`)을 조용히
   드롭하는 대신 명시적으로 거부합니다.
 - **Rust** — `Cargo.toml` regex 위치는 동작하지만 `version.py set`이
   `Cargo.lock`을 갱신하지 않습니다(lockfile 동기화는 `package-lock.json`만).
 - **Python pre-release** — PEP 440 형식(`rc1`, `.dev0`, `.post1`)은
   지원하지 않습니다. `none`(권장) 또는 SemVer `-rc.N` 카운터를 쓰세요.
-- **기존 릴리스 자동화** — changesets / semantic-release / release-please를
-  감지하지 않습니다. 전환 전에 기존 파이프라인을 직접 내리세요 — 그러지
-  않으면 두 시스템이 같은 태그를 두고 경합합니다.
+- **기존 릴리스 자동화** — changesets / semantic-release / release-please /
+  towncrier를 init이 감지해 이중 자동화 경고와 이주 방향(펜딩 조각 소진,
+  태그 트리거 publish 전환)을 안내합니다. 파이프라인을 내리는 실행 자체는
+  사용자 몫입니다 — 내리기 전까지는 두 시스템이 같은 태그를 두고 경합합니다.
 - **태그 전용 레포**(버전 파일 없음 — Go CLI, Terraform 모듈)와
   **GitOps/manifest 레포**(버전 소스가 아니라 전파 대상)는 범위 밖입니다:
   scope마다 `versionLocations`가 필수입니다. 태그 전용 레포에는 init이

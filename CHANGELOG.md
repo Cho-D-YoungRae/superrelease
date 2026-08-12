@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   감지가 "마지막 릴리스 태그 존재"를 전제해 태그가 하나도 없는 첫 릴리스는
   PR 머지 후 태그 단계 재개를 잡지 못했다. gitflow가 이미 쓰는 머지된
   릴리스 PR 검색을 단일·모노레포 release 스킬의 trunk 분기에도 적용했다.
+- **scan이 모바일·Tauri·Helm·인프라 입구를 연다** — pubspec.yaml(빌드 번호
+  포함 값은 감지·안내 전용)·`*.xcconfig`의 MARKETING_VERSION·`app/`와
+  `android/app/`의 versionName·src-tauri/tauri.conf.json(v1/v2)·Chart.yaml
+  appVersion(감지·안내 전용)·charts/* 헬름 차트·uv workspace 멤버(내부
+  의존성 포함)·pom `<modules>` 힌트·scoped 태그(`pkg@1.2.3`, 프리픽스
+  리포트)를 감지하고, go.mod·`*.tf`는 빌드 시스템으로 인식한다. 빌드 번호
+  축(versionCode·CFBundleVersion·pubspec `+N`)은 여전히 범위 밖이다.
+- **init이 기존 릴리스 자동화를 감지하고 이주를 안내한다** — changesets(펜딩
+  조각 수 포함)·semantic-release·release-please·towncrier와 이를 참조하는
+  CI 워크플로를 감지해, 이중 자동화 경합 경고·펜딩 조각 처리·태그 트리거
+  publish 전환 방향을 안내한다. 파이프라인 변경 실행은 하지 않는다.
 
 ### Changed
 

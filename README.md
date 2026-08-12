@@ -168,25 +168,28 @@ by golden-render snapshots (31 representative configs under `tests/golden/`).
 
 Version locations are format-agnostic — `properties-key`, `json-path` and
 single-capture `regex` over any text file, with multiple files kept in
-sync — so formats scan doesn't auto-detect (`pubspec.yaml`, `.xcconfig`,
-`tauri.conf.json`, …) can still be registered by hand at the
+sync — so formats scan doesn't auto-detect (in-house manifests, custom
+deploy scripts, …) can still be registered by hand at the
 version-locations question.
 
 Known limits (from the 2026-08 coverage review,
 [docs/superpowers/specs/2026-08-06-coverage-review.md](docs/superpowers/specs/2026-08-06-coverage-review.md)):
 
-- **Mobile (Flutter/iOS/Android/React Native)** — the marketing version works
-  through regex locations, but scan does not detect these files, and the
-  build-number axis (`versionCode`, `CFBundleVersion`, pubspec `+N`) has no
-  model; `next-version.py` rejects versions carrying build metadata
-  (`1.2.3+45`) instead of silently dropping it.
+- **Mobile (Flutter/iOS/Android/React Native)** — scan now detects the
+  marketing-version axis (pubspec.yaml, `MARKETING_VERSION` in `*.xcconfig`,
+  `versionName` under `app/`·`android/app/`). The build-number axis
+  (`versionCode`, `CFBundleVersion`, pubspec `+N`) still has no model;
+  `next-version.py` rejects versions carrying build metadata (`1.2.3+45`)
+  instead of silently dropping it.
 - **Rust** — `Cargo.toml` regex locations work, but `version.py set` does not
   refresh `Cargo.lock` (lockfile sync covers `package-lock.json` only).
 - **Python pre-releases** — PEP 440 forms (`rc1`, `.dev0`, `.post1`) are not
   supported; use `none` (recommended) or the SemVer `-rc.N` counter.
-- **Existing release automation** — changesets / semantic-release /
-  release-please are not detected; retire the old pipeline before switching,
-  or both systems will compete over the same tags.
+- **Existing release automation** — init detects changesets /
+  semantic-release / release-please / towncrier and walks you through the
+  dual-automation warning and migration direction (drain pending fragments,
+  move publish to a tag-triggered workflow). Actually retiring the old
+  pipeline is on you — until then both systems compete over the same tags.
 - **Tag-only repos** (no version file — Go CLIs, Terraform modules) and
   **GitOps/manifest repos** (propagation targets, not version sources) are
   out of scope: `versionLocations` is required per scope. For tag-only
