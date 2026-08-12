@@ -17,7 +17,7 @@ B-7 원안(1급 지원: buildNumber 위치 + 단조증가 산술 + verify 완화
 ## 1. config 필드 + validate
 
 - `repo.buildNumber`: `"ci"` | `"manual"` | `null`(기본 — 비모바일 레포).
-- `validate_config`에 닫힌 집합 규칙 추가: null/부재는 허용, 그 외 값은 `repo.buildNumber must be "ci" or "manual" (got "<x>")` — 엔진·스크립트 무변경, 검증 규칙만 자란다.
+- `validate_config`에 닫힌 집합 규칙 추가: null/부재는 허용, 그 외 값은 `repo.buildNumber must be "ci", "manual" or null (got "<x>")` — 엔진·스크립트 무변경, 검증 규칙만 자란다.
 
 ## 2. scan — pubspec 마케팅-only 승격 + M9 이월 2건
 
