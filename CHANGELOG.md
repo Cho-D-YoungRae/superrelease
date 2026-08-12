@@ -24,16 +24,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   PR 머지 후 태그 단계 재개를 잡지 못했다. gitflow가 이미 쓰는 머지된
   릴리스 PR 검색을 단일·모노레포 release 스킬의 trunk 분기에도 적용했다.
 - **scan이 모바일·Tauri·Helm·인프라 입구를 연다** — pubspec.yaml(빌드 번호
-  포함 값은 감지·안내 전용)·`*.xcconfig`의 MARKETING_VERSION·`app/`와
-  `android/app/`의 versionName·src-tauri/tauri.conf.json(v1/v2)·Chart.yaml
-  appVersion(감지·안내 전용)·charts/* 헬름 차트·uv workspace 멤버(내부
-  의존성 포함)·pom `<modules>` 힌트·scoped 태그(`pkg@1.2.3`, 프리픽스
-  리포트)를 감지하고, go.mod·`*.tf`는 빌드 시스템으로 인식한다. 빌드 번호
-  축(versionCode·CFBundleVersion·pubspec `+N`)은 여전히 범위 밖이다.
+  포함 값 처리는 아래 M10 항목으로 대체)·`*.xcconfig`의 MARKETING_VERSION·
+  `app/`와 `android/app/`의 versionName·src-tauri/tauri.conf.json(v1/v2)·
+  Chart.yaml appVersion(감지·안내 전용)·charts/* 헬름 차트·uv workspace
+  멤버(내부 의존성 포함)·pom `<modules>` 힌트·scoped 태그(`pkg@1.2.3`,
+  프리픽스 리포트)를 감지하고, go.mod·`*.tf`는 빌드 시스템으로 인식한다.
+  빌드 번호 축(versionCode·CFBundleVersion·pubspec `+N`)은 CI-관리 모델로
+  기록·보존만 한다(값 증가는 CI 몫 — 아래 항목).
 - **init이 기존 릴리스 자동화를 감지하고 이주를 안내한다** — changesets(펜딩
   조각 수 포함)·semantic-release·release-please·towncrier와 이를 참조하는
   CI 워크플로를 감지해, 이중 자동화 경합 경고·펜딩 조각 처리·태그 트리거
   publish 전환 방향을 안내한다. 파이프라인 변경 실행은 하지 않는다.
+- **모바일 빌드 번호 축을 CI-관리 모델로 지원한다** — init이 모바일
+  신호(flutter/dart·xcconfig·versionName·pubspec `+N`)를 보면 빌드 번호
+  관리 방식(CI 자동 증가 권장 | 수동)을 물어 `repo.buildNumber`에 기록하고,
+  release 스킬은 버전 반영 시 빌드 번호를 건드리지 않음을 안내한다.
+  모바일은 preRelease `none` 권장 안내(스토어 베타는 빌드번호+트랙 기반)도
+  함께 한다. 값을 올리는 실행은 하지 않는다 — CI 몫. flutter-app 골든으로
+  핀(대표 config 32종).
 
 ### Changed
 
@@ -48,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   라이브러리에 `-SNAPSHOT`+next-snapshot을 기본 제안해 npm·Rust·Python
   생태계 관례와 어긋났다. 이제 gradle·maven 감지 시에만 기본이며, 그 외
   라이브러리는 pre/post `none`이 기본이다.
+- **pubspec `+N` 감지가 감지·안내 전용에서 마케팅-only usable 후보로** —
+  M9는 빌드 번호가 섞인 pubspec을 등록 불가로 안내만 했지만, 이제 마케팅
+  부분만 캡처하는 패턴을 제안한다. `version.py set`은 캡처 그룹만 치환하므로
+  `+N`은 보존된다.
 
 ### Fixed
 

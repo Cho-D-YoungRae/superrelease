@@ -48,7 +48,7 @@ status 모드: "릴리스 준비됐는지", "다음 버전 뭐가 될까" 류 �
 
 ## 4. 버전 반영
 
-`python3 .superrelease/scripts/version.py set <릴리스 버전>` — 전 위치 동기 수정. 실행 전 6단계 프리뷰에 포함하라.
+`python3 .superrelease/scripts/version.py set <릴리스 버전>` — 전 위치 동기 수정. 실행 전 6단계 프리뷰에 포함하라.{{#if repo.buildNumber == "ci"}} 빌드 번호 축(versionCode·CFBundleVersion·pubspec `+N`)은 건드리지 마라 — CI가 올린다. 버전 파일에 남아 있는 빌드 번호 부분은 그대로 보존된다(마케팅 부분만 치환).{{/if}}{{#if repo.buildNumber == "manual"}} 빌드 번호 축(versionCode·CFBundleVersion·pubspec `+N`)은 이 커밋에서 올리지 않는다 — 스토어 업로드 전 수동 증가가 필요함을 릴리스 요약에 리마인드로 포함하라.{{/if}}
 
 ## 5. 릴리스 노트
 

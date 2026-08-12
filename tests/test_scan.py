@@ -587,15 +587,36 @@ class MobileScanTest(unittest.TestCase):
         self.assertNotIn("usable", cands[0])
         self.assertIn("flutter", report["buildSystems"])
 
-    def test_pubspec_build_number_is_advice_only(self):
+    def test_pubspec_build_number_becomes_marketing_only_candidate(self):
+        # M10: `+N`이 있으면 마케팅 부분만 캡처하는 usable 후보로 승격 —
+        # set()이 캡처 그룹만 치환하므로 +N은 보존된다. advice-only는 폐지.
         report = scan_tmp(self, {"pubspec.yaml": "name: demo\nversion: 1.2.3+45\n"})
         cands = [c for c in report["versionCandidates"]
                  if c["file"] == "pubspec.yaml"]
         self.assertEqual(len(cands), 1)
-        self.assertEqual(cands[0]["value"], "1.2.3+45")
-        self.assertFalse(cands[0]["usable"])
-        self.assertEqual(cands[0]["advice"], "pubspec-build-number")
-        self.assertIn("dart", report["buildSystems"])  # flutter 의존성 없음
+        self.assertEqual(cands[0]["value"], "1.2.3")
+        self.assertEqual(cands[0]["buildNumber"], "45")
+        self.assertNotIn("usable", cands[0])
+        self.assertEqual(cands[0]["pattern"], "^version:\\s*(\\d[^+\\s]*)")
+        self.assertIn("dart", report["buildSystems"])
+
+    def test_xcconfig_build_setting_reference_is_skipped(self):
+        # M10(M9 이월): $(inherited) 같은 빌드 세팅 참조는 후보가 아니다.
+        report = scan_tmp(self, {
+            "Base.xcconfig": "MARKETING_VERSION = $(inherited)\n",
+            "App.xcconfig": "MARKETING_VERSION = 2.0.1\n"})
+        files = [c["file"] for c in report["versionCandidates"]
+                 if c["file"].endswith(".xcconfig")]
+        self.assertEqual(files, ["App.xcconfig"])
+
+    def test_flutter_classification_top_level_section(self):
+        # M10(M9 이월): ^[ \t]*flutter: — 최상위 flutter: 섹션도 Flutter 신호,
+        # 개행 관통 메커니즘에는 의존하지 않는다.
+        top = scan_tmp(self, {"pubspec.yaml":
+                              "name: demo\nversion: 1.2.3\n\nflutter:\n  uses-material-design: true\n"})
+        self.assertIn("flutter", top["buildSystems"])
+        plain = scan_tmp(self, {"pubspec.yaml": "name: demo\nversion: 1.2.3\n"})
+        self.assertIn("dart", plain["buildSystems"])
 
     def test_xcconfig_marketing_version_root_and_ios(self):
         report = scan_tmp(self, {

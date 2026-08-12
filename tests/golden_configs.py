@@ -338,6 +338,16 @@ def python_library():
     return cfg
 
 
+def flutter_app():
+    cfg = scope_config(
+        [{"file": "pubspec.yaml", "type": "regex",
+          "pattern": "^version:\\s*(\\d[^+\\s]*)"}])
+    cfg["repo"]["buildNumber"] = "ci"
+    cfg["scopes"][0]["preRelease"] = {"style": "none", "qualifier": None}
+    cfg["scopes"][0]["postRelease"] = {"bump": "none"}
+    return cfg
+
+
 def mixed_tags_monorepo():
     # independent 혼합 태그(a=tagged, b=tagless) — §8 per-scope skip 안내 핀
     cfg = monorepo_config()
@@ -373,4 +383,5 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "gitflow-tagless-hotfix": gitflow_tagless_hotfix,
           "gitflow-fixed-monorepo": gitflow_fixed_monorepo,
           "python-library": python_library,
-          "mixed-tags-monorepo": mixed_tags_monorepo}
+          "mixed-tags-monorepo": mixed_tags_monorepo,
+          "flutter-app": flutter_app}

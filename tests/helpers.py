@@ -86,6 +86,7 @@ def scope_config(locations, **repo_overrides):
         "releaseCommitFormat": "chore(release): {version}",
         "tagTriggersDeployment": False,
         "monorepoStrategy": None,
+        "buildNumber": None,
     }
     repo.update(repo_overrides)
     return {

@@ -232,6 +232,23 @@ class SkillAssetsTest(unittest.TestCase):
         self.assertNotIn("git describe", out)
         self.assertIn("v{version}", out)  # glob 파생 기준 포맷 노출
 
+    def test_release_skill_build_number_gate(self):
+        # M10: repo.buildNumber ci/manual일 때만 빌드 번호 안내가 렌더된다 —
+        # null/부재에서는 0바이트 collapse.
+        ci_ctx = base_ctx()
+        ci_ctx["repo"]["buildNumber"] = "ci"
+        ci_out = self.render_asset("skills/release/SKILL.md", ci_ctx)
+        self.assertIn("빌드 번호 축(versionCode·CFBundleVersion·pubspec `+N`)은 건드리지 마라", ci_out)
+
+        manual_ctx = base_ctx()
+        manual_ctx["repo"]["buildNumber"] = "manual"
+        manual_out = self.render_asset("skills/release/SKILL.md", manual_ctx)
+        self.assertIn("수동 증가가 필요함을 릴리스 요약에 리마인드", manual_out)
+        self.assertNotIn("CI가 올린다", manual_out)
+
+        default_out = self.render_asset("skills/release/SKILL.md")  # buildNumber None
+        self.assertNotIn("빌드 번호 축", default_out)
+
     def test_release_pr_body_template_language_blocks(self):
         ko = self.render_asset("templates/release-pr-body.md")
         self.assertIn("릴리스 {version}", ko)
