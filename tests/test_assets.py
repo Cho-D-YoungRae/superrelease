@@ -693,6 +693,18 @@ class MonorepoAssetsTest(unittest.TestCase):
         self.assertIn("gh pr view", out_pr)
         self.assertLessEqual(len(out_pr.splitlines()), 149)
 
+    def test_release_monorepo_first_release_resume_gated_by_release_pr(self):
+        # B-13 모노레포판: anchor 없는 scope의 머지 후 재개는 release-pr에서만 안내.
+        pr_ctx = mono_ctx()
+        pr_ctx["repo"]["releasePath"] = "release-pr"
+        pr_out = self.render_asset("skills/release-monorepo/SKILL.md", pr_ctx)
+        self.assertIn("첫 릴리스가 머지 후 태그 전에 중단", pr_out)
+        self.assertIn('gh pr list --state merged --search "head:release/"', pr_out)
+
+        dp_out = self.render_asset("skills/release-monorepo/SKILL.md")  # direct-push
+        self.assertNotIn("첫 릴리스가 머지 후 태그 전에 중단", dp_out)
+        self.assertNotIn("--state merged", dp_out)
+
     def test_release_monorepo_gitflow_branch(self):
         out = self.render_asset("skills/release-monorepo/SKILL.md",
                                 gitflow_mono_ctx())
