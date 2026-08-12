@@ -21,7 +21,7 @@ status 모드: "릴리스 준비됐는지", "다음 버전 뭐가 될까" 류 �
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/main --count` 가 0
 4. 버전 위치 일치: `python3 .superrelease/scripts/version.py verify` → exit 0
 5. gh 인증: `gh auth status` — release-pr 경로는 PR 생성·조회에 gh가 필요하다(실패 시 GitHub MCP 폴백)
-6. 중단 상태 감지: 마지막 릴리스 태그가 존재하고 파일 버전이 그보다 높은데 **파일 버전 그대로의 태그가 없으면** 이전 릴리스가 중단된 것이다 (단, 파일 버전에 `-SNAPSHOT` 수식어가 붙어 있으면 정상 개발 상태 — 중단 아님) — 이어서 진행(resume)/되돌리기(rollback) 중 사용자 선택을 받아라.
+6. 중단 상태 감지: 마지막 릴리스 태그가 존재하고 파일 버전이 그보다 높은데 **파일 버전 그대로의 태그가 없으면** 이전 릴리스가 중단된 것이다 (단, 파일 버전에 `-SNAPSHOT` 수식어가 붙어 있으면 정상 개발 상태 — 중단 아님) — 이어서 진행(resume)/되돌리기(rollback) 중 사용자 선택을 받아라. 릴리스 태그가 **하나도 없으면** 파일 버전 기반 감지가 불가능하다 — 머지된 릴리스 PR을 검색해(`gh pr list --state merged --search "head:release/" --json headRefName,mergedAt`) `release/<버전>` head가 있는데 그 버전의 태그가 없으면 첫 릴리스가 머지 후 태그 전에 중단된 것이니 6단계의 "머지 후 재개"대로 7단계(태그)부터 이어가라.
 7. 열린 릴리스 PR 확인: `gh pr list --state open --json headRefName,url` 결과에 `release/`로 시작하는 head 브랜치의 PR이 있으면 이전 릴리스가 머지 대기 중이다 — 새 릴리스를 시작하지 말고 그 PR 상태를 보고하고 멈춰라(머지 후 재개는 6번이 잡는다).
 
 실패 항목이 있으면 이유와 해결 방법을 보여주고 중단하라.
