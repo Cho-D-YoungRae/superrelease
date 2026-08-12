@@ -407,6 +407,85 @@ def _node_packages(repo):
     return packages
 
 
+def _python_packages(repo):
+    """uv workspace members (regex-parsed — no tomllib on 3.9) with the same
+    trailing-glob expansion rule as _node_packages."""
+    text = read(repo / "pyproject.toml")
+    if not text:
+        return []
+    sec = re.search(r"^\[tool\.uv\.workspace\]\s*$(.*?)(?=^\[|\Z)",
+                    text, re.M | re.S)
+    if not sec:
+        return []
+    arr = re.search(r"members\s*=\s*\[(.*?)\]", sec.group(1), re.S)
+    if not arr:
+        return []
+    globs = re.findall(r"['\"]([^'\"]+)['\"]", arr.group(1))
+    seen, packages = set(), []
+    for g in globs:
+        if g.endswith("/**"):
+            base = g[:-3]
+        elif g.endswith("/*"):
+            base = g[:-2]
+        else:
+            base = g
+        base_dir = repo / base
+        if not base_dir.is_dir():
+            continue
+        candidates = [base_dir] if g == base else sorted(
+            d for d in base_dir.iterdir() if d.is_dir())
+        for d in candidates:
+            ptext = read(d / "pyproject.toml")
+            if not ptext:
+                continue
+            rel = d.relative_to(repo).as_posix()
+            if rel in seen:
+                continue
+            seen.add(rel)
+            name_m = re.search(r"^name\s*=\s*['\"]([^'\"]+)['\"]", ptext, re.M)
+            ver_m = re.search(PYPROJECT_VERSION_PATTERN, ptext, re.M)
+            deps = set()
+            blocks = []
+            dep_m = re.search(r"^dependencies\s*=\s*\[(.*?)\]", ptext, re.M | re.S)
+            if dep_m:
+                blocks.append(dep_m.group(1))
+            opt = re.search(r"^\[project\.optional-dependencies\]\s*$(.*?)(?=^\[|\Z)",
+                            ptext, re.M | re.S)
+            if opt:
+                blocks += re.findall(r"=\s*\[(.*?)\]", opt.group(1), re.S)
+            for block in blocks:
+                for item in re.findall(r"['\"]([^'\"]+)['\"]", block):
+                    nm = re.match(r"[A-Za-z0-9._-]+", item)
+                    if nm:
+                        deps.add(nm.group(0))
+            packages.append({"path": rel,
+                             "name": name_m.group(1) if name_m else None,
+                             "version": ver_m.group(1) if ver_m else None,
+                             "buildSystem": "python", "_deps": sorted(deps)})
+    return packages
+
+
+def _maven_module_hints(repo):
+    text = read(repo / "pom.xml")
+    if not text:
+        return []
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError:
+        return []
+
+    def local(el):
+        return el.tag.rsplit("}", 1)[-1]
+
+    hints = []
+    for child in root:
+        if local(child) == "modules":
+            for mod in child:
+                if local(mod) == "module" and (mod.text or "").strip():
+                    hints.append(mod.text.strip())
+    return sorted(set(hints))
+
+
 def _gradle_packages(repo):
     """Resolve settings.gradle(.kts) include paths (":a:b" -> "a/b") and
     collect each existing module's version (gradle.properties key first,
@@ -463,13 +542,18 @@ def scan_monorepo(repo):
                                  for c in base.iterdir() if c.is_dir()):
             signals.append(d + "/: package.json children")
     packages = _node_packages(repo)
-    names = {p["name"]: p["path"] for p in packages if p.get("name")}
+    py_packages = _python_packages(repo)
+    if py_packages:
+        signals.append("pyproject.toml: [tool.uv.workspace]")
+    dep_scoped = packages + py_packages
+    names = {p["name"]: p["path"] for p in dep_scoped if p.get("name")}
     internal = []
-    for p in packages:
+    for p in dep_scoped:
         for dep in p.pop("_deps", []):
             if dep in names and names[dep] != p["path"]:
                 internal.append({"fromPath": p["path"], "fromName": p.get("name"),
                                  "toPath": names[dep], "toName": dep})
+    packages = packages + py_packages
     node_paths = {p["path"] for p in packages}
     packages += [g for g in _gradle_packages(repo)
                  if g["path"] not in node_paths]
@@ -486,10 +570,14 @@ def scan_monorepo(repo):
                                  "name": d.name,
                                  "version": m.group(1) if m else None,
                                  "buildSystem": "helm"})
+    maven_hints = _maven_module_hints(repo)
+    if maven_hints:
+        signals.append("pom.xml: <modules>")
     return {"suspected": bool(signals) or len(packages) > 1,
             "signals": signals, "packages": packages,
             "internalDependencies": internal,
-            "gradleModuleHints": _module_hints(repo)}
+            "gradleModuleHints": _module_hints(repo),
+            "mavenModuleHints": maven_hints}
 
 
 def scan_changelog(repo):

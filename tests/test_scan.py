@@ -670,5 +670,42 @@ class TauriHelmInfraScanTest(unittest.TestCase):
         self.assertEqual(report["versionCandidates"], [])  # 버전 후보 아님
 
 
+class WorkspaceScanTest(unittest.TestCase):
+    def test_uv_workspace_members_and_internal_deps(self):
+        report = scan_tmp(self, {
+            "pyproject.toml":
+                '[project]\nname = "root"\nversion = "0.0.0"\n\n'
+                '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            "packages/core/pyproject.toml":
+                '[project]\nname = "demo-core"\nversion = "1.1.0"\ndependencies = []\n',
+            "packages/api/pyproject.toml":
+                '[project]\nname = "demo-api"\nversion = "2.0.0"\n'
+                'dependencies = ["demo-core>=1.0", "fastapi>=0.100"]\n'})
+        self.assertIn("pyproject.toml: [tool.uv.workspace]",
+                      report["monorepo"]["signals"])
+        py = [p for p in report["monorepo"]["packages"]
+              if p["buildSystem"] == "python"]
+        self.assertEqual([(p["path"], p["name"], p["version"]) for p in py],
+                         [("packages/api", "demo-api", "2.0.0"),
+                          ("packages/core", "demo-core", "1.1.0")])
+        internal = report["monorepo"]["internalDependencies"]
+        self.assertEqual(len(internal), 1)
+        self.assertEqual(internal[0]["fromName"], "demo-api")
+        self.assertEqual(internal[0]["toName"], "demo-core")
+
+    def test_maven_modules_become_hints_not_packages(self):
+        report = scan_tmp(self, {
+            "pom.xml":
+                "<project>\n  <modelVersion>4.0.0</modelVersion>\n"
+                "  <artifactId>parent</artifactId>\n  <version>${revision}</version>\n"
+                "  <properties>\n    <revision>1.0.0</revision>\n  </properties>\n"
+                "  <modules>\n    <module>core</module>\n    <module>api</module>\n"
+                "  </modules>\n</project>\n"})
+        self.assertEqual(report["monorepo"]["mavenModuleHints"], ["api", "core"])
+        self.assertIn("pom.xml: <modules>", report["monorepo"]["signals"])
+        self.assertEqual([p for p in report["monorepo"]["packages"]
+                          if p["buildSystem"] == "maven"], [])
+
+
 if __name__ == "__main__":
     unittest.main()
