@@ -361,6 +361,14 @@ def mixed_tags_monorepo():
     return cfg
 
 
+def package_changelog_monorepo():
+    # independent 모노레포 × package-changelog 목적지 — §5 scope별 CHANGELOG 게이트 핀
+    cfg = monorepo_config()
+    for s in cfg["scopes"]:
+        s["notes"]["destinations"] = ["package-changelog", "github-release"]
+    return cfg
+
+
 GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "jvm-library": jvm_library, "pnpm-monorepo": pnpm_monorepo,
           "rc-library": rc_library, "calver-app": calver_app,
@@ -384,4 +392,5 @@ GOLDEN = {"gradle-app": gradle_app, "npm-app": npm_app,
           "gitflow-fixed-monorepo": gitflow_fixed_monorepo,
           "python-library": python_library,
           "mixed-tags-monorepo": mixed_tags_monorepo,
-          "flutter-app": flutter_app}
+          "flutter-app": flutter_app,
+          "package-changelog-monorepo": package_changelog_monorepo}
