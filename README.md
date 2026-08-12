@@ -189,7 +189,8 @@ Known limits (from the 2026-08 coverage review,
   or both systems will compete over the same tags.
 - **Tag-only repos** (no version file — Go CLIs, Terraform modules) and
   **GitOps/manifest repos** (propagation targets, not version sources) are
-  out of scope: `versionLocations` is required per scope.
+  out of scope: `versionLocations` is required per scope. For tag-only
+  repos, init offers to introduce a version file seeded from the latest tag.
 
 The explicit not-planned list is at the end of [Roadmap](#roadmap).
 

@@ -186,7 +186,8 @@ superrelease가 지금 대응하는 케이스를, 가장 많이 묻는 축 — �
   않으면 두 시스템이 같은 태그를 두고 경합합니다.
 - **태그 전용 레포**(버전 파일 없음 — Go CLI, Terraform 모듈)와
   **GitOps/manifest 레포**(버전 소스가 아니라 전파 대상)는 범위 밖입니다:
-  scope마다 `versionLocations`가 필수입니다.
+  scope마다 `versionLocations`가 필수입니다. 태그 전용 레포에는 init이
+  최신 태그를 시드로 버전 파일 도입을 안내합니다.
 
 명시적 '지원 계획 없음' 목록은 [로드맵](#로드맵) 끝에 있습니다.
 
