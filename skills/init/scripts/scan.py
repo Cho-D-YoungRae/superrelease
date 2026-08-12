@@ -46,6 +46,7 @@ TAG_PATTERNS = {
     "semver-v": r"^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
     "semver": r"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
     "short": r"^v?\d+\.\d+$",
+    "scoped": r"^[A-Za-z0-9._/-]+@v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
 }
 DEVELOP_BRANCH_NAMES = ("develop", "development", "dev")
 BUNDLE_NOTE_RE = re.compile(r"^\d{4}(?:\.\d+)+$")
@@ -290,10 +291,17 @@ def scan_tags(repo):
             body = git(repo, "cat-file", "tag", latest) or ""
             signed = "-----BEGIN PGP SIGNATURE-----" in body
     groups = [n for n, ts in by_pattern.items() if ts] + (["other"] if other else [])
+    prefix_counts = {}
+    for t in by_pattern.get("scoped", []):
+        prefix = t.rsplit("@", 1)[0]
+        prefix_counts[prefix] = prefix_counts.get(prefix, 0) + 1
+    scoped_prefixes = [p for p, _ in sorted(
+        prefix_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:10]]
     return {"available": True, "count": len(tags),
             "byPattern": {n: len(ts) for n, ts in by_pattern.items()},
             "otherCount": len(other), "mixed": len(groups) > 1, "latest": latest,
-            "latestAnnotated": annotated, "latestSigned": signed}
+            "latestAnnotated": annotated, "latestSigned": signed,
+            "scopedPrefixes": scoped_prefixes}
 
 
 def scan_commits(repo):

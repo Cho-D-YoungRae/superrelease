@@ -707,5 +707,27 @@ class WorkspaceScanTest(unittest.TestCase):
                           if p["buildSystem"] == "maven"], [])
 
 
+class ScopedTagScanTest(unittest.TestCase):
+    def test_scoped_tags_classified_and_prefixes_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            make_git_repo(tmp, {"f.txt": "x\n"}, ["chore: seed"],
+                          tags=["core@1.0.0", "core@1.1.0", "api@0.2.0", "v9.9.9"])
+            r = run_script(SCAN, "--repo", tmp)
+            report = json.loads(r.stdout)
+        tags = report["tags"]
+        self.assertEqual(tags["byPattern"]["scoped"], 3)
+        self.assertEqual(tags["byPattern"]["semver-v"], 1)
+        self.assertEqual(tags["otherCount"], 0)
+        self.assertTrue(tags["mixed"])  # scoped + semver-v 두 그룹
+        self.assertEqual(tags["scopedPrefixes"], ["core", "api"])  # 빈도순
+
+    def test_no_scoped_tags_gives_empty_prefixes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            make_git_repo(tmp, {"f.txt": "x\n"}, ["chore: seed"], tags=["v1.0.0"])
+            r = run_script(SCAN, "--repo", tmp)
+            report = json.loads(r.stdout)
+        self.assertEqual(report["tags"]["scopedPrefixes"], [])
+
+
 if __name__ == "__main__":
     unittest.main()
