@@ -622,6 +622,16 @@ class MobileScanTest(unittest.TestCase):
         # versionCode(빌드 번호)는 감지하지 않는다
         self.assertNotIn("45", json.dumps(report["versionCandidates"]))
 
+    def test_android_version_name_kotlin_dsl(self):
+        report = scan_tmp(self, {
+            "app/build.gradle.kts":
+                'android {\n  defaultConfig {\n    versionCode = 45\n'
+                '    versionName = "4.2.0"\n    versionNameSuffix = "-dev"\n  }\n}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "app/build.gradle.kts"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "4.2.0")
+
 
 class TauriHelmInfraScanTest(unittest.TestCase):
     def test_tauri_v2_top_level_version(self):

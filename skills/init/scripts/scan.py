@@ -36,7 +36,7 @@ OPENAPI_YAML_PATTERN = "^[ \\t]+version:\\s*[\"']?([0-9][^\"'\\s#]*)"
 PUBSPEC_VERSION_PATTERN = "^version:\\s*(\\S+)"
 CHART_APP_VERSION_PATTERN = "^appVersion:\\s*[\"']?([^\"'\\s]+)"
 XCCONFIG_MARKETING_PATTERN = "^MARKETING_VERSION\\s*=\\s*(\\S+)"
-ANDROID_VERSION_NAME_PATTERN = "versionName\\s+['\\\"]([^'\\\"]+)['\\\"]"
+ANDROID_VERSION_NAME_PATTERN = "versionName\\s*=?\\s*['\\\"]([^'\\\"]+)['\\\"]"
 ANDROID_GRADLE_PATHS = ("app/build.gradle.kts", "app/build.gradle",
                         "android/app/build.gradle.kts", "android/app/build.gradle")
 VERSIONISH_RE = re.compile(r"^v?\d[\w.+-]*$")
