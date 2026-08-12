@@ -14,7 +14,7 @@
 |---|---|---|
 | `pubspec.yaml` | regex `^version:\s*(\S+)` | 값에 `+`(빌드 번호)가 있으면 **usable:false + advice `pubspec-build-number`** — `version.py set`이 빌드 번호를 소실시킨다(next-version.py는 B-4로 이미 거부). 없으면 일반 후보. buildSystems에 `flutter`(dependencies에 flutter) 또는 `dart` |
 | `*.xcconfig` | regex `^MARKETING_VERSION\s*=\s*(\S+)` | 루트와 `ios/`의 1-depth `*.xcconfig`. 파일 여러 개면 각각 후보(다중 등록 → 동기 수정). `CURRENT_PROJECT_VERSION`(빌드 번호)은 감지하지 않는다(M10) |
-| `build.gradle(.kts)` `versionName` | regex `versionName\s+['"]([^'"]+)['"]` | 관례 위치 `app/`·`android/app/`(React Native/Flutter). `versionCode`는 감지하지 않는다(M10) |
+| `build.gradle(.kts)` `versionName` | regex `versionName\s*=?\s*['"]([^'"]+)['"]` | 관례 위치 `app/`·`android/app/`(React Native/Flutter). Groovy(`versionName "x"`)와 Kotlin DSL(`versionName = "x"`) 모두 매치. `versionCode`는 감지하지 않는다(M10) |
 | `src-tauri/tauri.conf.json` | json-path `version` | v2 최상위 `version`, 없으면 v1 `package.version` 폴백 |
 | `Chart.yaml` `appVersion` | **usable:false + advice `chart-app-version`** | 차트 버전(기존 후보)과 앱 버전의 이원 구조 안내용 — 백로그 지시 그대로 |
 | `charts/*/Chart.yaml` | 모노레포 신호 + packages | 신호 `charts/: Chart.yaml children`, packages 항목 `{path, name, version, buildSystem: "helm"}` |
