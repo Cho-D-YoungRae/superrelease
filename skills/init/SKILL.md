@@ -79,7 +79,8 @@ description: 프로젝트의 버전·릴리스 관리를 초기화하거나 재�
     "backfill": false,
     "releaseCommitFormat": "chore(release): {version}",
     "tagTriggersDeployment": false,
-    "monorepoStrategy": null
+    "monorepoStrategy": null,
+    "buildNumber": null
   },
   "github": { "release": true, "generateNotes": true, "releaseYml": true },
   "scopes": [
