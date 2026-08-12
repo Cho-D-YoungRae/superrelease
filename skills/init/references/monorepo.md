@@ -78,7 +78,7 @@ M2에서 릴리스 노트 설정(언어·독자·어조·목적지)은 **전 sco
 
 fixed / independent 전략, `dependents` 전파, `changed-packages.py` 변경 감지가 지원된다. init이 모노레포를 감지하면 전략을 묻고, independent를 선택하면 scope를 패키지 수만큼 확장한다.
 
-fixed는 단일 scope로 모델링된다 — 모든 패키지의 버전 파일을 root scope의 `versionLocations`에 모아 함께 bump하며, 릴리스 흐름은 단일 레포와 동일하다. independent는 scope별 태그 네임스페이스(`<scope>@{version}`)와 scope 단위 릴리스 흐름(변경 감지 → scope별 bump → scope별 태그 → dependents 전파)을 쓴다.
+fixed는 단일 scope로 모델링된다 — 모든 패키지의 버전 파일을 root scope의 `versionLocations`에 모아 함께 bump하며, 릴리스 흐름은 단일 레포와 동일하다. independent는 scope별 태그 네임스페이스(`<scope>@{version}`)와 scope 단위 릴리스 흐름(변경 감지 → scope별 bump → scope별 태그 → dependents 전파)을 쓴다. fixed에서는 scope가 하나뿐이므로 `dependents` 필드는 의미가 없다 — 기록돼 있어도 무시된다(전파는 independent 전용 개념이다).
 
 이중 체계(dual-system)·release-train은 지원하지 않는다(위 "전략 2종" 참고). 모노레포 backfill은 지원된다 — backfill 스킬이 scope별 태그 네임스페이스(`<scope>@{version}`)를 순회해 `## <scope>@<version>` 항목으로 소급한다(전 scope가 tagless면 render가 거부한다).
 

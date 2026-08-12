@@ -2,7 +2,7 @@
 
 릴리스 노트를 어디에 남길지는 프로젝트마다 다르고, 여러 목적지를 동시에 쓰는 경우도 흔하다.
 
-## 목적지 4종
+## 목적지 5종
 
 **① 루트 CHANGELOG.md 누적**: Keep a Changelog 형식을 따라 `Added` / `Changed` / `Fixed` / `Removed` 같은 하위 섹션으로 항목을 쌓는다.
 
@@ -25,7 +25,11 @@ superrelease는 towncrier식 규약을 쓴다: `changelog.d/{id}.{category}.md`(
 - 여러 PR이 CHANGELOG.md라는 파일 하나를 동시에 고치면서 생기는 병합 충돌을 없앤다.
 - 각 변경의 작성자가 그 변경을 가장 잘 아는 시점(PR을 올릴 때)에 직접 노트를 남기게 해 노트 품질도 함께 끌어올린다.
 
-네 목적지를 한눈에 정리하면 다음과 같다.
+**⑤ package-changelog(패키지별 CHANGELOG)**: independent 모노레포에서 각 패키지 경로의 `CHANGELOG.md`(`<scope.path>/CHANGELOG.md`)에 그 scope의 이력만 쌓는다.
+
+scope 파일 안이므로 헤딩은 `## <version>` 표준형이다(루트 CHANGELOG의 `## <scope>@<version>`과 구분). 패키지 소비자가 자기 패키지 이력만 읽을 수 있다는 것이 장점이다. `repo.monorepoStrategy`가 `independent`일 때만 쓸 수 있다 — 단일 버전 레포에서는 루트 CHANGELOG가 곧 패키지 CHANGELOG이므로 render가 거부한다.
+
+다섯 목적지를 한눈에 정리하면 다음과 같다.
 
 | 목적지 | 어디에 남는가 | 지원 |
 |---|---|---|
@@ -33,6 +37,9 @@ superrelease는 towncrier식 규약을 쓴다: `changelog.d/{id}.{category}.md`(
 | release-file | `docs/releases/{version}.md` | 지원 |
 | github-release | GitHub Release 페이지 | 지원 |
 | fragment | `changelog.d/` 조각 → 취합 | 지원 |
+| package-changelog | 각 패키지의 `<scope.path>/CHANGELOG.md` | 지원(independent 모노레포 전용) |
+
+모노레포의 루트 CHANGELOG가 쓰는 `## <scope>@<version>` 헤딩은 Keep a Changelog 규약 밖의 확장이다 — KaC를 기계 파싱하는 소비자는 드물어 실용상 문제가 없지만, 규약 준수가 필요하면 scope별 `package-changelog` 목적지(각 패키지의 CHANGELOG.md에 `## <version>` 표준 헤딩)를 쓰는 것이 대안이다.
 
 ## 조합
 
@@ -84,8 +91,8 @@ worked example — 로그인 방식이 변경됐다는 같은 사실도 독자�
 
 ## 지원 범위
 
-**네 목적지가 지원된다** — `changelog` / `release-file` / `github-release` / `fragment`.
+**다섯 목적지가 지원된다** — `changelog` / `release-file` / `github-release` / `fragment` / `package-changelog`(independent 모노레포 전용).
 
-노트 전문을 annotated 태그 메시지에 내장하는 방식(tag-message)은 지원하지 않는다 — superrelease의 annotated/signed 태그 메시지에는 한 줄 요약만 남고, 노트 전문은 위 네 목적지로 보낸다. config `notes.destinations`에 `tag-message`가 있으면 render가 거부한다.
+노트 전문을 annotated 태그 메시지에 내장하는 방식(tag-message)은 지원하지 않는다 — superrelease의 annotated/signed 태그 메시지에는 한 줄 요약만 남고, 노트 전문은 위 목적지들로 보낸다. config `notes.destinations`에 `tag-message`가 있으면 render가 거부한다.
 
 Keep a Changelog 형식 참고: [keepachangelog.com](https://keepachangelog.com/)
