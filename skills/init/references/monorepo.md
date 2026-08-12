@@ -61,7 +61,7 @@ scope 하나는 대체로 다음 정보를 가진다.
 
 모노레포에서는 이 구조체가 패키지 수만큼 배열로 늘어나고, 단일 레포에서는 배열에 항목이 하나뿐이다.
 
-릴리스 시 "이번에 어떤 scope가 실제로 바뀌었는가"는 anchor 이후 변경된 파일 경로를 각 scope의 `path` 접두사와 대조해서 판별한다 — 이 경로 기반 감지 로직을 담당하는 것이 `changed-packages.py`다.
+릴리스 시 "이번에 어떤 scope가 실제로 바뀌었는가"는 anchor 이후 변경된 파일 경로를 각 scope의 `path` 접두사와 대조해서 판별한다 — scope의 `watchPaths`에 등록된 공유 경로(공용 라이브러리·codegen 소스 등)도 이 대조에 포함되어 해당 scope의 변경으로 집계된다. 이 경로 기반 감지 로직을 담당하는 것이 `changed-packages.py`다.
 
 worked example:
 
