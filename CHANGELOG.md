@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **init이 버전 후보 0건 레포의 입구를 안내한다** — 버전 파일이 없는 기존
+  레포(Go CLI·모바일·인프라)에서 init이 절차 없이 표류하는 대신, "파일이
+  없는지, 있는데 스캔이 못 찾았는지"를 구분해 수동 versionLocation 등록
+  또는 버전 파일 생성을 제안한다. 초기 버전은 최신 릴리스 태그를 시드로
+  써서 0.1.0 역행을 막는다.
+- **init이 placeholder 버전(0.0.0)을 감지하면 시작 버전 리셋을 묻는다** —
+  한 번도 릴리스된 적 없는 `package.json`류의 `0.0.0`을 그대로 첫 릴리스
+  버전의 기준으로 삼지 않는다.
+- **trunk×release-pr의 첫 릴리스도 머지 후 재개를 감지한다** — 중단 상태
+  감지가 "마지막 릴리스 태그 존재"를 전제해 태그가 하나도 없는 첫 릴리스는
+  PR 머지 후 태그 단계 재개를 잡지 못했다. gitflow가 이미 쓰는 머지된
+  릴리스 PR 검색을 단일·모노레포 release 스킬의 trunk 분기에도 적용했다.
+
 ### Changed
 
 - **모노레포 릴리스 스킬이 쓰지 않는 노트 목적지를 더 이상 나열하지 않는다** —
@@ -18,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   이제 **어느 scope도 쓰지 않는 목적지 줄은 렌더되지 않는다**. scope마다 목적지가
   다를 수 있으므로 게이트는 합집합 기준이며, 어느 scope가 어느 목적지를 쓰는지는
   종전대로 릴리스 시점에 config를 읽어 판단한다.
+- **라이브러리 프리셋의 SNAPSHOT 기본을 JVM으로 한정** — init이 모든
+  라이브러리에 `-SNAPSHOT`+next-snapshot을 기본 제안해 npm·Rust·Python
+  생태계 관례와 어긋났다. 이제 gradle·maven 감지 시에만 기본이며, 그 외
+  라이브러리는 pre/post `none`이 기본이다.
 
 ### Fixed
 
