@@ -731,5 +731,50 @@ class ScopedTagScanTest(unittest.TestCase):
         self.assertEqual(report["tags"]["scopedPrefixes"], [])
 
 
+class ReleaseAutomationScanTest(unittest.TestCase):
+    def test_changesets_with_pending_count(self):
+        report = scan_tmp(self, {
+            ".changeset/README.md": "readme\n",
+            ".changeset/config.json": "{}\n",
+            ".changeset/wild-cats-jump.md": "---\n'demo': patch\n---\nfix\n",
+            ".changeset/tame-dogs-sit.md": "---\n'demo': minor\n---\nfeat\n"})
+        tools = {t["name"]: t for t in report["releaseAutomation"]["tools"]}
+        self.assertIn("changesets", tools)
+        self.assertEqual(tools["changesets"]["pendingFragments"], 2)  # README 제외
+
+    def test_semantic_release_via_releaserc_and_package_json(self):
+        report = scan_tmp(self, {
+            ".releaserc.json": "{}\n",
+            "package.json": '{"name": "d", "version": "1.0.0", '
+                            '"devDependencies": {"semantic-release": "^24.0.0"}}\n'})
+        tools = {t["name"]: t for t in report["releaseAutomation"]["tools"]}
+        self.assertIn("semantic-release", tools)
+        self.assertIn(".releaserc.json", tools["semantic-release"]["signals"])
+        self.assertIn("package.json:devDependencies",
+                      tools["semantic-release"]["signals"])
+
+    def test_release_please_and_towncrier(self):
+        report = scan_tmp(self, {
+            "release-please-config.json": "{}\n",
+            "pyproject.toml": '[tool.towncrier]\ndirectory = "changelog.d"\n'})
+        names = [t["name"] for t in report["releaseAutomation"]["tools"]]
+        self.assertIn("release-please", names)
+        self.assertIn("towncrier", names)
+
+    def test_ci_workflow_referencing_tool_is_listed(self):
+        report = scan_tmp(self, {
+            ".changeset/config.json": "{}\n",
+            ".github/workflows/release.yml":
+                "on: push\njobs:\n  r:\n    steps:\n"
+                "      - uses: changesets/action@v1\n"})
+        self.assertEqual(report["releaseAutomation"]["ciWorkflows"],
+                         [".github/workflows/release.yml"])
+
+    def test_clean_repo_reports_empty(self):
+        report = scan_tmp(self, {"README.md": "# demo\n"})
+        self.assertEqual(report["releaseAutomation"],
+                         {"tools": [], "ciWorkflows": []})
+
+
 if __name__ == "__main__":
     unittest.main()

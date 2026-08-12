@@ -48,6 +48,12 @@ TAG_PATTERNS = {
     "short": r"^v?\d+\.\d+$",
     "scoped": r"^@?[A-Za-z0-9._/-]+@v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
 }
+AUTOMATION_CI_MARKERS = ("changesets/action", "release-please",
+                         "semantic-release", "towncrier")
+SEMANTIC_RELEASE_FILES = (".releaserc", ".releaserc.json", ".releaserc.yaml",
+                          ".releaserc.yml", ".releaserc.js", ".releaserc.cjs",
+                          "release.config.js", "release.config.cjs",
+                          "release.config.mjs")
 DEVELOP_BRANCH_NAMES = ("develop", "development", "dev")
 BUNDLE_NOTE_RE = re.compile(r"^\d{4}(?:\.\d+)+$")
 BUNDLE_NOTE_DIRS = ("docs/releases", "docs/release")
@@ -619,6 +625,54 @@ def scan_ci(repo):
                     "before treating tag push as a deploy trigger"}
 
 
+def scan_release_automation(repo):
+    """Existing release-automation tooling (detect only — migration guidance
+    lives in the init skill; nothing here mutates or disables anything)."""
+    tools = []
+    ch_dir = repo / ".changeset"
+    if ch_dir.is_dir():
+        pending = [p for p in ch_dir.glob("*.md") if p.name != "README.md"]
+        tools.append({"name": "changesets", "signals": [".changeset/"],
+                      "pendingFragments": len(pending)})
+    signals = [n for n in SEMANTIC_RELEASE_FILES if (repo / n).is_file()]
+    text = read(repo / "package.json")
+    if text:
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, dict):
+            if isinstance(data.get("release"), dict):
+                signals.append("package.json:release")
+            for key in ("dependencies", "devDependencies"):
+                block = data.get(key)
+                if isinstance(block, dict) and "semantic-release" in block:
+                    signals.append("package.json:" + key)
+    if signals:
+        tools.append({"name": "semantic-release", "signals": signals})
+    rp = [n for n in ("release-please-config.json",
+                      ".release-please-manifest.json") if (repo / n).is_file()]
+    if rp:
+        tools.append({"name": "release-please", "signals": rp})
+    tc = []
+    if (repo / "towncrier.toml").is_file():
+        tc.append("towncrier.toml")
+    ptext = read(repo / "pyproject.toml")
+    if ptext and re.search(r"^\[tool\.towncrier[\].]", ptext, re.M):
+        tc.append("pyproject.toml:[tool.towncrier]")
+    if tc:
+        tools.append({"name": "towncrier", "signals": tc})
+    ci = []
+    workflows = repo / ".github" / "workflows"
+    if workflows.is_dir():
+        for f in sorted(workflows.iterdir()):
+            if f.suffix in (".yml", ".yaml"):
+                wtext = read(f) or ""
+                if any(mk in wtext for mk in AUTOMATION_CI_MARKERS):
+                    ci.append(f.relative_to(repo).as_posix())
+    return {"tools": tools, "ciWorkflows": ci}
+
+
 def scan_plugin_manifest(repo):
     text = read(repo / ".claude-plugin" / "plugin.json")
     if not text:
@@ -677,6 +731,7 @@ def main(argv=None):
         "monorepo": scan_monorepo(repo),
         "changelog": scan_changelog(repo),
         "ci": scan_ci(repo),
+        "releaseAutomation": scan_release_automation(repo),
         "pluginManifest": scan_plugin_manifest(repo),
         "python": ".".join(str(v) for v in sys.version_info[:3]),
     }
