@@ -23,7 +23,7 @@ B-7 원안(1급 지원: buildNumber 위치 + 단조증가 산술 + verify 완화
 
 - **pubspec `+N` 처리 개선**(M9의 advice-only를 대체): 값에 `+`가 있으면 마케팅 부분만 캡처하는 `PUBSPEC_MARKETING_PATTERN = "^version:\\s*(\\d[^+\\s]*)"`으로 **usable 후보**를 만들고, extra 필드 `buildNumber: "<+ 뒤 문자열 그대로>"`(예: `"45"`, 비숫자 메타데이터도 그대로)를 붙여 빌드 번호 존재를 리포트한다(init 질문 트리거). `+`가 없으면 기존 `PUBSPEC_VERSION_PATTERN` 전체-캡처 후보 그대로. M9 테스트 `test_pubspec_build_number_is_advice_only`는 새 계약을 핀하도록 대체한다.
 - **xcconfig 게이트**(M9 이월): 캡처 값이 `VERSIONISH_RE`에 맞을 때만 후보로 — `MARKETING_VERSION = $(inherited)` 같은 빌드 세팅 참조 제외.
-- **flutter 분류**(M9 이월): `^\s+flutter:` → `^[ \t]+flutter:`(개행 관통 방지 — OPENAPI_YAML_PATTERN 선례).
+- **flutter 분류**(M9 이월): `^\s+flutter:` → `^[ \t]*flutter:`(개행 관통 방지 + 0 들여쓰기 포함 — 최상위 `flutter:` 섹션(uses-material-design 등)도 진짜 Flutter 신호라는 M9 리뷰 확인을 반영).
 
 ## 3. init — 빌드 번호 질문·기록·안내 (+B-30)
 
