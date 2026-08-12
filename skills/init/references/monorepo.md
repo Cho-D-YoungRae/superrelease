@@ -72,7 +72,7 @@ worked example:
 
 ## 노트 설정의 범위
 
-M2에서 릴리스 노트 설정(언어·독자·어조·목적지)은 **전 scope 공통**으로 다룬다 — init은 이를 한 번만 묻고 모든 scope에 같은 값을 적용한다. 배포되는 `notes-package.md` 템플릿은 렌더 시점에 대표 scope의 `notes.language`로 ko/en 블록이 고정되므로, scope마다 다른 언어를 섞는 구성은 M2 범위 밖이다. 릴리스 노트를 실제로 쓸 때는 생성된 release-notes 스킬이 그 scope의 config `notes.*` 값을 다시 확인하도록 지시하므로, 손으로 config를 편집해 scope별 언어를 달리한 경우에도 노트 문체 자체는 그 scope 설정을 따른다(다만 템플릿 스캐폴드의 헤딩 언어는 대표 scope 기준이다).
+릴리스 노트 설정(언어·독자·어조·목적지)을 init은 **기본적으로 전 scope 공통**으로 다룬다 — 흔한 경우를 덮도록 한 번만 묻고 모든 scope에 같은 값을 적용한다. 다만 `notes`는 `preRelease`·`postRelease`와 마찬가지로 config상 **scope 필드**이므로, scope마다 다른 답이 필요하면 그 scope 항목에 각각 기록하면 된다(init SKILL.md 번들 4·5 참고). 배포되는 `notes-package.md` 템플릿은 렌더 시점에 대표 scope의 `notes.language`로 ko/en 블록이 고정되므로, scope별로 언어를 다르게 두면 이 스캐폴드만은 대표 scope 언어로 남는다. 릴리스 노트를 실제로 쓸 때는 생성된 release-notes 스킬이 그 scope의 config `notes.*` 값을 다시 확인하도록 지시하므로, scope별 언어를 달리 기록한 경우에도 노트 문체 자체는 그 scope 설정을 따른다(다만 템플릿 스캐폴드의 헤딩 언어는 대표 scope 기준이다).
 
 ## 지원 현황
 
