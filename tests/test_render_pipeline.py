@@ -680,6 +680,24 @@ class PipelineTest(unittest.TestCase):
                 cfg["repo"]["buildNumber"] = bn
                 self.assertEqual(render_mod.validate_config(cfg), [])
 
+    def test_watch_paths_rejects_non_string_list(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_wp")
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["watchPaths"] = ["shared/", 7]
+        problems = render_mod.validate_config(cfg)
+        self.assertTrue(any("watchPaths must be a list of non-empty strings"
+                            in p for p in problems), problems)
+
+    def test_watch_paths_absent_and_valid_pass(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_wp2")
+        for wp in (None, [], ["shared/"]):
+            with self.subTest(watchPaths=wp):
+                cfg = scope_config([{"file": "x", "type": "regex",
+                                     "pattern": "v(1)"}])
+                if wp is not None:
+                    cfg["scopes"][0]["watchPaths"] = wp
+                self.assertEqual(render_mod.validate_config(cfg), [])
+
     def test_missing_required_fields_say_required_not_got_none(self):
         # 부재·null은 오타가 아니라 누락이다 — 'got "None"'으로 보고하면
         # 사용자가 자기가 뭘 잘못 적었는지 찾느라 헤맨다.

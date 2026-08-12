@@ -199,6 +199,12 @@ def validate_config(config):
                 problems.append("scopes[{}].scheme.type is required".format(i))
             if not s.get("versionLocations"):
                 problems.append("scopes[{}].versionLocations is required".format(i))
+            watch = s.get("watchPaths")
+            if watch is not None and (not isinstance(watch, list) or any(
+                    not isinstance(w, str) or not w for w in watch)):
+                problems.append("scopes[{}].watchPaths must be a list of "
+                                "non-empty strings (extra paths whose changes "
+                                "count for this scope)".format(i))
     strategy = repo.get("monorepoStrategy")
     if repo.get("kind") == "monorepo" and strategy not in ("fixed", "independent"):
         problems.append('repo.monorepoStrategy must be "fixed" or "independent" '

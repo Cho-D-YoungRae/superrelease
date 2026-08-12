@@ -76,6 +76,7 @@ def scope_config(locations, **repo_overrides):
                   "audience": "developers", "tone": "neutral",
                   "template": "notes-single.md", "perReleasePath": "docs/releases/"},
         "anchor": {"type": "tag", "value": None},
+        "watchPaths": [],
         "dependents": [],
     }
     repo = {
@@ -167,6 +168,7 @@ def monorepo_config(strategy="independent"):
                       "template": "notes-package.md",
                       "perReleasePath": "docs/releases/"},
             "anchor": {"type": "tag", "value": None},
+            "watchPaths": [],
             "dependents": dependents,
         }
 
