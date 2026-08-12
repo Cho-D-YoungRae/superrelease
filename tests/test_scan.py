@@ -566,5 +566,225 @@ class ScanTest(unittest.TestCase):
         self.assertIsNone(scan.BUNDLE_NOTE_RE.match("2026"))
 
 
+def scan_tmp(testcase, files):
+    with tempfile.TemporaryDirectory() as tmp:
+        for rel, content in files.items():
+            write(Path(tmp) / rel, content)
+        r = run_script(SCAN, "--repo", tmp)
+        testcase.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)
+
+
+class MobileScanTest(unittest.TestCase):
+    def test_pubspec_clean_version_is_usable_candidate(self):
+        report = scan_tmp(self, {"pubspec.yaml":
+                                 "name: demo\nversion: 1.2.3\n\ndependencies:\n  flutter:\n    sdk: flutter\n"})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "pubspec.yaml"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "1.2.3")
+        self.assertEqual(cands[0]["type"], "regex")
+        self.assertNotIn("usable", cands[0])
+        self.assertIn("flutter", report["buildSystems"])
+
+    def test_pubspec_build_number_is_advice_only(self):
+        report = scan_tmp(self, {"pubspec.yaml": "name: demo\nversion: 1.2.3+45\n"})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "pubspec.yaml"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "1.2.3+45")
+        self.assertFalse(cands[0]["usable"])
+        self.assertEqual(cands[0]["advice"], "pubspec-build-number")
+        self.assertIn("dart", report["buildSystems"])  # flutter 의존성 없음
+
+    def test_xcconfig_marketing_version_root_and_ios(self):
+        report = scan_tmp(self, {
+            "Config.xcconfig": "MARKETING_VERSION = 2.0.1\nCURRENT_PROJECT_VERSION = 77\n",
+            "ios/App.xcconfig": "MARKETING_VERSION = 2.0.1\n"})
+        files = sorted(c["file"] for c in report["versionCandidates"]
+                       if c["file"].endswith(".xcconfig"))
+        self.assertEqual(files, ["Config.xcconfig", "ios/App.xcconfig"])
+        for c in report["versionCandidates"]:
+            if c["file"].endswith(".xcconfig"):
+                self.assertEqual(c["value"], "2.0.1")
+        # CURRENT_PROJECT_VERSION(빌드 번호)은 감지하지 않는다
+        joined = json.dumps(report["versionCandidates"])
+        self.assertNotIn("CURRENT_PROJECT_VERSION", joined)
+
+    def test_android_version_name_conventional_paths(self):
+        report = scan_tmp(self, {
+            "android/app/build.gradle":
+                'android {\n  defaultConfig {\n    versionCode 45\n    versionName "3.1.0"\n  }\n}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "android/app/build.gradle"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "3.1.0")
+        # versionCode(빌드 번호)는 감지하지 않는다
+        self.assertNotIn("45", json.dumps(report["versionCandidates"]))
+
+    def test_android_version_name_kotlin_dsl(self):
+        report = scan_tmp(self, {
+            "app/build.gradle.kts":
+                'android {\n  defaultConfig {\n    versionCode = 45\n'
+                '    versionName = "4.2.0"\n    versionNameSuffix = "-dev"\n  }\n}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "app/build.gradle.kts"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "4.2.0")
+
+
+class TauriHelmInfraScanTest(unittest.TestCase):
+    def test_tauri_v2_top_level_version(self):
+        report = scan_tmp(self, {"src-tauri/tauri.conf.json":
+                                 '{"productName": "demo", "version": "0.5.0"}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "src-tauri/tauri.conf.json"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "0.5.0")
+        self.assertEqual(cands[0]["path"], "version")
+
+    def test_tauri_v1_package_version_fallback(self):
+        report = scan_tmp(self, {"src-tauri/tauri.conf.json":
+                                 '{"package": {"productName": "demo", "version": "0.4.2"}}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "src-tauri/tauri.conf.json"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "0.4.2")
+        self.assertEqual(cands[0]["path"], "package.version")
+
+    def test_chart_app_version_is_advice_only(self):
+        report = scan_tmp(self, {"Chart.yaml":
+                                 "apiVersion: v2\nname: demo\nversion: 1.4.0\nappVersion: \"2.9.1\"\n"})
+        chart = [c for c in report["versionCandidates"] if c["file"] == "Chart.yaml"]
+        self.assertEqual(len(chart), 2)  # version(기존) + appVersion(신규)
+        app = [c for c in chart if c.get("advice") == "chart-app-version"]
+        self.assertEqual(len(app), 1)
+        self.assertFalse(app[0]["usable"])
+
+    def test_charts_children_become_helm_packages(self):
+        report = scan_tmp(self, {
+            "charts/api/Chart.yaml": "apiVersion: v2\nname: api\nversion: 0.3.0\n",
+            "charts/web/Chart.yaml": "apiVersion: v2\nname: web\nversion: 0.8.0\n"})
+        self.assertIn("charts/: Chart.yaml children", report["monorepo"]["signals"])
+        helm = [p for p in report["monorepo"]["packages"]
+                if p["buildSystem"] == "helm"]
+        self.assertEqual([(p["path"], p["version"]) for p in helm],
+                         [("charts/api", "0.3.0"), ("charts/web", "0.8.0")])
+        self.assertTrue(report["monorepo"]["suspected"])
+
+    def test_go_and_terraform_build_systems(self):
+        report = scan_tmp(self, {"go.mod": "module example.com/demo\n\ngo 1.22\n",
+                                 "main.tf": 'resource "null_resource" "x" {}\n'})
+        self.assertIn("go", report["buildSystems"])
+        self.assertIn("terraform", report["buildSystems"])
+        self.assertEqual(report["versionCandidates"], [])  # 버전 후보 아님
+
+
+class WorkspaceScanTest(unittest.TestCase):
+    def test_uv_workspace_members_and_internal_deps(self):
+        report = scan_tmp(self, {
+            "pyproject.toml":
+                '[project]\nname = "root"\nversion = "0.0.0"\n\n'
+                '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            "packages/core/pyproject.toml":
+                '[project]\nname = "demo-core"\nversion = "1.1.0"\ndependencies = []\n',
+            "packages/api/pyproject.toml":
+                '[project]\nname = "demo-api"\nversion = "2.0.0"\n'
+                'dependencies = ["demo-core>=1.0", "fastapi>=0.100"]\n'})
+        self.assertIn("pyproject.toml: [tool.uv.workspace]",
+                      report["monorepo"]["signals"])
+        py = [p for p in report["monorepo"]["packages"]
+              if p["buildSystem"] == "python"]
+        self.assertEqual([(p["path"], p["name"], p["version"]) for p in py],
+                         [("packages/api", "demo-api", "2.0.0"),
+                          ("packages/core", "demo-core", "1.1.0")])
+        internal = report["monorepo"]["internalDependencies"]
+        self.assertEqual(len(internal), 1)
+        self.assertEqual(internal[0]["fromName"], "demo-api")
+        self.assertEqual(internal[0]["toName"], "demo-core")
+
+    def test_maven_modules_become_hints_not_packages(self):
+        report = scan_tmp(self, {
+            "pom.xml":
+                "<project>\n  <modelVersion>4.0.0</modelVersion>\n"
+                "  <artifactId>parent</artifactId>\n  <version>${revision}</version>\n"
+                "  <properties>\n    <revision>1.0.0</revision>\n  </properties>\n"
+                "  <modules>\n    <module>core</module>\n    <module>api</module>\n"
+                "  </modules>\n</project>\n"})
+        self.assertEqual(report["monorepo"]["mavenModuleHints"], ["api", "core"])
+        self.assertIn("pom.xml: <modules>", report["monorepo"]["signals"])
+        self.assertEqual([p for p in report["monorepo"]["packages"]
+                          if p["buildSystem"] == "maven"], [])
+
+
+class ScopedTagScanTest(unittest.TestCase):
+    def test_scoped_tags_classified_and_prefixes_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            make_git_repo(tmp, {"f.txt": "x\n"}, ["chore: seed"],
+                          tags=["core@1.0.0", "core@1.1.0", "api@0.2.0",
+                                "@acme/core@2.0.0", "@acme/core@2.1.0",
+                                "@acme/core@2.2.0", "v9.9.9"])
+            r = run_script(SCAN, "--repo", tmp)
+            report = json.loads(r.stdout)
+        tags = report["tags"]
+        self.assertEqual(tags["byPattern"]["scoped"], 6)
+        self.assertEqual(tags["byPattern"]["semver-v"], 1)
+        self.assertEqual(tags["otherCount"], 0)
+        self.assertTrue(tags["mixed"])  # scoped + semver-v 두 그룹
+        self.assertEqual(tags["scopedPrefixes"], ["@acme/core", "core", "api"])  # 빈도순
+
+    def test_no_scoped_tags_gives_empty_prefixes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            make_git_repo(tmp, {"f.txt": "x\n"}, ["chore: seed"], tags=["v1.0.0"])
+            r = run_script(SCAN, "--repo", tmp)
+            report = json.loads(r.stdout)
+        self.assertEqual(report["tags"]["scopedPrefixes"], [])
+
+
+class ReleaseAutomationScanTest(unittest.TestCase):
+    def test_changesets_with_pending_count(self):
+        report = scan_tmp(self, {
+            ".changeset/README.md": "readme\n",
+            ".changeset/config.json": "{}\n",
+            ".changeset/wild-cats-jump.md": "---\n'demo': patch\n---\nfix\n",
+            ".changeset/tame-dogs-sit.md": "---\n'demo': minor\n---\nfeat\n"})
+        tools = {t["name"]: t for t in report["releaseAutomation"]["tools"]}
+        self.assertIn("changesets", tools)
+        self.assertEqual(tools["changesets"]["pendingFragments"], 2)  # README 제외
+
+    def test_semantic_release_via_releaserc_and_package_json(self):
+        report = scan_tmp(self, {
+            ".releaserc.json": "{}\n",
+            "package.json": '{"name": "d", "version": "1.0.0", '
+                            '"devDependencies": {"semantic-release": "^24.0.0"}}\n'})
+        tools = {t["name"]: t for t in report["releaseAutomation"]["tools"]}
+        self.assertIn("semantic-release", tools)
+        self.assertIn(".releaserc.json", tools["semantic-release"]["signals"])
+        self.assertIn("package.json:devDependencies",
+                      tools["semantic-release"]["signals"])
+
+    def test_release_please_and_towncrier(self):
+        report = scan_tmp(self, {
+            "release-please-config.json": "{}\n",
+            "pyproject.toml": '[tool.towncrier]\ndirectory = "changelog.d"\n'})
+        names = [t["name"] for t in report["releaseAutomation"]["tools"]]
+        self.assertIn("release-please", names)
+        self.assertIn("towncrier", names)
+
+    def test_ci_workflow_referencing_tool_is_listed(self):
+        report = scan_tmp(self, {
+            ".changeset/config.json": "{}\n",
+            ".github/workflows/release.yml":
+                "on: push\njobs:\n  r:\n    steps:\n"
+                "      - uses: changesets/action@v1\n"})
+        self.assertEqual(report["releaseAutomation"]["ciWorkflows"],
+                         [".github/workflows/release.yml"])
+
+    def test_clean_repo_reports_empty(self):
+        report = scan_tmp(self, {"README.md": "# demo\n"})
+        self.assertEqual(report["releaseAutomation"],
+                         {"tools": [], "ciWorkflows": []})
+
+
 if __name__ == "__main__":
     unittest.main()
