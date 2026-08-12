@@ -34,6 +34,7 @@ POM_REVISION_PATTERN = "<revision>([^<]+)</revision>"
 VERSION_FILE_PATTERN = "^(\\S+)\\s*$"
 OPENAPI_YAML_PATTERN = "^[ \\t]+version:\\s*[\"']?([0-9][^\"'\\s#]*)"
 PUBSPEC_VERSION_PATTERN = "^version:\\s*(\\S+)"
+PUBSPEC_MARKETING_PATTERN = "^version:\\s*(\\d[^+\\s]*)"
 CHART_APP_VERSION_PATTERN = "^appVersion:\\s*[\"']?([^\"'\\s]+)"
 XCCONFIG_MARKETING_PATTERN = "^MARKETING_VERSION\\s*=\\s*(\\S+)"
 ANDROID_VERSION_NAME_PATTERN = "versionName\\s*=?\\s*['\\\"]([^'\\\"]+)['\\\"]"
@@ -96,7 +97,7 @@ def scan_build_systems(repo):
         found.append("rust")
     text = read(repo / "pubspec.yaml")
     if text:
-        found.append("flutter" if re.search(r"^\s+flutter:", text, re.M) else "dart")
+        found.append("flutter" if re.search(r"^[ \t]*flutter:", text, re.M) else "dart")
     if (repo / "go.mod").is_file():
         found.append("go")
     if any(repo.glob("*.tf")):
@@ -220,10 +221,12 @@ def scan_version_candidates(repo):
         m = re.search(PUBSPEC_VERSION_PATTERN, text, re.M)
         if m:
             if "+" in m.group(1):
-                # build number rides in the version field; version.py set would
-                # rewrite it away, so this is detect-and-advise only
-                add("pubspec.yaml", "regex", m.group(1),
-                    usable=False, advice="pubspec-build-number")
+                # marketing part is a usable location (set() replaces only the
+                # capture group, so +N survives); the build number is CI-managed
+                marketing, build = m.group(1).split("+", 1)
+                if marketing and marketing[0].isdigit():
+                    add("pubspec.yaml", "regex", marketing,
+                        pattern=PUBSPEC_MARKETING_PATTERN, buildNumber=build)
             else:
                 add("pubspec.yaml", "regex", m.group(1),
                     pattern=PUBSPEC_VERSION_PATTERN)
@@ -246,7 +249,7 @@ def scan_version_candidates(repo):
         text = read(cfg_path)
         if text:
             m = re.search(XCCONFIG_MARKETING_PATTERN, text, re.M)
-            if m:
+            if m and VERSIONISH_RE.match(m.group(1)):
                 add(cfg_path.relative_to(repo).as_posix(), "regex", m.group(1),
                     pattern=XCCONFIG_MARKETING_PATTERN)
     for rel in ANDROID_GRADLE_PATHS:
