@@ -250,6 +250,10 @@ def validate_config(config):
     elif merge_policy not in ("merge", "squash", "rebase", "unknown"):
         problems.append('repo.mergePolicy must be "merge", "squash", "rebase" '
                         'or "unknown" (got "{}")'.format(merge_policy))
+    build_number = repo.get("buildNumber")
+    if build_number is not None and build_number not in ("ci", "manual"):
+        problems.append('repo.buildNumber must be "ci", "manual" or null '
+                        '(got "{}")'.format(build_number))
     if repo.get("maintenanceLines") and strategy == "independent":
         problems.append("repo.maintenanceLines (hotfix skill) is not supported "
                         "with the independent monorepo strategy")

@@ -663,6 +663,23 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("mergePolicy", r.stderr, "invalid mergePolicy ff-only")
 
+    def test_build_number_rejects_unknown_value(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_bn")
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["repo"]["buildNumber"] = "auto"
+        problems = render_mod.validate_config(cfg)
+        self.assertTrue(any('repo.buildNumber must be "ci", "manual" or null'
+                            in p for p in problems), problems)
+
+    def test_build_number_valid_values_pass(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_bn2")
+        for bn in (None, "ci", "manual"):
+            with self.subTest(buildNumber=bn):
+                cfg = scope_config([{"file": "x", "type": "regex",
+                                     "pattern": "v(1)"}])
+                cfg["repo"]["buildNumber"] = bn
+                self.assertEqual(render_mod.validate_config(cfg), [])
+
     def test_missing_required_fields_say_required_not_got_none(self):
         # 부재·null은 오타가 아니라 누락이다 — 'got "None"'으로 보고하면
         # 사용자가 자기가 뭘 잘못 적었는지 찾느라 헤맨다.
