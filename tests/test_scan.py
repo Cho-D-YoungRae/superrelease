@@ -566,18 +566,19 @@ class ScanTest(unittest.TestCase):
         self.assertIsNone(scan.BUNDLE_NOTE_RE.match("2026"))
 
 
-class MobileScanTest(unittest.TestCase):
-    def _scan(self, files):
-        with tempfile.TemporaryDirectory() as tmp:
-            for rel, content in files.items():
-                write(Path(tmp) / rel, content)
-            r = run_script(SCAN, "--repo", tmp)
-            self.assertEqual(r.returncode, 0, r.stderr)
-            return json.loads(r.stdout)
+def scan_tmp(testcase, files):
+    with tempfile.TemporaryDirectory() as tmp:
+        for rel, content in files.items():
+            write(Path(tmp) / rel, content)
+        r = run_script(SCAN, "--repo", tmp)
+        testcase.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)
 
+
+class MobileScanTest(unittest.TestCase):
     def test_pubspec_clean_version_is_usable_candidate(self):
-        report = self._scan({"pubspec.yaml":
-                             "name: demo\nversion: 1.2.3\n\ndependencies:\n  flutter:\n    sdk: flutter\n"})
+        report = scan_tmp(self, {"pubspec.yaml":
+                                 "name: demo\nversion: 1.2.3\n\ndependencies:\n  flutter:\n    sdk: flutter\n"})
         cands = [c for c in report["versionCandidates"]
                  if c["file"] == "pubspec.yaml"]
         self.assertEqual(len(cands), 1)
@@ -587,7 +588,7 @@ class MobileScanTest(unittest.TestCase):
         self.assertIn("flutter", report["buildSystems"])
 
     def test_pubspec_build_number_is_advice_only(self):
-        report = self._scan({"pubspec.yaml": "name: demo\nversion: 1.2.3+45\n"})
+        report = scan_tmp(self, {"pubspec.yaml": "name: demo\nversion: 1.2.3+45\n"})
         cands = [c for c in report["versionCandidates"]
                  if c["file"] == "pubspec.yaml"]
         self.assertEqual(len(cands), 1)
@@ -597,7 +598,7 @@ class MobileScanTest(unittest.TestCase):
         self.assertIn("dart", report["buildSystems"])  # flutter 의존성 없음
 
     def test_xcconfig_marketing_version_root_and_ios(self):
-        report = self._scan({
+        report = scan_tmp(self, {
             "Config.xcconfig": "MARKETING_VERSION = 2.0.1\nCURRENT_PROJECT_VERSION = 77\n",
             "ios/App.xcconfig": "MARKETING_VERSION = 2.0.1\n"})
         files = sorted(c["file"] for c in report["versionCandidates"]
@@ -611,7 +612,7 @@ class MobileScanTest(unittest.TestCase):
         self.assertNotIn("CURRENT_PROJECT_VERSION", joined)
 
     def test_android_version_name_conventional_paths(self):
-        report = self._scan({
+        report = scan_tmp(self, {
             "android/app/build.gradle":
                 'android {\n  defaultConfig {\n    versionCode 45\n    versionName "3.1.0"\n  }\n}\n'})
         cands = [c for c in report["versionCandidates"]
@@ -620,6 +621,53 @@ class MobileScanTest(unittest.TestCase):
         self.assertEqual(cands[0]["value"], "3.1.0")
         # versionCode(빌드 번호)는 감지하지 않는다
         self.assertNotIn("45", json.dumps(report["versionCandidates"]))
+
+
+class TauriHelmInfraScanTest(unittest.TestCase):
+    def test_tauri_v2_top_level_version(self):
+        report = scan_tmp(self, {"src-tauri/tauri.conf.json":
+                                 '{"productName": "demo", "version": "0.5.0"}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "src-tauri/tauri.conf.json"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "0.5.0")
+        self.assertEqual(cands[0]["path"], "version")
+
+    def test_tauri_v1_package_version_fallback(self):
+        report = scan_tmp(self, {"src-tauri/tauri.conf.json":
+                                 '{"package": {"productName": "demo", "version": "0.4.2"}}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "src-tauri/tauri.conf.json"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "0.4.2")
+        self.assertEqual(cands[0]["path"], "package.version")
+
+    def test_chart_app_version_is_advice_only(self):
+        report = scan_tmp(self, {"Chart.yaml":
+                                 "apiVersion: v2\nname: demo\nversion: 1.4.0\nappVersion: \"2.9.1\"\n"})
+        chart = [c for c in report["versionCandidates"] if c["file"] == "Chart.yaml"]
+        self.assertEqual(len(chart), 2)  # version(기존) + appVersion(신규)
+        app = [c for c in chart if c.get("advice") == "chart-app-version"]
+        self.assertEqual(len(app), 1)
+        self.assertFalse(app[0]["usable"])
+
+    def test_charts_children_become_helm_packages(self):
+        report = scan_tmp(self, {
+            "charts/api/Chart.yaml": "apiVersion: v2\nname: api\nversion: 0.3.0\n",
+            "charts/web/Chart.yaml": "apiVersion: v2\nname: web\nversion: 0.8.0\n"})
+        self.assertIn("charts/: Chart.yaml children", report["monorepo"]["signals"])
+        helm = [p for p in report["monorepo"]["packages"]
+                if p["buildSystem"] == "helm"]
+        self.assertEqual([(p["path"], p["version"]) for p in helm],
+                         [("charts/api", "0.3.0"), ("charts/web", "0.8.0")])
+        self.assertTrue(report["monorepo"]["suspected"])
+
+    def test_go_and_terraform_build_systems(self):
+        report = scan_tmp(self, {"go.mod": "module example.com/demo\n\ngo 1.22\n",
+                                 "main.tf": 'resource "null_resource" "x" {}\n'})
+        self.assertIn("go", report["buildSystems"])
+        self.assertIn("terraform", report["buildSystems"])
+        self.assertEqual(report["versionCandidates"], [])  # 버전 후보 아님
 
 
 if __name__ == "__main__":

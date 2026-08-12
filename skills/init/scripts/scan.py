@@ -34,6 +34,7 @@ POM_REVISION_PATTERN = "<revision>([^<]+)</revision>"
 VERSION_FILE_PATTERN = "^(\\S+)\\s*$"
 OPENAPI_YAML_PATTERN = "^[ \\t]+version:\\s*[\"']?([0-9][^\"'\\s#]*)"
 PUBSPEC_VERSION_PATTERN = "^version:\\s*(\\S+)"
+CHART_APP_VERSION_PATTERN = "^appVersion:\\s*[\"']?([^\"'\\s]+)"
 XCCONFIG_MARKETING_PATTERN = "^MARKETING_VERSION\\s*=\\s*(\\S+)"
 ANDROID_VERSION_NAME_PATTERN = "versionName\\s+['\\\"]([^'\\\"]+)['\\\"]"
 ANDROID_GRADLE_PATHS = ("app/build.gradle.kts", "app/build.gradle",
@@ -89,6 +90,10 @@ def scan_build_systems(repo):
     text = read(repo / "pubspec.yaml")
     if text:
         found.append("flutter" if re.search(r"^\s+flutter:", text, re.M) else "dart")
+    if (repo / "go.mod").is_file():
+        found.append("go")
+    if any(repo.glob("*.tf")):
+        found.append("terraform")
     return found
 
 
@@ -187,6 +192,12 @@ def scan_version_candidates(repo):
         m = re.search(CHART_VERSION_PATTERN, text, re.M)
         if m:
             add("Chart.yaml", "regex", m.group(1), pattern=CHART_VERSION_PATTERN)
+        m = re.search(CHART_APP_VERSION_PATTERN, text, re.M)
+        if m:
+            # appVersion tracks the app, version tracks the chart — which one
+            # drives a release is a per-repo decision; detect-and-advise only
+            add("Chart.yaml", "regex", m.group(1),
+                usable=False, advice="chart-app-version")
     text = read(repo / "README.md")
     if text:
         m = re.search(BADGE_VERSION_PATTERN, text)
@@ -209,6 +220,21 @@ def scan_version_candidates(repo):
             else:
                 add("pubspec.yaml", "regex", m.group(1),
                     pattern=PUBSPEC_VERSION_PATTERN)
+    text = read(repo / "src-tauri" / "tauri.conf.json")
+    if text:
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, dict):
+            v = data.get("version")
+            pkg = data.get("package")
+            v1 = pkg.get("version") if isinstance(pkg, dict) else None
+            if isinstance(v, str):
+                add("src-tauri/tauri.conf.json", "json-path", v, path="version")
+            elif isinstance(v1, str):
+                add("src-tauri/tauri.conf.json", "json-path", v1,
+                    path="package.version")
     for cfg_path in sorted(repo.glob("*.xcconfig")) + sorted((repo / "ios").glob("*.xcconfig")):
         text = read(cfg_path)
         if text:
@@ -447,6 +473,19 @@ def scan_monorepo(repo):
     node_paths = {p["path"] for p in packages}
     packages += [g for g in _gradle_packages(repo)
                  if g["path"] not in node_paths]
+    charts_dir = repo / "charts"
+    if charts_dir.is_dir():
+        chart_children = sorted(d for d in charts_dir.iterdir()
+                                if d.is_dir() and (d / "Chart.yaml").is_file())
+        if chart_children:
+            signals.append("charts/: Chart.yaml children")
+            for d in chart_children:
+                ctext = read(d / "Chart.yaml") or ""
+                m = re.search(CHART_VERSION_PATTERN, ctext, re.M)
+                packages.append({"path": d.relative_to(repo).as_posix(),
+                                 "name": d.name,
+                                 "version": m.group(1) if m else None,
+                                 "buildSystem": "helm"})
     return {"suspected": bool(signals) or len(packages) > 1,
             "signals": signals, "packages": packages,
             "internalDependencies": internal,
