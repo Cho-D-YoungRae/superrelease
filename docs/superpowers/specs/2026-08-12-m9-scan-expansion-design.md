@@ -29,7 +29,7 @@
 
 ## 3. scoped 태그 (scan_tags)
 
-- `TAG_PATTERNS`에 `scoped` 클래스 추가: `^[A-Za-z0-9._/-]+@v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$`. byPattern·mixed 계산에 자연 포함된다.
+- `TAG_PATTERNS`에 `scoped` 클래스 추가: `^@?[A-Za-z0-9._/-]+@v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$`. byPattern·mixed 계산에 자연 포함된다.
 - `scopedPrefixes` 필드 추가: scoped 태그의 `@` 앞 프리픽스 빈도 상위 목록(최대 10) — init이 independent 모노레포의 scope 이름·`tag.format` 제안에 쓴다.
 
 ## 4. B-6 — 기존 릴리스 자동화 감지

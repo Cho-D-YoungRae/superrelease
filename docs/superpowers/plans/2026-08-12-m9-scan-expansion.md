@@ -584,7 +584,7 @@ TAG_PATTERNS = {
     "semver-v": r"^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
     "semver": r"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
     "short": r"^v?\d+\.\d+$",
-    "scoped": r"^[A-Za-z0-9._/-]+@v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
+    "scoped": r"^@?[A-Za-z0-9._/-]+@v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$",
 }
 ```
 
