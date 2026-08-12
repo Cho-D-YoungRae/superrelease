@@ -306,7 +306,8 @@ def validate_config(config):
         if not bundle.get("notesPath"):
             problems.append("bundle.notesPath is required "
                             '(round notes directory, e.g. "docs/releases/")')
-    known_dests = {"changelog", "release-file", "github-release", "fragment"}
+    known_dests = {"changelog", "release-file", "github-release", "fragment",
+                   "package-changelog"}
     sinks = known_dests - {"fragment"}
     for i, s in enumerate(scopes or []):
         dests = (s.get("notes") or {}).get("destinations") or []
@@ -318,7 +319,14 @@ def validate_config(config):
             elif d not in known_dests:
                 problems.append('scopes[{}]: unknown notes destination "{}" '
                                 "(supported: changelog, release-file, "
-                                "github-release, fragment)".format(i, d))
+                                "github-release, fragment, package-changelog)"
+                                .format(i, d))
+        if ("package-changelog" in dests
+                and repo.get("monorepoStrategy") != "independent"):
+            problems.append('scopes[{}]: notes destination "package-changelog" '
+                            'requires monorepoStrategy "independent" — on a '
+                            'single-version repo use "changelog" (the root '
+                            "changelog is the package changelog)".format(i))
         if "fragment" in dests and not (sinks & set(dests)):
             problems.append('scopes[{}]: notes destination "fragment" needs at '
                             "least one sink (changelog/release-file/"
@@ -485,6 +493,7 @@ def derived_flags(scopes):
         "anyNotesReleaseFile": any_dest("release-file"),
         "anyNotesGithubRelease": any_dest("github-release"),
         "anyNotesFragment": any_dest("fragment"),
+        "anyNotesPackageChangelog": any_dest("package-changelog"),
     }
 
 
