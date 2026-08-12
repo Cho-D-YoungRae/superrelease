@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   조각 수 포함)·semantic-release·release-please·towncrier와 이를 참조하는
   CI 워크플로를 감지해, 이중 자동화 경합 경고·펜딩 조각 처리·태그 트리거
   publish 전환 방향을 안내한다. 파이프라인 변경 실행은 하지 않는다.
+- **모바일 빌드 번호 축을 CI-관리 모델로 지원한다** — init이 모바일
+  신호(flutter/dart·xcconfig·versionName·pubspec `+N`)를 보면 빌드 번호
+  관리 방식(CI 자동 증가 권장 | 수동)을 물어 `repo.buildNumber`에 기록하고,
+  release 스킬은 버전 반영 시 빌드 번호를 건드리지 않음을 안내한다.
+  모바일은 preRelease `none` 권장 안내(스토어 베타는 빌드번호+트랙 기반)도
+  함께 한다. 값을 올리는 실행은 하지 않는다 — CI 몫. flutter-app 골든으로
+  핀(대표 config 32종).
 
 ### Changed
 
@@ -48,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   라이브러리에 `-SNAPSHOT`+next-snapshot을 기본 제안해 npm·Rust·Python
   생태계 관례와 어긋났다. 이제 gradle·maven 감지 시에만 기본이며, 그 외
   라이브러리는 pre/post `none`이 기본이다.
+- **pubspec `+N` 감지가 감지·안내 전용에서 마케팅-only usable 후보로** —
+  M9는 빌드 번호가 섞인 pubspec을 등록 불가로 안내만 했지만, 이제 마케팅
+  부분만 캡처하는 패턴을 제안한다. `version.py set`은 캡처 그룹만 치환하므로
+  `+N`은 보존된다.
 
 ### Fixed
 

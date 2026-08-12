@@ -150,12 +150,12 @@ squash 흔적), 브랜치(develop 브랜치 추정 포함), 모노레포 신호�
 superrelease가 지금 대응하는 케이스를, 가장 많이 묻는 축 — 모노레포·
 멀티모듈·오픈소스 — 중심으로 요약한 지도입니다. "지원" 칸의 모든 항목은
 렌더 시점에 `validate_config`가 강제하고 골든 렌더 스냅샷(`tests/golden/`의
-대표 config 31종)이 핀합니다.
+대표 config 32종)이 핀합니다.
 
 | 축 | 지원 |
 |---|---|
 | 레포 형태 | 단일 레포 · 배포물 하나의 멀티모듈 빌드(root scope 하나 — Gradle/Maven 멀티모듈) · 모노레포 **fixed**(전 패키지 단일 버전) · 모노레포 **independent**(scope 2개 이상: scope별 `pkg@{version}` 태그 네임스페이스, 변경 패키지 감지, `dependents`를 통한 patch 전파, 공유 버전 파일의 scope별 키) |
-| 프로젝트 유형(골든 핀) | JVM 라이브러리/백엔드(`gradle.properties` + `-SNAPSHOT`) · npm 앱/라이브러리(`package.json` + `package-lock.json` 동기화) · Python 라이브러리(`pyproject.toml`) · pnpm/npm workspaces 모노레포 · Claude Code 플러그인(`plugin.json` + `marketplace.json` 동기화). Maven `<revision>` 단일 버전도 지원합니다 — scan이 감지하고 패턴은 유닛 테스트가 핀하지만, Gradle 단일 버전과 렌더 결과가 같아 전용 골든은 두지 않습니다 |
+| 프로젝트 유형(골든 핀) | JVM 라이브러리/백엔드(`gradle.properties` + `-SNAPSHOT`) · npm 앱/라이브러리(`package.json` + `package-lock.json` 동기화) · Python 라이브러리(`pyproject.toml`) · pnpm/npm workspaces 모노레포 · Claude Code 플러그인(`plugin.json` + `marketplace.json` 동기화) · Flutter 앱(pubspec 마케팅-only + 빌드 번호 CI 관리). Maven `<revision>` 단일 버전도 지원합니다 — scan이 감지하고 패턴은 유닛 테스트가 핀하지만, Gradle 단일 버전과 렌더 결과가 같아 전용 골든은 두지 않습니다 |
 | 오픈소스 필수 요소 | SemVer · `-rc.N` 카운터 pre-release · moving `v<major>` 태그 · Keep-a-Changelog CHANGELOG · `release.yml` 카테고리를 갖춘 GitHub Releases · ko/en/both 노트 · 기존 태그에서 CHANGELOG backfill |
 | 브랜칭 × 경로 | trunk × direct-push · trunk × release-pr(보호 브랜치) · gitflow × release-pr(단일 레포·fixed/independent 모노레포, 태그 선택) |
 | 버전 체계 | SemVer · CalVer · HeadVer(`next-version.py`가 결정론적으로 산술) |
@@ -173,11 +173,12 @@ superrelease가 지금 대응하는 케이스를, 가장 많이 묻는 축 — �
 [docs/superpowers/specs/2026-08-06-coverage-review.md](docs/superpowers/specs/2026-08-06-coverage-review.md)):
 
 - **모바일(Flutter/iOS/Android/React Native)** — 마케팅 버전 축은 scan이
-  감지합니다(pubspec.yaml, `*.xcconfig`의 `MARKETING_VERSION`,
-  `app/`·`android/app/`의 `versionName`). 빌드 번호 축(`versionCode`,
-  `CFBundleVersion`, pubspec `+N`)은 여전히 모델이 없습니다 —
-  `next-version.py`는 build metadata가 섞인 버전(`1.2.3+45`)을 조용히
-  드롭하는 대신 명시적으로 거부합니다.
+  감지하고(pubspec.yaml, `*.xcconfig`의 `MARKETING_VERSION`,
+  `app/`·`android/app/`의 `versionName`), 빌드 번호 축(`versionCode`,
+  `CFBundleVersion`, pubspec `+N`)은 CI-관리 모델로 지원합니다 — init이
+  관리 방식을 물어 `repo.buildNumber`에 기록하고, release가 보존을
+  보장합니다(pubspec `+N`은 마케팅-only 패턴으로 보존). 빌드 번호 값을
+  올리는 실행은 하지 않습니다 — CI 몫입니다.
 - **Rust** — `Cargo.toml` regex 위치는 동작하지만 `version.py set`이
   `Cargo.lock`을 갱신하지 않습니다(lockfile 동기화는 `package-lock.json`만).
 - **Python pre-release** — PEP 440 형식(`rc1`, `.dev0`, `.post1`)은
@@ -284,6 +285,7 @@ workspace 멤버, `pom.xml`의 `<modules>` 힌트, scoped 태그(`pkg@1.2.3` —
 | `repo.maintenanceLines` | boolean | trunk 전용(hotfix 스킬); gitflow 브랜칭·independent 모노레포·non-semver scope와는 병행 불가 |
 | `repo.releaseCommitFormat` | 문자열 템플릿 | `{version}` 필수; `{scope}`는 independent 모노레포 전용 |
 | `repo.mergePolicy` | `merge` \| `squash` \| `rebase` \| `unknown` | 필수; 닫힌 집합(오타 거부). 팀에 정해진 정책이 없으면 `unknown` |
+| `repo.buildNumber` | `ci` \| `manual` \| null | 모바일 빌드 번호 축의 관리 방식 기록(기본 null — 비모바일). superrelease는 값을 올리지 않음 |
 | `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver는 `preRelease.style: none` + `postRelease.bump: none` + `scheme.pattern` 필요 |
 | `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N`; `postRelease.bump: next-snapshot`은 `mutable` + qualifier 필요 |
 | `scopes[].tag.enabled` | 명시적 boolean | 필수; `github.release: true`면 true여야 함; `movingMajorTag`는 semver 전용이며 independent 전략에서 거부 |
