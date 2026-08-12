@@ -153,17 +153,18 @@ A monorepo with a frontend package and a backend whose bootable modules
 A condensed map of what superrelease handles today, on the axes people ask
 about most — monorepos, multi-module builds, open-source libraries. Every
 "supported" cell is enforced by `validate_config` at render time and pinned
-by golden-render snapshots (32 representative configs under `tests/golden/`).
+by golden-render snapshots (33 representative configs under `tests/golden/`).
 
 | Axis | Supported |
 |---|---|
 | Repo shape | single repo · multi-module build shipping one deployable (one root scope — Gradle/Maven multi-module) · monorepo **fixed** (all packages share one version) · monorepo **independent** (≥2 scopes: per-scope `pkg@{version}` tag namespaces, changed-package detection, patch propagation through `dependents`, shared version files with per-scope keys) |
-| Project types (golden-pinned) | JVM library/backend (`gradle.properties` + `-SNAPSHOT`) · npm app/library (`package.json` + `package-lock.json` sync) · Python library (`pyproject.toml`) · pnpm/npm-workspaces monorepo · Claude Code plugin (`plugin.json` + `marketplace.json` sync) · Flutter app (marketing-only pubspec + CI-managed build number). Maven single-version via `<revision>` is supported too — scan detects it and a unit test pins its pattern, but it renders identically to the Gradle single-version case, so it has no golden of its own |
+| Project types (golden-pinned) | JVM library/backend (`gradle.properties` + `-SNAPSHOT`) · npm app/library (`package.json` + `package-lock.json` sync) · Python library (`pyproject.toml`) · pnpm/npm-workspaces monorepo · Claude Code plugin (`plugin.json` + `marketplace.json` sync) · Flutter app (marketing-only pubspec + CI-managed build number) · independent monorepo per-package CHANGELOG. Maven single-version via `<revision>` is supported too — scan detects it and a unit test pins its pattern, but it renders identically to the Gradle single-version case, so it has no golden of its own |
+| Mobile (Flutter/iOS/Android/React Native) | scan detects the marketing-version axis (pubspec.yaml · `MARKETING_VERSION` in `*.xcconfig` · `versionName` under `app/`·`android/app/`) and releases bump only that axis · the build-number axis (`versionCode`, `CFBundleVersion`, pubspec `+N`) follows a **CI-managed model** — init asks how it is managed, records it in `repo.buildNumber`, and the release skill guarantees preservation (pubspec `+N` survives via a marketing-only pattern) |
 | Open-source staples | SemVer · `-rc.N` counter pre-releases · moving `v<major>` tag · Keep-a-Changelog CHANGELOG · GitHub Releases with `release.yml` categories · notes in ko/en/both · CHANGELOG backfill from existing tags |
 | Branching × path | trunk × direct-push · trunk × release-pr (protected branches) · gitflow × release-pr (single repo and fixed/independent monorepos; tags optional) |
 | Version schemes | SemVer · CalVer · HeadVer (deterministic arithmetic in `next-version.py`) |
 | Pre/post-release | `none` · `mutable` (`-SNAPSHOT`, returns to the next snapshot after release) · `counter` (`-rc.N`) |
-| Notes | changelog · per-release files · GitHub Release body · `changelog.d/` fragments · CalVer bundle round notes (independent monorepos) |
+| Notes | changelog · per-release files · GitHub Release body · `changelog.d/` fragments · per-package CHANGELOGs (independent monorepos) · CalVer bundle round notes (independent monorepos) |
 | Special flows | maintenance-line hotfix (trunk × semver) · gitflow production hotfix · tagless operation (ref anchor; GitHub Releases off) · mixed tagged/tagless scopes in one monorepo |
 
 Version locations are format-agnostic — `properties-key`, `json-path` and
@@ -175,16 +176,12 @@ version-locations question.
 Known limits (from the 2026-08 coverage review,
 [docs/superpowers/specs/2026-08-06-coverage-review.md](docs/superpowers/specs/2026-08-06-coverage-review.md)):
 
-- **Mobile (Flutter/iOS/Android/React Native)** — scan detects the
-  marketing-version axis (pubspec.yaml, `MARKETING_VERSION` in `*.xcconfig`,
-  `versionName` under `app/`·`android/app/`), and the build-number axis
-  (`versionCode`, `CFBundleVersion`, pubspec `+N`) is supported as a
-  CI-managed model: init asks how it is managed, records it in
-  `repo.buildNumber`, and the release skill guarantees preservation
-  (pubspec `+N` survives via a marketing-only pattern). superrelease never
-  bumps build numbers itself — that stays in CI.
-- **Rust** — `Cargo.toml` regex locations work, but `version.py set` does not
-  refresh `Cargo.lock` (lockfile sync covers `package-lock.json` only).
+- **Mobile build numbers** — superrelease never bumps build-number values
+  (`versionCode`, `CFBundleVersion`, pubspec `+N`) — that stays in CI
+  (`repo.buildNumber` records only how they are managed).
+- **Rust** — `Cargo.toml` regex locations work, and `version.py set` also
+  refreshes this package's own entry in `Cargo.lock` (dependency entries are
+  never touched). Cargo workspace member traversal is not supported.
 - **Python pre-releases** — PEP 440 forms (`rc1`, `.dev0`, `.post1`) are not
   supported; use `none` (recommended) or the SemVer `-rc.N` counter.
 - **Existing release automation** — init detects changesets /
@@ -295,8 +292,9 @@ and re-running init is the official customization path.
 | `repo.buildNumber` | `ci` \| `manual` \| null | records how the mobile build-number axis is managed (default null — non-mobile). superrelease never bumps it |
 | `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver require `preRelease.style: none` + `postRelease.bump: none` + a `scheme.pattern` |
 | `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N`; `postRelease.bump: next-snapshot` needs `mutable` + a qualifier |
+| `scopes[].watchPaths` | array of path strings | optional; changes under these paths also count as changes for that scope (shared code, codegen sources). For independent monorepos |
 | `scopes[].tag.enabled` | explicit boolean | required; `github.release: true` needs it true; `movingMajorTag` is semver-only and rejected under the independent strategy |
-| `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` | `fragment` needs at least one other destination as a sink; `release-file` requires `notes.perReleasePath` |
+| `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` \| `package-changelog` | `fragment` needs at least one other destination as a sink; `release-file` requires `notes.perReleasePath`; `package-changelog` is independent-monorepo-only (a CHANGELOG.md under the scope path) |
 | `scopes[].notes.language` | `ko` \| `en` \| `both` | required; closed set (typos rejected) |
 | `bundle` | `{enabled, scheme: calver+pattern, notesPath}` | independent monorepos: CalVer-named round note bundling each release round |
 
@@ -338,7 +336,10 @@ On Windows, replace `python3` with `py -3`.
   recommended boundary: superrelease creates the tag (and GitHub Release), your
   CI publishes on the tag push.
 - **A bad version went out?** Never re-tag. Ship the next patch over it and use
-  ecosystem recalls (`npm deprecate`, PyPI yank) — the skills will guide you.
+  ecosystem recalls (`npm deprecate` · PyPI yank · `cargo yank` · Go retract ·
+  mobile stores roll forward with a fixed build · desktop updater feeds
+  republish the last good version · containers get a new patch tag) — the
+  skills will guide you.
 - **Dev-server builds?** Keep `-SNAPSHOT` (no bump) and pair it with an
   immutable identifier (commit SHA via Spring build-info, Docker `sha-…` tags).
 - **Uninstall?** Delete `.superrelease/` and `.claude/skills/{release*,hotfix,backfill}`

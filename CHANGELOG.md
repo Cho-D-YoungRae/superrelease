@@ -41,7 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   release 스킬은 버전 반영 시 빌드 번호를 건드리지 않음을 안내한다.
   모바일은 preRelease `none` 권장 안내(스토어 베타는 빌드번호+트랙 기반)도
   함께 한다. 값을 올리는 실행은 하지 않는다 — CI 몫. flutter-app 골든으로
-  핀(대표 config 32종).
+  핀(대표 config 33종).
+- **Cargo.lock 동기화** — Rust 레포에서 `version.py set`이 `Cargo.lock`의
+  자기 패키지 항목을 함께 갱신한다(의존성 항목 불변). 릴리스 커밋에 구버전
+  lockfile이 박제되던 문제 해소.
+- **scope별 watchPaths** — 공유 경로(공용 라이브러리·codegen 소스)의 변경을
+  지정한 scope의 변경으로 집계한다. 전 모듈에 영향을 주는 변경이 릴리스
+  감지에서 누락되던 축 해소.
+- **per-package CHANGELOG 목적지** — independent 모노레포에서
+  `package-changelog` 목적지로 각 패키지 경로의 CHANGELOG.md에 표준
+  Keep a Changelog 헤딩(`## <version>`)으로 이력을 쌓을 수 있다
+  (changesets 관행·npm tarball 동봉 대응, 대표 config 33종).
 
 ### Changed
 
@@ -77,6 +87,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `scopes[].notes.language`는 사실상 필수인데, 필드를 아예 빼거나 null로 두면
   `got "None"`이라는 오타 문구로 거부돼 사용자가 잘못 적은 값을 찾아 헤맸다.
   이제 부재·null은 `is required`로 구분해 보고한다.
+- **프로즈·감지 정합 일괄 정리** — 회수 어휘 확장(cargo yank·Go retract·스토어
+  롤포워드·업데이터 피드·컨테이너), KaC 모노레포 헤딩 트레이드오프 명문화,
+  fixed 전략의 dependents 무시 명시, Go `/vN` 안내, PEP 440 안내 트리거 보강,
+  mergePolicy unknown 지침, preflight 결번 안내, scan 오탐 3건(비-project 테이블
+  의존성·charts 중복·주석 versionName) 등 커버리지 리뷰 B-19 잔여를 소진했다.
 
 ## [0.4.1] - 2026-08-11
 
