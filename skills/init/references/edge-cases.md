@@ -94,4 +94,4 @@ init이 생성하려는 목적지 경로에 generated 마커 없는 파일이 �
 - **iOS Info.plist** — `CFBundleShortVersionString`은 키와 값이 별도 줄(`<key>…</key>` 다음 줄 `<string>1.2.3</string>`)이라 단일행 regex 위치로 안전하게 잡을 수 없다. Xcode 프로젝트라면 xcconfig로 버전을 옮기고(`MARKETING_VERSION = 1.2.3`, Info.plist는 `$(MARKETING_VERSION)` 참조) 그 xcconfig를 위치로 등록하는 것이 표준 경로다 — 스캔도 xcconfig는 감지한다.
 - **Tauri v1** — 버전이 `src-tauri/tauri.conf.json`의 `package.version`에 있다(v2는 최상위 `version`). 스캔이 둘 다 감지하지만, 수동 등록 시 json-path를 버전 위치에 맞게 구분하라.
 - **Android** — `versionName`은 관례상 `app/build.gradle(.kts)` 또는 `android/app/build.gradle(.kts)`의 `defaultConfig`에 있다. `versionCode`(빌드 번호)는 버전 위치로 등록하지 마라 — 산술 모델이 다르다(단조 증가 정수).
-- **빌드 번호 축 공통** — `versionCode`·`CFBundleVersion`·pubspec `+N`은 superrelease의 버전 모델 밖이다. 마케팅 버전만 superrelease로 관리하고 빌드 번호는 CI가 올리는 구성을 권장한다.
+- **빌드 번호 축 공통** — superrelease는 빌드 번호(`versionCode`·`CFBundleVersion`·pubspec `+N`)의 값을 올리지 않는다 — `repo.buildNumber`(`ci`|`manual`)가 관리 방식만 기록하고 release 스킬이 보존을 안내한다. pubspec은 `+N` 감지 시 스캔이 마케팅-only 패턴(`^version:\s*(\d[^+\s]*)`)을 자동 제안한다 — `version.py set`이 캡처 그룹만 치환해 `+N`이 보존된다. 빌드 번호 증가는 CI 몫(`github.run_number`·`--build-number`·fastlane·agvtool).
