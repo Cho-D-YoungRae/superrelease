@@ -244,8 +244,24 @@ gitflow에서는 태그가 선택 사항입니다 — 태그 유무와 무관하
 `Cargo.toml`, `Dockerfile` LABEL, `Chart.yaml`, README 배지, `VERSION`,
 `openapi`/`swagger`(json·yaml), `pom.xml`(`<revision>` 프로퍼티는 사용 가능한
 위치이고 일반 project `<version>`은 감지는 되지만 사용 불가로 표시됩니다),
-node·Gradle 모노레포 패키지도 포함됩니다. 감지하지 않는 것:
-`libs.versions.toml`(의존성 카탈로그), Gradle 내부 의존성.
+`.claude-plugin/plugin.json`, node·Gradle 모노레포 패키지도 포함됩니다.
+
+모바일·데스크톱 버전 위치: `pubspec.yaml`(`+빌드번호`가 붙은 값은 감지는
+되지만 안내 전용입니다), `*.xcconfig`의 `MARKETING_VERSION`(레포 루트와
+`ios/`), `app/`·`android/app/` 아래 `build.gradle(.kts)`의
+`versionName`(Groovy·Kotlin DSL 모두), `src-tauri/tauri.conf.json`(v2는
+최상위 `version`, v1은 `package.version`). `Chart.yaml`의 `appVersion`도
+마찬가지로 감지는 되지만 안내 전용입니다 — 차트가 아니라 앱을 추적하는
+값이기 때문입니다.
+
+버전 문자열 외의 신호·힌트: `charts/` 아래 헬름 차트, 내부 의존성을 가진 uv
+workspace 멤버, `pom.xml`의 `<modules>` 힌트, scoped 태그(`pkg@1.2.3` —
+`@scope/pkg@1.2.3` 포함)와 그 prefix 목록(scope 이름 후보), 기존 릴리스
+자동화(changesets·semantic-release·release-please·towncrier와 이들을
+참조하는 CI 워크플로). `go.mod`·`*.tf`는 빌드 시스템으로만 인식하며 버전
+후보로는 잡지 않습니다.
+
+감지하지 않는 것: `libs.versions.toml`(의존성 카탈로그), Gradle 내부 의존성.
 
 ## 업그레이드
 

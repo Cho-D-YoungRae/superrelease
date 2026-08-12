@@ -248,8 +248,26 @@ change detection and stall/resume, tagged or not.
 `Cargo.toml`, `Dockerfile` LABEL, `Chart.yaml`, README badge, `VERSION`,
 `openapi`/`swagger` (json·yaml), `pom.xml` (`<revision>` property is a usable
 location; a plain project `<version>` is detected but flagged not-usable),
-plus node and Gradle monorepo packages. Not detected: `libs.versions.toml`
-(a dependency catalog), Gradle internal dependencies.
+`.claude-plugin/plugin.json`, plus node and Gradle monorepo packages.
+
+Mobile and desktop version locations: `pubspec.yaml` (a value carrying a
+`+buildnumber` is detected but advice-only), `MARKETING_VERSION` in
+`*.xcconfig` (repo root and `ios/`), `versionName` in `build.gradle(.kts)`
+under `app/`·`android/app/` (Groovy and Kotlin DSL), and
+`src-tauri/tauri.conf.json` (v2 top-level `version`, v1 `package.version`).
+`Chart.yaml` `appVersion` is likewise detected but advice-only — it tracks
+the app, not the chart.
+
+Signals and hints beyond version strings: helm charts under `charts/`, uv
+workspace members with internal dependencies, `<modules>` hints in `pom.xml`,
+scoped tags (`pkg@1.2.3`, including `@scope/pkg@1.2.3`) reported with their
+prefixes as scope-name candidates, and existing release automation
+(changesets, semantic-release, release-please, towncrier, plus the CI
+workflows referencing them). `go.mod` and `*.tf` are recognized as build
+systems only, not as version candidates.
+
+Not detected: `libs.versions.toml` (a dependency catalog), Gradle internal
+dependencies.
 
 ## Upgrading
 
