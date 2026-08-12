@@ -53,7 +53,7 @@
 - **towncrier**: `towncrier.toml` · pyproject.toml에 `[tool.towncrier]` 섹션.
 - **ciWorkflows**: `.github/workflows/*.yml|yaml`에서 `changesets/action`·`release-please`·`semantic-release`·`towncrier` 문자열을 참조하는 파일 목록 — 이중 자동화 경고의 근거.
 
-**init SKILL.md 안내**(감지 시, Phase 2 번들 질문 전 한 단락 — 실행은 경계):
+**init SKILL.md 안내**(`tools` **또는** `ciWorkflows`가 비어 있지 않으면 — ciWorkflows는 tools의 부분집합이 아니다(설정 파일 없이 CI 액션만 쓰는 레포), Phase 2 번들 질문 전 한 단락 — 실행은 경계):
 
 1. 이중 자동화 경고 — 기존 도구의 CI 파이프라인이 살아 있는 동안 superrelease가 태그·Release를 만들면 같은 태그·버전을 두 시스템이 경합한다. `ciWorkflows` 목록을 보여주고, 전환하려면 해당 워크플로 비활성화가 선행돼야 함을 안내(수정은 사용자 몫).
 2. 펜딩 조각 처리 — changesets `pendingFragments` N > 0이면 기존 도구로 소진(마지막 릴리스)하거나 수동 반영 후 전환할 것을 안내.
