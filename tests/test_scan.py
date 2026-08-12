@@ -566,5 +566,61 @@ class ScanTest(unittest.TestCase):
         self.assertIsNone(scan.BUNDLE_NOTE_RE.match("2026"))
 
 
+class MobileScanTest(unittest.TestCase):
+    def _scan(self, files):
+        with tempfile.TemporaryDirectory() as tmp:
+            for rel, content in files.items():
+                write(Path(tmp) / rel, content)
+            r = run_script(SCAN, "--repo", tmp)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            return json.loads(r.stdout)
+
+    def test_pubspec_clean_version_is_usable_candidate(self):
+        report = self._scan({"pubspec.yaml":
+                             "name: demo\nversion: 1.2.3\n\ndependencies:\n  flutter:\n    sdk: flutter\n"})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "pubspec.yaml"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "1.2.3")
+        self.assertEqual(cands[0]["type"], "regex")
+        self.assertNotIn("usable", cands[0])
+        self.assertIn("flutter", report["buildSystems"])
+
+    def test_pubspec_build_number_is_advice_only(self):
+        report = self._scan({"pubspec.yaml": "name: demo\nversion: 1.2.3+45\n"})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "pubspec.yaml"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "1.2.3+45")
+        self.assertFalse(cands[0]["usable"])
+        self.assertEqual(cands[0]["advice"], "pubspec-build-number")
+        self.assertIn("dart", report["buildSystems"])  # flutter 의존성 없음
+
+    def test_xcconfig_marketing_version_root_and_ios(self):
+        report = self._scan({
+            "Config.xcconfig": "MARKETING_VERSION = 2.0.1\nCURRENT_PROJECT_VERSION = 77\n",
+            "ios/App.xcconfig": "MARKETING_VERSION = 2.0.1\n"})
+        files = sorted(c["file"] for c in report["versionCandidates"]
+                       if c["file"].endswith(".xcconfig"))
+        self.assertEqual(files, ["Config.xcconfig", "ios/App.xcconfig"])
+        for c in report["versionCandidates"]:
+            if c["file"].endswith(".xcconfig"):
+                self.assertEqual(c["value"], "2.0.1")
+        # CURRENT_PROJECT_VERSION(빌드 번호)은 감지하지 않는다
+        joined = json.dumps(report["versionCandidates"])
+        self.assertNotIn("CURRENT_PROJECT_VERSION", joined)
+
+    def test_android_version_name_conventional_paths(self):
+        report = self._scan({
+            "android/app/build.gradle":
+                'android {\n  defaultConfig {\n    versionCode 45\n    versionName "3.1.0"\n  }\n}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "android/app/build.gradle"]
+        self.assertEqual(len(cands), 1)
+        self.assertEqual(cands[0]["value"], "3.1.0")
+        # versionCode(빌드 번호)는 감지하지 않는다
+        self.assertNotIn("45", json.dumps(report["versionCandidates"]))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -33,6 +33,11 @@ BADGE_VERSION_PATTERN = "badge/version-([0-9][A-Za-z0-9.%-]*)-"
 POM_REVISION_PATTERN = "<revision>([^<]+)</revision>"
 VERSION_FILE_PATTERN = "^(\\S+)\\s*$"
 OPENAPI_YAML_PATTERN = "^[ \\t]+version:\\s*[\"']?([0-9][^\"'\\s#]*)"
+PUBSPEC_VERSION_PATTERN = "^version:\\s*(\\S+)"
+XCCONFIG_MARKETING_PATTERN = "^MARKETING_VERSION\\s*=\\s*(\\S+)"
+ANDROID_VERSION_NAME_PATTERN = "versionName\\s+['\\\"]([^'\\\"]+)['\\\"]"
+ANDROID_GRADLE_PATHS = ("app/build.gradle.kts", "app/build.gradle",
+                        "android/app/build.gradle.kts", "android/app/build.gradle")
 VERSIONISH_RE = re.compile(r"^v?\d[\w.+-]*$")
 OPENAPI_FILES = ("openapi.json", "openapi.yaml", "openapi.yml",
                  "swagger.json", "swagger.yaml", "swagger.yml")
@@ -81,6 +86,9 @@ def scan_build_systems(repo):
         found.append("python")
     if (repo / "Cargo.toml").is_file():
         found.append("rust")
+    text = read(repo / "pubspec.yaml")
+    if text:
+        found.append("flutter" if re.search(r"^\s+flutter:", text, re.M) else "dart")
     return found
 
 
@@ -189,6 +197,32 @@ def scan_version_candidates(repo):
         stripped = text.strip()
         if stripped and "\n" not in stripped and VERSIONISH_RE.match(stripped):
             add("VERSION", "regex", stripped, pattern=VERSION_FILE_PATTERN)
+    text = read(repo / "pubspec.yaml")
+    if text:
+        m = re.search(PUBSPEC_VERSION_PATTERN, text, re.M)
+        if m:
+            if "+" in m.group(1):
+                # build number rides in the version field; version.py set would
+                # rewrite it away, so this is detect-and-advise only
+                add("pubspec.yaml", "regex", m.group(1),
+                    usable=False, advice="pubspec-build-number")
+            else:
+                add("pubspec.yaml", "regex", m.group(1),
+                    pattern=PUBSPEC_VERSION_PATTERN)
+    for cfg_path in sorted(repo.glob("*.xcconfig")) + sorted((repo / "ios").glob("*.xcconfig")):
+        text = read(cfg_path)
+        if text:
+            m = re.search(XCCONFIG_MARKETING_PATTERN, text, re.M)
+            if m:
+                add(cfg_path.relative_to(repo).as_posix(), "regex", m.group(1),
+                    pattern=XCCONFIG_MARKETING_PATTERN)
+    for rel in ANDROID_GRADLE_PATHS:
+        text = read(repo / rel)
+        if text:
+            m = re.search(ANDROID_VERSION_NAME_PATTERN, text)
+            if m:
+                add(rel, "regex", m.group(1),
+                    pattern=ANDROID_VERSION_NAME_PATTERN)
     for name in OPENAPI_FILES:
         text = read(repo / name)
         if not text:

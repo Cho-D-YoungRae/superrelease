@@ -498,7 +498,7 @@ class PipelineTest(unittest.TestCase):
         render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_for_patterns")
         patterns = {n: v for n, v in vars(scan).items()
                     if n.endswith("_PATTERN") and isinstance(v, str)}
-        self.assertGreaterEqual(len(patterns), 9, "패턴 상수 수집 실패")
+        self.assertGreaterEqual(len(patterns), 12, "패턴 상수 수집 실패")
         for name, pattern in sorted(patterns.items()):
             with self.subTest(pattern=name):
                 cfg = scope_config([{"file": "x", "type": "regex",
