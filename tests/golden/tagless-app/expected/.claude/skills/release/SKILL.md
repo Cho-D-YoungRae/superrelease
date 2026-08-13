@@ -16,6 +16,8 @@ status 모드: "릴리스 준비됐는지", "다음 버전 뭐가 될까" 류 �
 
 ## 1. preflight — 모두 통과해야 진행
 
+(항목 번호는 식별용이다 — 설정에 없는 항목은 통째로 사라지므로 결번이 보여도 정상이다.)
+
 1. 현재 브랜치: `git branch --show-current` 결과가 `main` 여야 함
 2. clean working tree: `git status --porcelain` 출력이 비어 있어야 함
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/main --count` 가 0
@@ -75,4 +77,4 @@ status 모드: "릴리스 준비됐는지", "다음 버전 뭐가 될까" 류 �
 
 ## 실패 시
 
-어디까지 진행됐는지(파일 수정 / 커밋 / push / Release)와 각 단계를 되돌리는 방법을 명시하라. 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.
+어디까지 진행됐는지(파일 수정 / 커밋 / push / Release)와 각 단계를 되돌리는 방법을 명시하라. 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차를 안내하라 — npm deprecate · PyPI yank · cargo yank · Go retract(모듈에 retract 지시문 추가 후 새 패치 발행) · 모바일 스토어는 롤백 불가(수정판 롤포워드, 필요시 단계 출시 중단은 콘솔에서) · 데스크톱 업데이터 피드는 직전 정상 버전 재게시 · 컨테이너 릴리스 태그는 재푸시 금지(새 패치 태그로).

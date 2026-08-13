@@ -61,7 +61,7 @@ scope 하나는 대체로 다음 정보를 가진다.
 
 모노레포에서는 이 구조체가 패키지 수만큼 배열로 늘어나고, 단일 레포에서는 배열에 항목이 하나뿐이다.
 
-릴리스 시 "이번에 어떤 scope가 실제로 바뀌었는가"는 anchor 이후 변경된 파일 경로를 각 scope의 `path` 접두사와 대조해서 판별한다 — 이 경로 기반 감지 로직을 담당하는 것이 `changed-packages.py`다.
+릴리스 시 "이번에 어떤 scope가 실제로 바뀌었는가"는 anchor 이후 변경된 파일 경로를 각 scope의 `path` 접두사와 대조해서 판별한다 — scope의 `watchPaths`에 등록된 공유 경로(공용 라이브러리·codegen 소스 등)도 이 대조에 포함되어 해당 scope의 변경으로 집계된다. 이 경로 기반 감지 로직을 담당하는 것이 `changed-packages.py`다.
 
 worked example:
 
@@ -72,13 +72,13 @@ worked example:
 
 ## 노트 설정의 범위
 
-M2에서 릴리스 노트 설정(언어·독자·어조·목적지)은 **전 scope 공통**으로 다룬다 — init은 이를 한 번만 묻고 모든 scope에 같은 값을 적용한다. 배포되는 `notes-package.md` 템플릿은 렌더 시점에 대표 scope의 `notes.language`로 ko/en 블록이 고정되므로, scope마다 다른 언어를 섞는 구성은 M2 범위 밖이다. 릴리스 노트를 실제로 쓸 때는 생성된 release-notes 스킬이 그 scope의 config `notes.*` 값을 다시 확인하도록 지시하므로, 손으로 config를 편집해 scope별 언어를 달리한 경우에도 노트 문체 자체는 그 scope 설정을 따른다(다만 템플릿 스캐폴드의 헤딩 언어는 대표 scope 기준이다).
+릴리스 노트 설정(언어·독자·어조·목적지)을 init은 **기본적으로 전 scope 공통**으로 다룬다 — 흔한 경우를 덮도록 한 번만 묻고 모든 scope에 같은 값을 적용한다. 다만 `notes`는 `preRelease`·`postRelease`와 마찬가지로 config상 **scope 필드**이므로, scope마다 다른 답이 필요하면 그 scope 항목에 각각 기록하면 된다(init SKILL.md 번들 4·5 참고). 배포되는 `notes-package.md` 템플릿은 렌더 시점에 대표 scope의 `notes.language`로 ko/en 블록이 고정되므로, scope별로 언어를 다르게 두면 이 스캐폴드만은 대표 scope 언어로 남는다. 릴리스 노트를 실제로 쓸 때는 생성된 release-notes 스킬이 그 scope의 config `notes.*` 값을 다시 확인하도록 지시하므로, scope별 언어를 달리 기록한 경우에도 노트 문체 자체는 그 scope 설정을 따른다(다만 템플릿 스캐폴드의 헤딩 언어는 대표 scope 기준이다).
 
 ## 지원 현황
 
 fixed / independent 전략, `dependents` 전파, `changed-packages.py` 변경 감지가 지원된다. init이 모노레포를 감지하면 전략을 묻고, independent를 선택하면 scope를 패키지 수만큼 확장한다.
 
-fixed는 단일 scope로 모델링된다 — 모든 패키지의 버전 파일을 root scope의 `versionLocations`에 모아 함께 bump하며, 릴리스 흐름은 단일 레포와 동일하다. independent는 scope별 태그 네임스페이스(`<scope>@{version}`)와 scope 단위 릴리스 흐름(변경 감지 → scope별 bump → scope별 태그 → dependents 전파)을 쓴다.
+fixed는 단일 scope로 모델링된다 — 모든 패키지의 버전 파일을 root scope의 `versionLocations`에 모아 함께 bump하며, 릴리스 흐름은 단일 레포와 동일하다. independent는 scope별 태그 네임스페이스(`<scope>@{version}`)와 scope 단위 릴리스 흐름(변경 감지 → scope별 bump → scope별 태그 → dependents 전파)을 쓴다. fixed에서는 scope가 하나뿐이므로 `dependents` 필드는 의미가 없다 — 기록돼 있어도 무시된다(전파는 independent 전용 개념이다).
 
 이중 체계(dual-system)·release-train은 지원하지 않는다(위 "전략 2종" 참고). 모노레포 backfill은 지원된다 — backfill 스킬이 scope별 태그 네임스페이스(`<scope>@{version}`)를 순회해 `## <scope>@<version>` 항목으로 소급한다(전 scope가 tagless면 render가 거부한다).
 

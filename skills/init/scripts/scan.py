@@ -37,7 +37,7 @@ PUBSPEC_VERSION_PATTERN = "^version:\\s*(\\S+)"
 PUBSPEC_MARKETING_PATTERN = "^version:\\s*(\\d[^+\\s]*)"
 CHART_APP_VERSION_PATTERN = "^appVersion:\\s*[\"']?([^\"'\\s]+)"
 XCCONFIG_MARKETING_PATTERN = "^MARKETING_VERSION\\s*=\\s*(\\S+)"
-ANDROID_VERSION_NAME_PATTERN = "versionName\\s*=?\\s*['\\\"]([^'\\\"]+)['\\\"]"
+ANDROID_VERSION_NAME_PATTERN = "^\\s*versionName\\s*=?\\s*['\\\"]([^'\\\"]+)['\\\"]"
 ANDROID_GRADLE_PATHS = ("app/build.gradle.kts", "app/build.gradle",
                         "android/app/build.gradle.kts", "android/app/build.gradle")
 VERSIONISH_RE = re.compile(r"^v?\d[\w.+-]*$")
@@ -255,7 +255,7 @@ def scan_version_candidates(repo):
     for rel in ANDROID_GRADLE_PATHS:
         text = read(repo / rel)
         if text:
-            m = re.search(ANDROID_VERSION_NAME_PATTERN, text)
+            m = re.search(ANDROID_VERSION_NAME_PATTERN, text, re.M)
             if m:
                 add(rel, "regex", m.group(1),
                     pattern=ANDROID_VERSION_NAME_PATTERN)
@@ -463,7 +463,10 @@ def _python_packages(repo):
             ver_m = re.search(PYPROJECT_VERSION_PATTERN, ptext, re.M)
             deps = set()
             blocks = []
-            dep_m = re.search(r"^dependencies\s*=\s*\[(.*?)\]", ptext, re.M | re.S)
+            proj = re.search(r"^\[project\]\s*$(.*?)(?=^\[|\Z)",
+                             ptext, re.M | re.S)
+            dep_m = re.search(r"^dependencies\s*=\s*\[(.*?)\]",
+                              proj.group(1) if proj else "", re.M | re.S)
             if dep_m:
                 blocks.append(dep_m.group(1))
             opt = re.search(r"^\[project\.optional-dependencies\]\s*$(.*?)(?=^\[|\Z)",
@@ -580,10 +583,14 @@ def scan_monorepo(repo):
                                 if d.is_dir() and (d / "Chart.yaml").is_file())
         if chart_children:
             signals.append("charts/: Chart.yaml children")
+            existing = {p["path"] for p in packages}
             for d in chart_children:
+                rel = d.relative_to(repo).as_posix()
+                if rel in existing:
+                    continue
                 ctext = read(d / "Chart.yaml") or ""
                 m = re.search(CHART_VERSION_PATTERN, ctext, re.M)
-                packages.append({"path": d.relative_to(repo).as_posix(),
+                packages.append({"path": rel,
                                  "name": d.name,
                                  "version": m.group(1) if m else None,
                                  "buildSystem": "helm"})

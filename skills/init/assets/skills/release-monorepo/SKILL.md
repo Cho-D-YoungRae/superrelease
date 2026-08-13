@@ -23,13 +23,15 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 
 ## 1. preflight — 모두 통과해야 진행
 
+(항목 번호는 식별용이다 — 설정에 없는 항목은 통째로 사라지므로 결번이 보여도 정상이다.)
+
 1. 현재 브랜치: `git branch --show-current` 결과가 `{{#if repo.branching == "gitflow"}}{{repo.developBranch}}{{else}}{{repo.defaultBranch}}{{/if}}` 여야 함{{#if repo.branching == "gitflow"}} (gitflow — 릴리스는 통합 브랜치에서 시작한다){{/if}}
 2. clean working tree: `git status --porcelain` 출력이 비어 있어야 함
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/{{#if repo.branching == "gitflow"}}{{repo.developBranch}}{{else}}{{repo.defaultBranch}}{{/if}} --count` 가 0
 4. 전 scope 버전 일치: `python3 .superrelease/scripts/version.py verify` → exit 0
 {{#if github.release}}5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
 {{else}}{{#if repo.releasePath == "release-pr"}}5. gh 인증: `gh auth status` — release-pr 경로는 PR 생성·조회에 gh가 필요하다(실패 시 GitHub MCP 폴백)
-{{/if}}{{/if}}{{#if repo.branching == "gitflow"}}6. 중단 상태 감지 (gitflow): 머지된 최신 릴리스 PR(`gh pr list --state merged --search "head:release/" --json headRefName,mergedAt`)의 후처리가 남아 있으면 이어서 진행하라 — {{#if derived.anyTagEnabled}}① `tag.enabled`인 scope 중 그 라운드 버전의 태그가 없으면 8단계(태그)부터 ② {{/if}}back-merge 누락(`git merge-base --is-ancestor origin/{{repo.defaultBranch}} HEAD` 실패)이면 9단계의 back-merge부터, mutable scope의 파일 버전이 수식어 없는 bare면 9단계의 SNAPSHOT 복귀부터.{{else}}6. scope별 중단 상태: 대상 scope의 파일 버전이 개발 수식어(-SNAPSHOT류 mutable qualifier) 없는 **bare 릴리스 버전**이고 anchor 태그보다 높은데 그 버전의 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라. 태그를 쓰지 않는 scope는 이 검사를 건너뛴다.{{#if repo.releasePath == "release-pr"}} anchor 태그가 **하나도 없는** scope는 파일 버전 기반 감지가 불가능하다 — 머지된 릴리스 PR을 검색해(`gh pr list --state merged --search "head:release/" --json headRefName,mergedAt`) 그 PR에 포함된 scope 중 그 버전의 태그가 없는 scope는 첫 릴리스가 머지 후 태그 전에 중단된 것이니 8단계(태그)부터 이어가라.{{/if}}{{/if}}
+{{/if}}{{/if}}{{#if repo.branching == "gitflow"}}6. 중단 상태 감지 (gitflow): 머지된 최신 릴리스 PR(`gh pr list --state merged --search "head:release/" --json headRefName,mergedAt`)의 후처리가 남아 있으면 이어서 진행하라 — {{#if derived.anyTagEnabled}}① `tag.enabled`인 scope 중 그 라운드 버전의 태그가 없으면 8단계(태그)부터 ② {{/if}}back-merge 누락(`git merge-base --is-ancestor origin/{{repo.defaultBranch}} HEAD` 실패)이면 9단계의 back-merge부터, mutable scope의 파일 버전이 수식어 없는 bare면 9단계의 SNAPSHOT 복귀부터.{{else}}6. scope별 중단 상태: 대상 scope의 파일 버전이 개발 수식어(-SNAPSHOT류 mutable qualifier) 없는 **bare 릴리스 버전**이고 anchor 태그보다 높은데 그 버전의 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라. 태그를 쓰지 않는 scope(config `tag.enabled` false)는 이 검사를 건너뛴다.{{#if repo.releasePath == "release-pr"}} 아직 릴리스 태그가 한 번도 만들어지지 않은 scope(anchor 부재 — tagless 설정과 다르다)는 파일 버전 기반 감지가 불가능하다 — 머지된 릴리스 PR을 검색해(`gh pr list --state merged --search "head:release/" --json headRefName,mergedAt`) 그 PR에 포함된 scope 중 그 버전의 태그가 없는 scope는 첫 릴리스가 머지 후 태그 전에 중단된 것이니 8단계(태그)부터 이어가라.{{/if}}{{/if}}
 {{#if repo.releasePath == "release-pr"}}7. 열린 릴리스 PR 확인: `gh pr list --state open --json headRefName,url` 결과에 `release/`로 시작하는 head 브랜치의 PR이 있으면 이전 릴리스가 머지 대기 중이다 — 새 릴리스를 시작하지 말고 그 PR 상태를 보고하고 멈춰라(머지 후 재개는 6번이 잡는다).
 {{/if}}
 ## 2. scope별 범위 산출
@@ -54,6 +56,7 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 `.claude/skills/release-notes/SKILL.md` 절차로 scope별 초안을 쓰고, 그 scope의 config `notes.destinations`별로 반영하라:
 
 {{#if derived.anyNotesChangelog}}- `changelog`: 루트 CHANGELOG.md 최신 항목으로 `## <scope>@<version>` 삽입 (Unreleased 섹션이 있으면 그 아래)
+{{/if}}{{#if derived.anyNotesPackageChangelog}}- `package-changelog`가 그 scope의 목적지면: 그 scope 경로의 `CHANGELOG.md`(`<scope.path>/CHANGELOG.md`) 최신 항목으로 삽입 — `.superrelease/templates/changelog-entry.md` 골격을 쓰되 헤딩은 scope 파일 안이므로 `## <version>`(루트 CHANGELOG의 `## <scope>@<version>`과 구분). 파일이 없으면 Keep a Changelog 골격으로 신설하라.
 {{/if}}{{#if derived.anyNotesReleaseFile}}- `release-file`: `<notes.perReleasePath><scope>@<version>.md` 파일 생성 (notes.template 사용)
 {{/if}}{{#if derived.anyNotesGithubRelease}}- `github-release`: 8단계 Release 본문으로 사용
 {{/if}}{{#if derived.anyNotesFragment}}- `fragment`가 그 scope의 목적지면: 그 scope 경로의 `changelog.d/*.md` 조각을 category별(`breaking`→Breaking Changes, `feature`→하이라이트·변경, `fix`·`misc`(및 미인식)→변경)로 취합해 노트 소스로 쓰고, 소비한 조각을 릴리스 커밋에서 `git rm`으로 삭제하라(7단계 프리뷰에 명시). fragment는 최소 1개 sink 목적지와 함께 쓰며, bump 결정에는 쓰지 않는다(bump는 커밋·PR 소스 그대로).
@@ -98,4 +101,4 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 {{/unless}}
 ## 실패 시
 
-scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push{{#if derived.anyTagEnabled}} / 태그{{/if}} / Release)와 되돌리는 방법을 명시하라. {{#if derived.anyTagEnabled}}**push된 태그는 되돌리지 않는다** — {{/if}}잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.
+scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push{{#if derived.anyTagEnabled}} / 태그{{/if}} / Release)와 되돌리는 방법을 명시하라. {{#if derived.anyTagEnabled}}**push된 태그는 되돌리지 않는다** — {{/if}}잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차를 안내하라 — npm deprecate · PyPI yank · cargo yank · Go retract(모듈에 retract 지시문 추가 후 새 패치 발행) · 모바일 스토어는 롤백 불가(수정판 롤포워드, 필요시 단계 출시 중단은 콘솔에서) · 데스크톱 업데이터 피드는 직전 정상 버전 재게시 · 컨테이너 릴리스 태그는 재푸시 금지(새 패치 태그로).

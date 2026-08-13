@@ -24,12 +24,14 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 
 ## 1. preflight — 모두 통과해야 진행
 
+(항목 번호는 식별용이다 — 설정에 없는 항목은 통째로 사라지므로 결번이 보여도 정상이다.)
+
 1. 현재 브랜치: `git branch --show-current` 결과가 `main` 여야 함
 2. clean working tree: `git status --porcelain` 출력이 비어 있어야 함
 3. 원격 동기화: `git fetch origin` 후 `git rev-list HEAD..origin/main --count` 가 0
 4. 전 scope 버전 일치: `python3 .superrelease/scripts/version.py verify` → exit 0
 5. gh 인증: `gh auth status` — 실패 시 GitHub MCP 폴백, 둘 다 없으면 제한 모드(태그까지만) 확인
-6. scope별 중단 상태: 대상 scope의 파일 버전이 개발 수식어(-SNAPSHOT류 mutable qualifier) 없는 **bare 릴리스 버전**이고 anchor 태그보다 높은데 그 버전의 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라. 태그를 쓰지 않는 scope는 이 검사를 건너뛴다.
+6. scope별 중단 상태: 대상 scope의 파일 버전이 개발 수식어(-SNAPSHOT류 mutable qualifier) 없는 **bare 릴리스 버전**이고 anchor 태그보다 높은데 그 버전의 태그가 없으면 이전 릴리스가 중단된 것 — resume/rollback 중 선택받아라. 태그를 쓰지 않는 scope(config `tag.enabled` false)는 이 검사를 건너뛴다.
 
 ## 2. scope별 범위 산출
 
@@ -90,4 +92,4 @@ scope별 표준 프리뷰를 보여주고 확인받아라:
 
 ## 실패 시
 
-scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push / 태그 / Release)와 되돌리는 방법을 명시하라. **push된 태그는 되돌리지 않는다** — 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차(npm deprecate, PyPI yank 등)를 안내하라.
+scope 단위로 어디까지 진행됐는지(파일 수정 / 커밋 / push / 태그 / Release)와 되돌리는 방법을 명시하라. **push된 태그는 되돌리지 않는다** — 잘못 나간 버전은 다음 패치로 덮고, 배포물 회수는 생태계 절차를 안내하라 — npm deprecate · PyPI yank · cargo yank · Go retract(모듈에 retract 지시문 추가 후 새 패치 발행) · 모바일 스토어는 롤백 불가(수정판 롤포워드, 필요시 단계 출시 중단은 콘솔에서) · 데스크톱 업데이터 피드는 직전 정상 버전 재게시 · 컨테이너 릴리스 태그는 재푸시 금지(새 패치 태그로).

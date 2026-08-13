@@ -648,6 +648,18 @@ class MonorepoAssetsTest(unittest.TestCase):
                          .read_text(encoding="utf-8"))
         self.assertLessEqual(len(out.splitlines()), 149)
 
+    def test_release_monorepo_package_changelog_gate(self):
+        # B-10: package-changelog는 쓰는 config에서만 §5에 렌더된다.
+        pc_ctx = mono_ctx()
+        for s in pc_ctx["scopes"]:
+            s["notes"]["destinations"] = ["package-changelog", "github-release"]
+        pc_ctx["derived"] = render.derived_flags(pc_ctx["scopes"])
+        out = self.render_asset("skills/release-monorepo/SKILL.md", pc_ctx)
+        self.assertIn("`package-changelog`가 그 scope의 목적지면", out)
+
+        default_out = self.render_asset("skills/release-monorepo/SKILL.md")
+        self.assertNotIn("package-changelog", default_out)
+
     def test_release_monorepo_gates_unused_notes_destinations(self):
         # 어느 scope도 쓰지 않는 목적지 줄은 렌더되지 않는다 — 종전엔 4개가
         # 무조건 나열돼 사용자가 자기 설정에 없는 지시까지 읽었다.

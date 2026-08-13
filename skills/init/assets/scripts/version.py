@@ -169,6 +169,32 @@ def sync_package_lock(pkg_path, new_version):
         print("package-lock.json: synced to " + new_version)
 
 
+def sync_cargo_lock(toml_path, new_version):
+    """Mirror of sync_package_lock for Cargo: rewrite only this package's
+    [[package]] entry in the sibling Cargo.lock (cargo's generated layout
+    keeps name/version on adjacent lines). Dependency entries are never
+    touched; missing lock or missing entry is a quiet no-op."""
+    lock = toml_path.parent / "Cargo.lock"
+    if not lock.is_file():
+        return
+    ttext, _ = read_text_preserving(toml_path)
+    sec = re.search(r"^\[package\]\s*$(.*?)(?=^\[|\Z)", ttext, re.M | re.S)
+    name_m = re.search(r"^name\s*=\s*\"([^\"]+)\"", sec.group(1), re.M) \
+        if sec else None
+    if not name_m:
+        return
+    text, crlf = read_text_preserving(lock)
+    pat = re.compile(r"(\[\[package\]\]\s*\nname = \""
+                     + re.escape(name_m.group(1))
+                     + r"\"\s*\nversion = \")([^\"]+)(\")")
+    if not pat.search(text):
+        return
+    text = pat.sub(lambda m: m.group(1) + new_version + m.group(3), text,
+                   count=1)
+    write_text_preserving(lock, text, crlf)
+    print("Cargo.lock: synced to " + new_version)
+
+
 def set_location(scope, loc, new_version):
     path = loc_path(scope, loc)
     if not path.is_file():
@@ -227,6 +253,8 @@ def set_location(scope, loc, new_version):
         for m in reversed(matches):
             text = text[:m.start(1)] + new_version + text[m.end(1):]
         write_text_preserving(path, text, crlf)
+        if path.name == "Cargo.toml":
+            sync_cargo_lock(path, new_version)
         return old
     fail("unknown location type: " + str(t), 2)
 

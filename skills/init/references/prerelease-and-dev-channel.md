@@ -86,7 +86,7 @@ init은 pyproject.toml이 버전 후보에 있으면 번들 4에서 이 한계�
 
 **M1에서 `devChannel`은 값을 기록하고 관련 스니펫을 안내하는 역할만 한다** — dev 배포 자체를 자동화하는 것은 CI의 몫이므로 스킬이 대신 실행하지 않는다.
 
-`immutableId` 목록의 각 값은 위에서 소개한 방식과 대응한다 — `spring-build-info`는 Spring의 `buildInfo()` + git.properties 조합을, `docker-sha-tag`는 Docker의 `sha-{shortSha}` 병기 방식을 가리킨다.
+`immutableId` 목록의 각 값은 위에서 소개한 방식과 대응한다 — `spring-build-info`는 Spring의 `buildInfo()` + git.properties 조합을, `docker-sha-tag`는 Docker의 `sha-{shortSha}` 병기 방식을 가리킨다. 정적 웹/SPA라면 불변 식별자는 빌드 해시가 담긴 산출물 파일명(`app.3f2a1c.js`)이나 빌드 시 주입되는 `<meta name="build">` 값이 같은 역할을 한다 — 별도 방식 이름은 없지만 config에는 자유 문자열로 기록해도 된다.
 
 이 세 필드는 서로 맞물려 동작한다. 예를 들어 `devChannel.qualifier`가 `SNAPSHOT`이고 `postRelease.bump`가 `next-snapshot`이면, 릴리스 직후 되돌아가는 개발 버전 문자열과 dev 채널이 계속 덮어쓰는 문자열이 같아진다.
 

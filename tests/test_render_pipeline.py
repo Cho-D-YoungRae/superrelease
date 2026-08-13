@@ -272,6 +272,22 @@ class PipelineTest(unittest.TestCase):
         r = self.render()
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_package_changelog_requires_independent(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_pc")
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["notes"]["destinations"] = ["package-changelog",
+                                                     "github-release"]
+        problems = render_mod.validate_config(cfg)
+        self.assertTrue(any('"package-changelog" requires monorepoStrategy '
+                            '"independent"' in p for p in problems), problems)
+
+    def test_package_changelog_accepted_on_independent(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_pc2")
+        cfg = monorepo_config()
+        for s in cfg["scopes"]:
+            s["notes"]["destinations"] = ["package-changelog", "github-release"]
+        self.assertEqual(render_mod.validate_config(cfg), [])
+
     def test_release_path_typo_rejected(self):
         # 커버리지 검토 P0 재현: "release_pr" 오타가 침묵 통과해
         # release-pr flavor 스킬 + 미렌더 release-pr-body.md 참조를 만들었다
@@ -678,6 +694,24 @@ class PipelineTest(unittest.TestCase):
                 cfg = scope_config([{"file": "x", "type": "regex",
                                      "pattern": "v(1)"}])
                 cfg["repo"]["buildNumber"] = bn
+                self.assertEqual(render_mod.validate_config(cfg), [])
+
+    def test_watch_paths_rejects_non_string_list(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_wp")
+        cfg = scope_config([{"file": "x", "type": "regex", "pattern": "v(1)"}])
+        cfg["scopes"][0]["watchPaths"] = ["shared/", 7]
+        problems = render_mod.validate_config(cfg)
+        self.assertTrue(any("watchPaths must be a list of non-empty strings"
+                            in p for p in problems), problems)
+
+    def test_watch_paths_absent_and_valid_pass(self):
+        render_mod = load_module(PLUGIN_SCRIPTS / "render.py", "render_wp2")
+        for wp in (None, [], ["shared/"]):
+            with self.subTest(watchPaths=wp):
+                cfg = scope_config([{"file": "x", "type": "regex",
+                                     "pattern": "v(1)"}])
+                if wp is not None:
+                    cfg["scopes"][0]["watchPaths"] = wp
                 self.assertEqual(render_mod.validate_config(cfg), [])
 
     def test_missing_required_fields_say_required_not_got_none(self):

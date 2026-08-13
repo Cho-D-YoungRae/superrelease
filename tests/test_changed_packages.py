@@ -145,6 +145,44 @@ class ChangedPackagesTest(unittest.TestCase):
         self.assertIn("packages/a/util.js", by["a"]["changed"])
         self.assertTrue(by["b"]["hasChanges"])
 
+    def test_watch_paths_pull_shared_changes_into_scope(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = make_git_repo(tmp.name, files={
+            "packages/a/package.json": PKG_A,
+            "packages/b/package.json": PKG_B,
+            "shared/util.js": "x\n",
+        }, commits=["feat: init"], tags=["a@0.1.0", "b@0.1.0"])
+        cfg = monorepo_config()
+        cfg["scopes"][0]["watchPaths"] = ["shared/"]
+        make_repo(repo, cfg, {})
+        write(repo / "shared" / "util.js", "y\n")
+        g(repo, "add", "-A")
+        g(repo, "commit", "-q", "-m", "fix: shared util")
+        r = run_script(repo / ".superrelease" / "scripts" / "changed-packages.py",
+                       "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        scopes = {s["name"]: s for s in json.loads(r.stdout)["scopes"]}
+        self.assertTrue(scopes["a"]["hasChanges"])   # watchPaths로 포착
+        self.assertFalse(scopes["b"]["hasChanges"])  # watch 없음 — 불변
+
+    def test_watch_paths_included_on_first_release_listing(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = make_git_repo(tmp.name, files={
+            "packages/a/package.json": PKG_A,
+            "packages/b/package.json": PKG_B,
+            "shared/util.js": "x\n",
+        }, commits=["feat: init"])  # 태그 없음 — anchor 부재
+        cfg = monorepo_config()
+        cfg["scopes"][0]["watchPaths"] = ["shared/"]
+        make_repo(repo, cfg, {})
+        r = run_script(repo / ".superrelease" / "scripts" / "changed-packages.py",
+                       "--json")
+        scopes = {s["name"]: s for s in json.loads(r.stdout)["scopes"]}
+        self.assertIn("shared/util.js", scopes["a"]["changed"])
+        self.assertNotIn("shared/util.js", scopes["b"]["changed"])
+
     def test_enabled_key_omitted_treated_as_tagged(self):
         cfg = monorepo_config()
         for s in cfg["scopes"]:

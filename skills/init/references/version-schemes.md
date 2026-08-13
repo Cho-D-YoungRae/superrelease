@@ -47,6 +47,8 @@ pre-release 식별자끼리도 순서가 있다. 점(`.`)으로 구분된 필드
 
 **PEP 440 비호환 주의**: superrelease의 버전 산술(next-version.py)은 SemVer 문법 전용이다. Python PEP 440 고유 형식 — `1.2.0.dev0`(점 구분 dev), `1.2.0.post0`, epoch(`1!2.0.0`), 정규형 pre-release(`1.2.0rc1` — 구분자 없음) — 은 파싱하지 못하고 exit 1로 거부한다. Python 프로젝트의 권장 운용은 `prerelease-and-dev-channel.md`의 해당 절을 참고하라.
 
+Go 모듈은 v2부터 메이저 승급이 module path 개정(`module example.com/x/v2`)을 수반한다 — superrelease는 버전 파일과 태그만 관리하므로 path 개정은 수동 몫이다(go.mod 수정과 import 경로 갱신을 릴리스 전에 끝내라).
+
 참고: [semver.org](https://semver.org/), [github.com/semver/semver](https://github.com/semver/semver)
 
 ## CalVer

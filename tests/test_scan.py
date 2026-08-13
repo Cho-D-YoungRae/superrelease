@@ -807,5 +807,38 @@ class ReleaseAutomationScanTest(unittest.TestCase):
                          {"tools": [], "ciWorkflows": []})
 
 
+class ScanRefinementTest(unittest.TestCase):
+    def test_python_deps_scoped_to_project_table(self):
+        # [tool.x] 테이블의 행-시작 dependencies 배열을 오탐하지 않는다.
+        report = scan_tmp(self, {
+            "pyproject.toml":
+                '[project]\nname = "root"\nversion = "0.0.0"\n\n'
+                '[tool.uv.workspace]\nmembers = ["packages/*"]\n',
+            "packages/api/pyproject.toml":
+                '[project]\nname = "demo-api"\nversion = "1.0.0"\n\n'
+                '[tool.custom]\ndependencies = ["demo-core"]\n',
+            "packages/core/pyproject.toml":
+                '[project]\nname = "demo-core"\nversion = "1.0.0"\n'})
+        self.assertEqual(report["monorepo"]["internalDependencies"], [])
+
+    def test_charts_child_that_is_node_package_not_duplicated(self):
+        report = scan_tmp(self, {
+            "pnpm-workspace.yaml": 'packages:\n  - "charts/*"\n',
+            "charts/web/package.json": '{"name": "web", "version": "1.0.0"}\n',
+            "charts/web/Chart.yaml": "apiVersion: v2\nname: web\nversion: 0.1.0\n"})
+        paths = [p["path"] for p in report["monorepo"]["packages"]]
+        self.assertEqual(paths.count("charts/web"), 1)
+
+    def test_commented_version_name_not_matched(self):
+        report = scan_tmp(self, {
+            "app/build.gradle":
+                'android {\n  defaultConfig {\n'
+                '    // versionName "9.9.9"\n'
+                '    versionName "3.1.0"\n  }\n}\n'})
+        cands = [c for c in report["versionCandidates"]
+                 if c["file"] == "app/build.gradle"]
+        self.assertEqual(cands[0]["value"], "3.1.0")
+
+
 if __name__ == "__main__":
     unittest.main()
