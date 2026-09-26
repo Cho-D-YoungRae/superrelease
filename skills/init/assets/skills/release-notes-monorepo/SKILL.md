@@ -10,7 +10,7 @@ description: {{project.name}} 모노레포의 패키지별 릴리스 노트 초�
 ## 절차
 
 1. 대상 scope 확정: 사용자가 지정하지 않았으면 `python3 .superrelease/scripts/changed-packages.py --json`으로 변경 있는 scope를 보여주고 선택받아라.
-2. 범위 산출: 그 scope의 anchor(changed-packages 출력)..HEAD에서 `-- <scope.path>` 커밋만.
+2. 범위 산출: 그 scope의 anchor(changed-packages 출력)..HEAD에서 `-- <scope.path>` 커밋만{{#if derived.anyWatchPaths}}(그 scope에 `watchPaths`가 있으면 `-- <scope.path> <watchPaths…>` — changed-packages와 같은 집계 기준){{/if}}.
 3. 소스 수집:
    - {{#if repo.mergePolicy == "squash"}}squash 레포: **PR 메타데이터가 1차 소스** — 커밋 제목의 `(#N)`으로 PR 번호를 얻고 `gh pr view <N> --json title,body,labels,closingIssuesReferences`로 읽어라. 커밋 메시지는 보조.{{else}}커밋 메시지(Conventional Commits)가 1차 소스, PR 메타데이터는 보조.{{/if}}
    - diff는 변경 의도가 모호할 때만 확인하라 (토큰 비용 유의).
