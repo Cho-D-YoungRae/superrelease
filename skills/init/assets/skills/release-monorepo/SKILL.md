@@ -38,7 +38,8 @@ status 모드: "릴리스 준비됐는지", "어떤 패키지 바뀌었어" 류 
 
 {{#if repo.branching == "gitflow"}}- 범위 기준은 `origin/{{repo.defaultBranch}}`다 — scope별 anchor 태그를 쓰지 않는다.
 - 수집: `git log origin/{{repo.defaultBranch}}..HEAD --pretty=format:"%h %s" -- <scope.path>`{{else}}- anchor는 changed-packages 출력의 값(그 scope 태그 포맷의 최신 태그). anchor가 없으면 **첫 릴리스** — 커밋을 나열하지 말고 "Initial release"로 다뤄라.
-- 수집: `git log <anchor>..HEAD --pretty=format:"%h %s" -- <scope.path>`{{/if}}{{#if repo.mergePolicy == "squash"}} — squash 레포이므로 커밋 제목의 `(#N)`으로 PR을 역참조하고 PR 메타데이터를 1차 소스로 써라{{/if}}
+- 수집: `git log <anchor>..HEAD --pretty=format:"%h %s" -- <scope.path>`{{/if}}{{#if repo.mergePolicy == "squash"}} — squash 레포이므로 커밋 제목의 `(#N)`으로 PR을 역참조하고 PR 메타데이터를 1차 소스로 써라{{/if}}{{#if derived.anyWatchPaths}}
+- watchPaths: 그 scope의 config에 `watchPaths`가 있으면 수집 pathspec에 그 경로들을 더하라(`-- <scope.path> <watchPaths…>`) — changed-packages가 같은 기준으로 변경을 집계하므로, 빠뜨리면 공유 경로만 바뀐 scope가 "변경 있음"인데 커밋 0건이 된다.{{/if}}
 
 ## 3. scope별 bump 제안
 

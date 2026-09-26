@@ -39,7 +39,7 @@ description: {{project.name}} 프로젝트의 CHANGELOG를 과거 태그 이력�
 위 §1~§4를 **각 scope마다** 반복하되 다음을 그 scope 값으로 바꾼다:
 
 - §1 태그 필터: 그 scope의 config `tag.format`(`<scope>@{version}` 네임스페이스)에 맞는 태그만. `tag.enabled`가 false인 scope는 순회할 태그가 없으므로 **"태그 없음 — 건너뜀"으로 skip**한다.
-- §3 커밋 수집: `git log <A>..<B> --pretty=format:"%h %s" -- <scope.path>`로 그 scope 경로 아래 커밋만.
+- §3 커밋 수집: `git log <A>..<B> --pretty=format:"%h %s" -- <scope.path>`로 그 scope 경로 아래 커밋만{{#if derived.anyWatchPaths}}(그 scope에 `watchPaths`가 있으면 `-- <scope.path> <watchPaths…>` — 릴리스의 변경 집계와 같은 기준){{/if}}.
 - §3 헤더: `## <scope>@<version>`(bare, `<version>`은 태그 B 버전). 언어·어조는 그 scope의 `notes`를 따른다.
 - §2 멱등: CHANGELOG에서 그 `<scope>@<version>` 항목이 이미 있으면 그 구간을 건너뛴다.
 

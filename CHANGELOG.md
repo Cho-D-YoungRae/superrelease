@@ -43,11 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   함께 한다. 값을 올리는 실행은 하지 않는다 — CI 몫. flutter-app 골든으로
   핀(대표 config 33종).
 - **Cargo.lock 동기화** — Rust 레포에서 `version.py set`이 `Cargo.lock`의
-  자기 패키지 항목을 함께 갱신한다(의존성 항목 불변). 릴리스 커밋에 구버전
-  lockfile이 박제되던 문제 해소.
-- **scope별 watchPaths** — 공유 경로(공용 라이브러리·codegen 소스)의 변경을
-  지정한 scope의 변경으로 집계한다. 전 모듈에 영향을 주는 변경이 릴리스
-  감지에서 누락되던 축 해소.
+  자기 패키지 항목을 함께 갱신한다(의존성 항목 불변 — 같은 이름의 레지스트리
+  항목(semver trick)도 건드리지 않는다). 릴리스 커밋에 구버전 lockfile이
+  박제되던 문제 해소.
+- **scope별 watchPaths** — 공유 경로(공용 라이브러리·codegen 소스 디렉터리나
+  루트 tsconfig 같은 단일 파일)의 변경을 지정한 scope의 변경으로 집계하고,
+  bump·노트·backfill의 커밋 수집에도 같은 경로를 포함한다. 전 모듈에 영향을
+  주는 변경이 릴리스 감지에서 누락되던 축 해소.
 - **per-package CHANGELOG 목적지** — independent 모노레포에서
   `package-changelog` 목적지로 각 패키지 경로의 CHANGELOG.md에 표준
   Keep a Changelog 헤딩(`## <version>`)으로 이력을 쌓을 수 있다

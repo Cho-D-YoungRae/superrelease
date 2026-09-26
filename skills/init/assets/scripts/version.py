@@ -173,7 +173,9 @@ def sync_cargo_lock(toml_path, new_version):
     """Mirror of sync_package_lock for Cargo: rewrite only this package's
     [[package]] entry in the sibling Cargo.lock (cargo's generated layout
     keeps name/version on adjacent lines). Dependency entries are never
-    touched; missing lock or missing entry is a quiet no-op."""
+    touched — a local entry has no `source` line, so a registry/git entry of
+    the same name (e.g. the semver trick) is skipped; missing lock or missing
+    entry is a quiet no-op."""
     lock = toml_path.parent / "Cargo.lock"
     if not lock.is_file():
         return
@@ -186,7 +188,7 @@ def sync_cargo_lock(toml_path, new_version):
     text, crlf = read_text_preserving(lock)
     pat = re.compile(r"(\[\[package\]\]\s*\nname = \""
                      + re.escape(name_m.group(1))
-                     + r"\"\s*\nversion = \")([^\"]+)(\")")
+                     + r"\"\s*\nversion = \")([^\"]+)(\")(?!\nsource\s*=)")
     if not pat.search(text):
         return
     text = pat.sub(lambda m: m.group(1) + new_version + m.group(3), text,

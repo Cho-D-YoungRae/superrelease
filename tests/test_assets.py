@@ -660,6 +660,24 @@ class MonorepoAssetsTest(unittest.TestCase):
         default_out = self.render_asset("skills/release-monorepo/SKILL.md")
         self.assertNotIn("package-changelog", default_out)
 
+    def test_monorepo_commit_collection_includes_watch_paths(self):
+        # B-11 후속: changed-packages가 watchPaths 변경을 scope 변경으로
+        # 집계하면, bump·노트·backfill의 커밋 수집도 같은 pathspec을 써야
+        # 한다 — 아니면 "변경 있음"인데 커밋 0건. 안 쓰는 config에선 0바이트.
+        wp_ctx = mono_ctx()
+        wp_ctx["scopes"][0]["watchPaths"] = ["shared/"]
+        wp_ctx["derived"] = render.derived_flags(wp_ctx["scopes"])
+        self.assertTrue(wp_ctx["derived"]["anyWatchPaths"])
+        for asset in ("skills/release-monorepo/SKILL.md",
+                      "skills/release-notes-monorepo/SKILL.md",
+                      "skills/backfill/SKILL.md"):
+            with self.subTest(asset=asset):
+                out = self.render_asset(asset, wp_ctx)
+                self.assertIn("-- <scope.path> <watchPaths…>", out)
+                self.assertNotIn("{{", out)
+                default_out = self.render_asset(asset, mono_ctx())
+                self.assertNotIn("watchPaths", default_out)
+
     def test_release_monorepo_gates_unused_notes_destinations(self):
         # 어느 scope도 쓰지 않는 목적지 줄은 렌더되지 않는다 — 종전엔 4개가
         # 무조건 나열돼 사용자가 자기 설정에 없는 지시까지 읽었다.

@@ -494,6 +494,9 @@ def derived_flags(scopes):
         "anyNotesGithubRelease": any_dest("github-release"),
         "anyNotesFragment": any_dest("fragment"),
         "anyNotesPackageChangelog": any_dest("package-changelog"),
+        # changed-packages counts watchPaths changes for a scope, so commit
+        # collection prose must widen its pathspec the same way.
+        "anyWatchPaths": any(s.get("watchPaths") for s in scopes),
     }
 
 
