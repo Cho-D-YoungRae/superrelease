@@ -348,6 +348,22 @@ class CargoLockSyncTest(unittest.TestCase):
         self.assertNotIn("synced", r.stdout)
         self.assertIn('version = "1.0.200"', (repo / "Cargo.lock").read_text())
 
+    def test_set_skips_same_name_registry_entry(self):
+        # semver trick: 로컬 demo-cli 1.2.0이 레지스트리의 demo-cli 0.9.1에
+        # 의존하면 lock에 동명 항목이 둘이고, 정렬상 레지스트리 항목이 먼저 온다.
+        # 자기 항목(source 줄 없음)만 고치고 레지스트리 항목은 건드리지 않는다.
+        registry = ('[[package]]\nname = "demo-cli"\nversion = "0.9.1"\n'
+                    'source = "registry+https://github.com/rust-lang/'
+                    'crates.io-index"\nchecksum = "abc123"\n\n')
+        lock = CARGO_LOCK.replace("version = 3\n\n", "version = 3\n\n" + registry)
+        repo, vp = self._repo({"Cargo.toml": CARGO_TOML, "Cargo.lock": lock})
+        r = run_script(vp, "set", "1.3.0", cwd=repo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Cargo.lock: synced to 1.3.0", r.stdout)
+        text = (repo / "Cargo.lock").read_text()
+        self.assertIn('name = "demo-cli"\nversion = "0.9.1"\nsource = ', text)
+        self.assertIn('name = "demo-cli"\nversion = "1.3.0"\ndependencies', text)
+
 
 if __name__ == "__main__":
     unittest.main()

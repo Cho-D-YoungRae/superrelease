@@ -183,6 +183,43 @@ class ChangedPackagesTest(unittest.TestCase):
         self.assertIn("shared/util.js", scopes["a"]["changed"])
         self.assertNotIn("shared/util.js", scopes["b"]["changed"])
 
+    def test_watch_paths_accept_files_and_bare_directories(self):
+        # watchPaths는 디렉터리뿐 아니라 단일 파일(루트 tsconfig·lockfile 등)도
+        # 가리킨다 — 종전엔 항목 끝에 "/"를 붙여 파일 항목이 조용히 무시됐다.
+        # 슬래시 없는 디렉터리 항목은 이름이 같은 접두의 형제(shared-extra/)를
+        # 끌어오지 않는다.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = make_git_repo(tmp.name, files={
+            "packages/a/package.json": PKG_A,
+            "packages/b/package.json": PKG_B,
+            "tsconfig.base.json": "{}\n",
+            "shared/util.js": "x\n",
+            "shared-extra/x.js": "x\n",
+        }, commits=["feat: init"], tags=["a@0.1.0", "b@0.1.0"])
+        cfg = monorepo_config()
+        cfg["scopes"][0]["watchPaths"] = ["tsconfig.base.json"]
+        cfg["scopes"][1]["watchPaths"] = ["shared"]
+        make_repo(repo, cfg, {})
+        write(repo / "tsconfig.base.json", '{"strict": true}\n')
+        write(repo / "shared-extra" / "x.js", "y\n")
+        g(repo, "add", "-A")
+        g(repo, "commit", "-q", "-m", "chore: tsconfig + extra")
+        r = run_script(repo / ".superrelease" / "scripts" / "changed-packages.py",
+                       "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        scopes = {s["name"]: s for s in json.loads(r.stdout)["scopes"]}
+        self.assertEqual(scopes["a"]["changed"], ["tsconfig.base.json"])
+        self.assertFalse(scopes["b"]["hasChanges"])  # shared-extra/는 shared 아님
+
+        write(repo / "shared" / "util.js", "y\n")
+        g(repo, "add", "-A")
+        g(repo, "commit", "-q", "-m", "fix: shared util")
+        r = run_script(repo / ".superrelease" / "scripts" / "changed-packages.py",
+                       "--json")
+        scopes = {s["name"]: s for s in json.loads(r.stdout)["scopes"]}
+        self.assertEqual(scopes["b"]["changed"], ["shared/util.js"])
+
     def test_enabled_key_omitted_treated_as_tagged(self):
         cfg = monorepo_config()
         for s in cfg["scopes"]:

@@ -5,8 +5,8 @@ For each scope in .superrelease/config.json (this file must live in
 .superrelease/scripts/), resolve the anchor — the latest tag matching the
 scope's tag format, the configured anchor ref, or none (first release) —
 then diff anchor..HEAD and keep files under the scope's path prefix or
-under any of its optional watchPaths (shared paths outside the scope whose
-changes still count as that scope's changes).
+under any of its optional watchPaths (shared directories or files outside
+the scope whose changes still count as that scope's changes).
 Pass --ref to override the anchor for every scope.
 Exit codes: 0 success / 2 usage, config or git error.
 """
@@ -82,8 +82,10 @@ def resolve_anchor(scope, ref):
 def changed_for(scope, ref):
     anchor, kind = resolve_anchor(scope, ref)
     prefix = path_prefix(scope.get("path"))
-    watch = [p for p in (path_prefix(w) for w in scope.get("watchPaths") or [])
-             if p]
+    # a watchPaths entry names a directory or a single file (root tsconfig,
+    # lockfile) — match it exactly or as a directory, never as a bare prefix
+    watch = [w for w in (w.strip("/") for w in scope.get("watchPaths") or [])
+             if w not in ("", ".")]
     if anchor:
         out = git("diff", "--name-only", "--no-renames", anchor + "..HEAD")
     else:
@@ -91,8 +93,8 @@ def changed_for(scope, ref):
                   *(scope.get("watchPaths") or []))
     files = [f for f in out.splitlines() if f.strip()]
     if prefix:
-        prefixes = [prefix] + watch
-        files = [f for f in files if any(f.startswith(p) for p in prefixes)]
+        files = [f for f in files if f.startswith(prefix) or any(
+            f == w or f.startswith(w + "/") for w in watch)]
     return {"name": scope.get("name"), "path": scope.get("path"),
             "anchor": anchor, "anchorType": kind,
             "hasChanges": bool(files), "changedCount": len(files),
