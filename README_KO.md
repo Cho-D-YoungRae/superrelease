@@ -286,7 +286,7 @@ workspace 멤버, `pom.xml`의 `<modules>` 힌트, scoped 태그(`pkg@1.2.3` —
 | `repo.buildNumber` | `ci` \| `manual` \| null | 모바일 빌드 번호 축의 관리 방식 기록(기본 null — 비모바일). superrelease는 값을 올리지 않음 |
 | `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver는 `preRelease.style: none` + `postRelease.bump: none` + `scheme.pattern` 필요 |
 | `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N`; `postRelease.bump: next-snapshot`은 `mutable` + qualifier 필요 |
-| `scopes[].watchPaths` | 경로 문자열 배열 | 선택; 이 경로들의 변경도 그 scope의 변경으로 집계(공유 코드·codegen 소스). independent 모노레포용 |
+| `scopes[].watchPaths` | 경로 문자열 배열(디렉터리 또는 파일) | 선택; 이 경로들의 변경도 그 scope의 변경으로 집계하고(공유 코드·codegen 소스) bump·노트의 커밋 수집에도 포함. independent 모노레포용 |
 | `scopes[].tag.enabled` | 명시적 boolean | 필수; `github.release: true`면 true여야 함; `movingMajorTag`는 semver 전용이며 independent 전략에서 거부 |
 | `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` \| `package-changelog` | `fragment`는 다른 목적지 1개 이상을 sink로 필요; `release-file`은 `notes.perReleasePath` 필수; `package-changelog`는 independent 모노레포 전용(scope 경로의 CHANGELOG.md) |
 | `scopes[].notes.language` | `ko` \| `en` \| `both` | 필수; 닫힌 집합(오타 거부) |

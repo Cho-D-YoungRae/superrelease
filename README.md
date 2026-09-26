@@ -292,7 +292,7 @@ and re-running init is the official customization path.
 | `repo.buildNumber` | `ci` \| `manual` \| null | records how the mobile build-number axis is managed (default null — non-mobile). superrelease never bumps it |
 | `scopes[].scheme.type` | `semver` \| `calver` \| `headver` | calver/headver require `preRelease.style: none` + `postRelease.bump: none` + a `scheme.pattern` |
 | `scopes[].preRelease.style` | `none` \| `mutable` \| `counter` | mutable = `-SNAPSHOT`; counter = `-rc.N`; `postRelease.bump: next-snapshot` needs `mutable` + a qualifier |
-| `scopes[].watchPaths` | array of path strings | optional; changes under these paths also count as changes for that scope (shared code, codegen sources). For independent monorepos |
+| `scopes[].watchPaths` | array of path strings (directories or files) | optional; changes under these paths also count as changes for that scope (shared code, codegen sources) and are included in its commit collection for bump and notes. For independent monorepos |
 | `scopes[].tag.enabled` | explicit boolean | required; `github.release: true` needs it true; `movingMajorTag` is semver-only and rejected under the independent strategy |
 | `scopes[].notes.destinations` | `changelog` \| `release-file` \| `github-release` \| `fragment` \| `package-changelog` | `fragment` needs at least one other destination as a sink; `release-file` requires `notes.perReleasePath`; `package-changelog` is independent-monorepo-only (a CHANGELOG.md under the scope path) |
 | `scopes[].notes.language` | `ko` \| `en` \| `both` | required; closed set (typos rejected) |
