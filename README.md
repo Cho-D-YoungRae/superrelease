@@ -1,5 +1,15 @@
 # superrelease
 
+> [!IMPORTANT]
+> **This repository is archived and no longer updated.** superrelease moved to [Cho-D-YoungRae/superkit](https://github.com/Cho-D-YoungRae/superkit/tree/main/plugins/superrelease), with its full commit history.
+>
+> Install it from the superkit marketplace. If you added this repository as a marketplace before, remove it first (`/plugin marketplace remove superrelease`).
+>
+> ```
+> /plugin marketplace add Cho-D-YoungRae/superkit
+> /plugin install superrelease@superkit
+> ```
+
 > 한국어 문서: [README_KO.md](README_KO.md)
 
 **One fat `init`, a lean per-project release toolkit.**

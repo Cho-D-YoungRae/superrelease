@@ -1,5 +1,15 @@
 # superrelease
 
+> [!IMPORTANT]
+> **이 저장소는 보관(archive)되어 더 이상 갱신되지 않습니다.** superrelease는 [Cho-D-YoungRae/superkit](https://github.com/Cho-D-YoungRae/superkit/tree/main/plugins/superrelease)으로 옮겼고, 이 저장소의 커밋 이력도 그대로 그곳에 있습니다.
+>
+> 설치는 superkit 마켓플레이스에서 합니다. 예전에 이 저장소를 마켓플레이스로 추가했다면 먼저 지웁니다(`/plugin marketplace remove superrelease`).
+>
+> ```
+> /plugin marketplace add Cho-D-YoungRae/superkit
+> /plugin install superrelease@superkit
+> ```
+
 > English: [README.md](README.md)
 
 **무거운 `init` 하나, 프로젝트 전용의 가벼운 릴리스 툴킷.**
